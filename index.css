@@ -786,9 +786,9 @@ footer {
     .nav-links { display: none; }
     
     .hero.full-screen {
-        padding-top: 120px; /* Push content down to avoid overlap with logo/navbar */
+        padding-top: 180px; /* Significantly push content down to avoid logo overlap */
         padding-bottom: 60px;
-        align-items: flex-start; /* Better control with padding */
+        align-items: flex-start;
         text-align: center;
         min-height: 80vh;
     }
@@ -808,6 +808,7 @@ footer {
     .hero-subline p {
         font-size: 1.15rem;
         margin: 0 auto;
+        opacity: 0.9;
     }
 
     .btn-group {
@@ -815,8 +816,12 @@ footer {
         flex-direction: column;
         gap: 15px;
         width: 100%;
-        max-width: 400px;
-        margin: 30px auto 0;
+        max-width: 300px;
+        margin: 40px auto 0;
+    }
+
+    .btn-group .btn-primary {
+        display: none; /* Hide 'Get Started' button on mobile to save vertical space/clarity */
     }
 
     .btn-group .btn {
