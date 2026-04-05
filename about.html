@@ -7,6 +7,7 @@
     <link rel="icon" type="image/png" href="assets/favicon.png">
     <link rel="stylesheet" href="index.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="translations.js"></script>
 </head>
 <body>
     <div class="bg-glow"></div>
@@ -19,42 +20,42 @@
                 Transit<span>Flow</span>
             </a>
             <ul class="nav-links">
-                <li><a href="index.html#features">Функции</a></li>
-                <li><a href="index.html#pricing">Цени</a></li>
-                <li><a href="index.html#contact">Контакти</a></li>
+                <li><a href="index.html#features" data-i18n="nav-features">Функции</a></li>
+                <li><a href="index.html#pricing" data-i18n="nav-pricing">Цени</a></li>
+                <li><a href="index.html#contact" data-i18n="nav-contact">Контакти</a></li>
             </ul>
-            <a href="index.html" class="btn btn-outline" style="padding: 10px 24px;">Начало</a>
+            <a href="index.html" class="btn btn-outline" style="padding: 10px 24px;" data-i18n="back-home">Начало</a>
         </div>
     </nav>
 
     <section style="padding-top: 180px;">
         <div class="container">
             <div class="glass reveal active" style="padding: 60px; max-width: 900px; margin: 0 auto;">
-                <h1 class="gradient-text" style="margin-bottom: 40px; text-align: center;">За Нас</h1>
+                <h1 class="gradient-text" style="margin-bottom: 40px; text-align: center;" data-i18n="about-h1">За Нас</h1>
                 
                 <div style="line-height: 1.8; color: var(--text-muted); font-size: 1.1rem;">
-                    <p style="margin-bottom: 25px;">
+                    <p style="margin-bottom: 25px;" data-i18n="about-p1">
                         <strong>TransitFlow</strong> е иновативна софтуерна екосистема, разработена от <strong>"ДАВИДА БГ" ЕООД</strong>. Нашата мисия е да трансформираме транспортния сектор чрез дигитализация, предоставяйки на автобусните компании инструменти за пълен контрол, оптимизация и сигурност в реално време.
                     </p>
                     
-                    <p style="margin-bottom: 25px;">
+                    <p style="margin-bottom: 25px;" data-i18n="about-p2">
                         Основана през 2016 г., компанията ни се утвърди като лидер в разработването на специализирани софтуерни решения за управление на пътникопотока. С фокус върху качеството и иновациите, ние комбинираме модерен софтуер с индустриален хардуер, за да премахнем хартиената отчетност и да елиминираме възможностите за измами.
                     </p>
 
-                    <h3 style="color: var(--text); margin: 40px 0 20px;">Защо да изберете TransitFlow?</h3>
+                    <h3 style="color: var(--text); margin: 40px 0 20px;" data-i18n="about-why-h">Защо да изберете TransitFlow?</h3>
                     <ul style="list-style: none; display: grid; gap: 20px; color: var(--text-muted);">
-                        <li><i class="fas fa-check-circle" style="color: var(--primary);"></i> <strong>Пълен Контрол:</strong> От управление на маршрути до детайлен финансов анализ.</li>
-                        <li><i class="fas fa-check-circle" style="color: var(--primary);"></i> <strong>Сигурност:</strong> Интелигентни NFC карти с профилна снимка за предотвратяване на злоупотреби.</li>
-                        <li><i class="fas fa-check-circle" style="color: var(--primary);"></i> <strong>Ефективност:</strong> Облачна синхронизация и автоматизирано генериране на отчети.</li>
+                        <li data-i18n="about-b1"><i class="fas fa-check-circle" style="color: var(--primary);"></i> <strong>Пълен Контрол:</strong> От управление на маршрути до детайлен финансов анализ.</li>
+                        <li data-i18n="about-b2"><i class="fas fa-check-circle" style="color: var(--primary);"></i> <strong>Сигурност:</strong> Интелигентни NFC карти с профилна снимка за предотвратяване на злоупотреби.</li>
+                        <li data-i18n="about-b3"><i class="fas fa-check-circle" style="color: var(--primary);"></i> <strong>Ефективност:</strong> Облачна синхронизация и автоматизирано генериране на отчети.</li>
                     </ul>
 
                     <div style="margin-top: 50px; padding: 30px; border-left: 4px solid var(--primary); background: rgba(34, 211, 238, 0.05); border-radius: 0 20px 20px 0;">
-                        <h4 style="color: var(--text); margin-bottom: 10px;">Корпоративна Информация</h4>
+                        <h4 style="color: var(--text); margin-bottom: 10px;" data-i18n="about-corp-info">Корпоративна Информация</h4>
                         <p style="font-size: 0.95rem;">
                             <strong>ДАВИДА БГ (ЕООД)</strong><br>
                             ЕИК: 204356138<br>
-                            Седалище: гр. Плевен (5802), жк. "Сторгозия", ул. „Цар Самуил“<br>
-                            Управител: Дейвид Василев Димитров
+                            <span data-i18n="about-addr">Седалище: гр. Плевен (5802), жк. "Сторгозия", ул. „Цар Самуил“</span><br>
+                            <span data-i18n="about-manager">Управител: Дейвид Василев Димитров</span>
                         </p>
                     </div>
                 </div>
@@ -64,7 +65,7 @@
 
     <footer style="margin-top: 100px;">
         <div class="container footer-bottom">
-            <p>&copy; 2026 TransitFlow. Всички права запазени.</p>
+            <p>&copy; 2026 TransitFlow. <span data-i18n="foot-rights">Всички права запазени.</span></p>
         </div>
     </footer>
 

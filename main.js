@@ -1,4 +1,52 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Language Management
+    const langSwitchBtn = document.querySelector('.lang-switch');
+    let currentLang = localStorage.getItem('transitflow_lang');
+
+    // Auto-detect language if not set
+    if (!currentLang) {
+        const userLang = navigator.language || navigator.userLanguage;
+        currentLang = userLang.startsWith('bg') ? 'bg' : 'en';
+    }
+
+    const updateLanguage = (lang) => {
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (translations[lang][key]) {
+                el.innerHTML = translations[lang][key];
+            }
+        });
+
+        document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+            const key = el.getAttribute('data-i18n-ph');
+            if (translations[lang][key]) {
+                el.placeholder = translations[lang][key];
+            }
+        });
+
+        // Update button text
+        if (langSwitchBtn) {
+            langSwitchBtn.innerHTML = lang === 'bg' ? 'BG | <span>EN</span>' : '<span>BG</span> | EN';
+        }
+
+        // Update HTML lang attribute
+        document.documentElement.lang = lang;
+        localStorage.setItem('transitflow_lang', lang);
+        currentLang = lang;
+    };
+
+    // Initial load
+    updateLanguage(currentLang);
+
+    // Toggle event
+    if (langSwitchBtn) {
+        langSwitchBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const newLang = currentLang === 'bg' ? 'en' : 'bg';
+            updateLanguage(newLang);
+        });
+    }
+
     // Navbar Scroll Effect
     const navbar = document.getElementById('navbar');
     window.addEventListener('scroll', () => {
@@ -68,11 +116,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const btn = contactForm.querySelector('button');
             const originalText = btn.innerText;
             
-            btn.innerText = 'Изпращане...';
+            btn.innerText = translations[currentLang]["form-sending"] || 'Sending...';
             btn.disabled = true;
 
             setTimeout(() => {
-                alert('Благодарим Ви! Вашето запитване е изпратено успешно. Ще се свържем с Вас скоро.');
+                const successMsg = translations[currentLang]["form-success"] || 'Success!';
+                alert(successMsg);
                 contactForm.reset();
                 btn.innerText = originalText;
                 btn.disabled = false;
