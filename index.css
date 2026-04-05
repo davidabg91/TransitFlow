@@ -786,8 +786,9 @@ footer {
     .nav-links { display: none; }
     
     .hero.full-screen {
+        padding-top: 120px; /* Push content down to avoid overlap with logo/navbar */
         padding-bottom: 60px;
-        align-items: center;
+        align-items: flex-start; /* Better control with padding */
         text-align: center;
         min-height: 80vh;
     }
