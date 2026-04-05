@@ -786,51 +786,67 @@ footer {
     .nav-links { display: none; }
     
     .hero.full-screen {
-        padding-top: 180px; /* Significantly push content down to avoid logo overlap */
-        padding-bottom: 60px;
-        align-items: flex-start;
+        padding-top: 80px; /* Space for the fixed navbar */
+        padding-bottom: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         text-align: center;
-        min-height: 80vh;
+        min-height: 100vh;
     }
 
     .hero-text-integrated {
-        padding: 0 16px;
+        padding: 40px 24px;
         text-align: center;
-        width: 100%;
+        width: 92%;
+        margin: 0 auto;
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 32px;
+        box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
+        position: relative;
     }
 
     .hero-text-integrated h1 {
-        font-size: 2.8rem;
+        font-size: 2.2rem;
         margin-bottom: 20px;
-        letter-spacing: -1px;
+        letter-spacing: -1.2px;
+        line-height: 1.1;
+        text-align: center;
     }
 
     .hero-subline p {
-        font-size: 1.15rem;
+        font-size: 1.05rem;
         margin: 0 auto;
-        opacity: 0.9;
+        opacity: 1;
+        color: var(--text-muted);
+        line-height: 1.5;
     }
 
     .btn-group {
-        justify-content: center;
+        display: flex;
         flex-direction: column;
-        gap: 15px;
+        gap: 12px;
         width: 100%;
-        max-width: 300px;
-        margin: 40px auto 0;
+        max-width: 260px;
+        margin: 30px auto 0;
     }
 
     .btn-group .btn-primary {
-        display: none; /* Hide 'Get Started' button on mobile to save vertical space/clarity */
+        display: inline-block;
     }
 
     .btn-group .btn {
         width: 100%;
+        padding: 14px 24px;
+        font-size: 1rem;
     }
 
     .hero-bg-visual img {
-        filter: brightness(0.4);
-        object-position: center bottom;
+        filter: brightness(0.35);
+        object-position: center center;
     }
 
     .mypos-layout {
@@ -901,21 +917,17 @@ footer {
 }
 
 @media (max-width: 600px) {
+    .hero-text-integrated {
+        width: 95%;
+        padding: 30px 20px;
+    }
+
     .hero-text-integrated h1 {
-        font-size: 2.2rem;
+        font-size: 1.85rem;
         line-height: 1.2;
     }
 
-    .hero.full-screen {
-        min-height: 100vh; /* Full height on mobile for immersive background */
-        padding-bottom: 60px;
-    }
-
-    .hero-bg-visual img {
-        object-position: 70% center; 
-    }
-    
     .hero-subline p {
-        font-size: 1rem;
+        font-size: 0.95rem;
     }
 }
