@@ -5,22 +5,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Auto-detect language if not set
     if (!currentLang) {
-        const userLang = navigator.language || navigator.userLanguage;
+        const userLang = navigator.language || navigator.userLanguage || 'bg';
         currentLang = userLang.startsWith('bg') ? 'bg' : 'en';
     }
 
     const updateLanguage = (lang) => {
+        if (!window.translations || !window.translations[lang]) {
+            console.error('Translations not loaded for lang:', lang);
+            return;
+        }
+
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
-            if (translations[lang][key]) {
-                el.innerHTML = translations[lang][key];
+            const translation = window.translations[lang][key];
+            if (translation) {
+                el.innerHTML = translation;
             }
         });
 
         document.querySelectorAll('[data-i18n-ph]').forEach(el => {
             const key = el.getAttribute('data-i18n-ph');
-            if (translations[lang][key]) {
-                el.placeholder = translations[lang][key];
+            const translation = window.translations[lang][key];
+            if (translation) {
+                el.placeholder = translation;
             }
         });
 
@@ -32,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update HTML lang attribute
         document.documentElement.lang = lang;
         localStorage.setItem('transitflow_lang', lang);
-        currentLang = lang;
+        currentLang = lang; // Crucial: sync the outer variable
     };
 
     // Initial load
@@ -116,11 +123,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const btn = contactForm.querySelector('button');
             const originalText = btn.innerText;
             
-            btn.innerText = translations[currentLang]["form-sending"] || 'Sending...';
+            const waitText = (window.translations[currentLang] && window.translations[currentLang]["form-submit-wait"]) || 'Sending...';
+            btn.innerText = waitText;
             btn.disabled = true;
 
             setTimeout(() => {
-                const successMsg = translations[currentLang]["form-success"] || 'Success!';
+                const successMsg = (window.translations[currentLang] && window.translations[currentLang]["form-success"]) || 'Success!';
                 alert(successMsg);
                 contactForm.reset();
                 btn.innerText = originalText;
