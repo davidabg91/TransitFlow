@@ -338,7 +338,7 @@
                         <li><i class="fas fa-check"></i> Базови отчети</li>
                         <li><i class="fas fa-check"></i> Имейл поддръжка</li>
                     </ul>
-                    <a href="#contact" class="btn btn-outline" style="width: 100%;">Избери</a>
+                    <a href="#contact" class="btn btn-outline" data-plan="start" style="width: 100%;">Избери</a>
                 </div>
                 <div class="price-card glass featured reveal">
                     <div style="position: absolute; top: 20px; right: -30px; background: var(--primary); color: var(--bg); padding: 5px 40px; transform: rotate(45deg); font-weight: 800; font-size: 0.8rem;">BEST</div>
@@ -351,7 +351,7 @@
                         <li><i class="fas fa-check"></i> Детайлен финансов анализ</li>
                         <li><i class="fas fa-check"></i> Приоритетна поддръжка</li>
                     </ul>
-                    <a href="#contact" class="btn btn-primary" style="width: 100%;">Избери</a>
+                    <a href="#contact" class="btn btn-primary" data-plan="pro" style="width: 100%;">Избери</a>
                 </div>
                 <div class="price-card glass reveal">
                     <h3>Корпоративен</h3>
@@ -362,7 +362,7 @@
                         <li><i class="fas fa-check"></i> Персонални функции</li>
                         <li><i class="fas fa-check"></i> 24/7 Личен мениджър</li>
                     </ul>
-                    <a href="#contact" class="btn btn-outline" style="width: 100%;">Контакт</a>
+                    <a href="#contact" class="btn btn-outline" data-plan="corp" style="width: 100%;">Контакт</a>
                 </div>
             </div>
         </div>
@@ -377,18 +377,31 @@
                 <div style="display: flex; flex-direction: column; gap: 20px;">
                     <div style="display: flex; gap: 15px; align-items: center;">
                         <i class="fas fa-envelope" style="color: var(--primary);"></i>
-                        <span>office@transitflow.com</span>
+                        <span>davida1991@gmail.com</span>
                     </div>
                     <div style="display: flex; gap: 15px; align-items: center;">
                         <i class="fas fa-phone" style="color: var(--primary);"></i>
-                        <span>+359 888 123 456</span>
+                        <span>0876141826</span>
                     </div>
                 </div>
             </div>
             <form class="glass reveal" style="padding: 40px; display: flex; flex-direction: column; gap: 20px;">
-                <input type="text" placeholder="Вашето Име" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; color: white; width: 100%;">
-                <input type="email" placeholder="Имейл" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; color: white; width: 100%;">
-                <textarea placeholder="Вашето Запитване" rows="4" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; color: white; width: 100%;"></textarea>
+                <input type="text" placeholder="Вашето Име" class="form-input" required>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <input type="email" placeholder="Имейл" class="form-input" required>
+                    <input type="tel" placeholder="Телефон" class="form-input" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <input type="text" placeholder="Град" class="form-input">
+                    <input type="text" placeholder="Име на фирма" class="form-input">
+                </div>
+                <select id="plan-select" class="form-input" style="appearance: auto;">
+                    <option value="">Изберете план (незадължително)</option>
+                    <option value="start">Старт</option>
+                    <option value="pro">Професионален</option>
+                    <option value="corp">Корпоративен</option>
+                </select>
+                <textarea placeholder="Вашето Запитване" rows="4" class="form-input"></textarea>
                 <button type="submit" class="btn btn-primary">Изпрати</button>
             </form>
         </div>

@@ -934,3 +934,38 @@ footer {
         font-size: 1.1rem;
     }
 }
+
+.form-input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    padding: 15px;
+    border-radius: 12px;
+    color: white;
+    width: 100%;
+    font-family: inherit;
+    font-size: 1rem;
+    transition: var(--transition);
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 15px rgba(34, 211, 238, 0.1);
+}
+
+select.form-input option {
+    background: #0f172a;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    #contact .container {
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
+    
+    .form-input-row {
+        grid-template-columns: 1fr !important;
+    }
+}

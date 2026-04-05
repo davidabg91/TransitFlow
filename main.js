@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const revealElements = document.querySelectorAll('.reveal');
     revealElements.forEach(el => revealObserver.observe(el));
 
-    // Smooth Scrolling for Navigation Links
+    // Smooth Scrolling & Plan Selection for Pricing Buttons
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function(e) {
             e.preventDefault();
@@ -39,6 +39,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     behavior: 'smooth',
                     block: 'start'
                 });
+
+                // Auto-select plan if the button has a data-plan attribute
+                const planValue = this.getAttribute('data-plan');
+                if (planValue) {
+                    const planSelect = document.getElementById('plan-select');
+                    if (planSelect) {
+                        planSelect.value = planValue;
+                        
+                        // Brief highlight effect
+                        planSelect.style.borderColor = 'var(--primary)';
+                        planSelect.style.boxShadow = '0 0 20px rgba(34, 211, 238, 0.4)';
+                        setTimeout(() => {
+                            planSelect.style.borderColor = '';
+                            planSelect.style.boxShadow = '';
+                        }, 2000);
+                    }
+                }
             }
         });
     });
