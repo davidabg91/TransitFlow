@@ -357,13 +357,19 @@
                         </li>
                     </ul>
                 </div>
-                <div class="mypos-image-stack" style="display: flex; flex-direction: column; gap: 40px; align-items: center;">
-                    <div style="width: 100%; max-width: 500px; margin-bottom: 50px; filter: drop-shadow(0 20px 50px rgba(0,0,0,0.5));">
-                        <img src="https://www.mypos.com/public/img/components/terminal-carbon/terminal-carbon-main.png" alt="myPOS Carbon Terminal - Професионален терминал за разплащания и NFC валидиране в градския транспорт" style="width: 100%; height: auto;">
+                <div class="mypos-image-stack" style="position: relative; width: 100%; max-width: 500px; height: 500px; margin: 0 auto;">
+                    <!-- Main Terminal Image -->
+                    <div class="terminal-main" style="width: 100%; filter: drop-shadow(0 20px 50px rgba(0,0,0,0.5)); transform: perspective(1000px) rotateY(-5deg) rotateX(10deg);">
+                        <img src="assets/mypos_terminal.png" alt="myPOS Carbon Terminal - Професионален терминал за разплащания и NFC валидиране" style="width: 100%; height: auto; border-radius: 20px;">
+                    </div>
+                    
+                    <!-- Secondary Validation Visual - Floating -->
+                    <div class="terminal-validation glass" style="position: absolute; bottom: 80px; left: -40px; width: 180px; padding: 10px; border: 1px solid var(--primary); transform: perspective(1000px) rotateY(10deg); box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 2;">
+                        <img src="assets/mypos_nfc_validation.png" alt="Валидиране на карта при шофьора" style="width: 100%; border-radius: 12px;">
                     </div>
 
                     <!-- Floating Fee Badge -->
-                    <div style="background: var(--surface); backdrop-filter: blur(20px); padding: 15px 50px; border-radius: 20px; border: 1px solid var(--glass-border); text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    <div style="position: absolute; top: 40px; right: -20px; background: var(--surface); backdrop-filter: blur(20px); padding: 15px 30px; border-radius: 20px; border: 1px solid var(--glass-border); text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 3;">
                         <div style="color: var(--primary); font-weight: 800; font-size: 1.8rem; line-height: 1;">1.4% <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 400;" data-i18n="mypos-fee">ФИКСИРАНА ТАКСА</span></div>
                     </div>
                 </div>

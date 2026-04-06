@@ -564,22 +564,40 @@ footer {
     border-top: 1px solid var(--glass-border);
 }
 
-/* myPOS Section Styles */
-.mypos-layout {
+/* myPOS Terminal Image Stack */
+.mypos-image-stack {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.terminal-main img {
     transition: var(--transition);
 }
 
-.mypos-layout:hover {
-    border-color: var(--primary) !important;
-    box-shadow: 0 0 70px rgba(34, 211, 238, 0.2) !important;
+.mypos-image-stack:hover .terminal-main {
+    transform: perspective(1000px) rotateY(0deg) rotateX(5deg) scale(1.02) !important;
 }
 
-.mypos-image img {
+.terminal-validation {
     transition: var(--transition);
 }
 
-.mypos-image:hover img {
-    transform: rotate(0deg) scale(1.05) !important;
+.mypos-image-stack:hover .terminal-validation {
+    transform: perspective(1000px) rotateY(0deg) translateX(10px) !important;
+}
+
+@media (max-width: 768px) {
+    .mypos-image-stack {
+        height: 350px !important;
+    }
+    
+    .terminal-validation {
+        width: 120px !important;
+        bottom: 40px !important;
+        left: -10px !important;
+    }
 }
 
 /* How It Works Section */
