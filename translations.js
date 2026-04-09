@@ -124,6 +124,7 @@ window.translations = {
         "form-plan-corp": "Корпоративен",
         "form-msg": "Вашето Запитване",
         "form-submit": "Изпрати",
+        "cont-manager": "Дейвид Димитров - Управител",
         "form-submit-wait": "Изпращане...",
         "form-success": "Благодарим Ви! Вашето запитване е изпратено успешно. Ще се свържем с Вас скоро.",
 
@@ -296,6 +297,7 @@ window.translations = {
         "form-plan-corp": "Corporate",
         "form-msg": "Your Message",
         "form-submit": "Send",
+        "cont-manager": "Deivid Dimitrov - Manager",
         "form-submit-wait": "Sending...",
         "form-success": "Thank you! Your inquiry has been sent successfully. We will contact you soon.",
 
