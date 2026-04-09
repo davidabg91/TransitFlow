@@ -65,6 +65,8 @@ window.translations = {
         "feat-10-p": "Визуално представяне на маршрутите и графиците чрез динамични графики за лесно и интуитивно управление на курсовете.",
         "feat-11-h": "Смарт Известия",
         "feat-11-p": "Интегрирана система за абониране на клиенти, които получават известия за новини и промени в графиците директно на телефона си.",
+        "feat-12-h": "Контролен Одит",
+        "feat-12-p": "Внезапен контрол от мобилни екипи в произволни дни от месеца за проверка на валидността на картите и предотвратяване на злоупотреби.",
 
         // myPOS Section
         "mypos-badge": "ПАРТНЬОРСКА ИНТЕГРАЦИЯ",
@@ -104,6 +106,7 @@ window.translations = {
         "p-corp-f2": "Пълна автоматизация",
         "p-corp-f3": "Персонални функции",
         "p-corp-f4": "24/7 Личен мениджър",
+        "p-corp-f5": "Внезапен контрол на билети",
         "p-btn-select": "Избери",
         "p-btn-contact": "Контакт",
 
@@ -236,6 +239,8 @@ window.translations = {
         "feat-10-p": "Visual representation of routes and schedules through dynamic graphs for easy and intuitive course management.",
         "feat-11-h": "Smart Notifications",
         "feat-11-p": "Integrated subscription system for customers to receive updates and news directly on their phones.",
+        "feat-12-h": "Control Audit & Inspection",
+        "feat-12-p": "Random mobile team inspections to verify card validity and prevent fraud across all bus routes.",
         "mypos-badge": "PARTNER INTEGRATION",
         "mypos-h2": "Professional <span class=\"gradient-text\">Terminal Solutions</span> from Our Partners",
         "mypos-p": "The only device the driver needs. Replace complex configurations with one powerful all-in-one device.",
@@ -273,6 +278,7 @@ window.translations = {
         "p-corp-f2": "Full automation",
         "p-corp-f3": "Personal features",
         "p-corp-f4": "24/7 Personal manager",
+        "p-corp-f5": "Random ticket inspections",
         "p-btn-select": "Select",
         "p-btn-contact": "Contact",
 
