@@ -85,8 +85,8 @@ window.translations = {
         "mypos-fee": "ФИКСИРАНА ТАКСА",
 
         // Pricing
-        "price-h2": "Изберете <span class=\"gradient-text\">Вашия План</span>",
         "price-p": "Прозрачни цени за всякакъв брой превозни средства.",
+        "price-trial": "* 60-дневен тестов период: Можете да върнете хардуера и да се откажете от услугата без никакви такси, ако не сте напълно доволни.",
         "p-start-h": "Старт",
         "p-start-m": "/месец",
         "p-start-f1": "До 5 автомобила",
@@ -258,8 +258,8 @@ window.translations = {
         "mypos-fee": "FIXED FEE",
 
         // Pricing
-        "price-h2": "Choose <span class=\"gradient-text\">Your Plan</span>",
         "price-p": "Transparent pricing for any number of vehicles.",
+        "price-trial": "* 60-day trial period: You can return the hardware and cancel the service without any fees within 60 days if you are not fully satisfied.",
         "p-start-h": "Start",
         "p-start-m": "/month",
         "p-start-f1": "Up to 5 vehicles",
