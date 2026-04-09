@@ -5,8 +5,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Auto-detect language if not set
     if (!currentLang) {
-        const userLang = navigator.language || navigator.userLanguage || 'bg';
-        currentLang = userLang.startsWith('bg') ? 'bg' : 'en';
+        const languages = navigator.languages || [navigator.language || navigator.userLanguage];
+        const hasBulgarian = languages.some(l => l.toLowerCase().startsWith('bg'));
+        
+        // Use Intl API to check for Bulgaria timezone as a fallback hint
+        const isSofiaTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone === 'Europe/Sofia';
+        
+        currentLang = (hasBulgarian || isSofiaTimezone) ? 'bg' : 'en';
     }
 
     const updateLanguage = (lang) => {
