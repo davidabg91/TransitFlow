@@ -81,7 +81,7 @@ window.translations = {
         "mypos-b4-h": "Безплатна 4G DATA SIM",
         "mypos-b4-p": "Винаги свързани, без месечни такси за данни.",
         "mypos-b5-h": "Само 1.4% Такса",
-        "mypos-b5-p": "Прозрачно ценообразуване без скрити разходи.",
+        "mypos-b5-p": "Важи само за плащания с карта. Плащанията в брой и проверката са напълно безплатни.",
         "mypos-fee": "ФИКСИРАНА ТАКСА",
 
         // Pricing
@@ -255,7 +255,7 @@ window.translations = {
         "mypos-b4-h": "Free 4G DATA SIM",
         "mypos-b4-p": "Always connected, anywhere, with no monthly data fees.",
         "mypos-b5-h": "Only 1.4% Fee",
-        "mypos-b5-p": "Transparent pricing without hidden costs for every payment.",
+        "mypos-b5-p": "Applies only to card payments. Cash payments and inspections are completely free of charge.",
         "mypos-fee": "FIXED FEE",
 
         // Pricing
