@@ -61,6 +61,10 @@ window.translations = {
         "feat-8-p": "Индустриални таблети, външни четци и docking станции, тествани за тежки условия.",
         "feat-9-h": "24/7 Поддръжка",
         "feat-9-p": "Непрекъснато техническо съдействие и актуализации, за да бъдете винаги първи.",
+        "feat-10-h": "Графични Разписания",
+        "feat-10-p": "Визуално представяне на маршрутите и графиците чрез динамични графики за лесно и интуитивно управление на курсовете.",
+        "feat-11-h": "Смарт Известия",
+        "feat-11-p": "Интегрирана система за абониране на клиенти, които получават известия за новини и промени в графиците директно на телефона си.",
 
         // myPOS Section
         "mypos-badge": "ПАРТНЬОРСКА ИНТЕГРАЦИЯ",
@@ -94,6 +98,7 @@ window.translations = {
         "p-pro-f3": "Динамични графици",
         "p-pro-f4": "Детайлен финансов анализ",
         "p-pro-f5": "Приоритетна поддръжка",
+        "p-pro-f6": "Смарт Известия (SMS/Push)",
         "p-corp-h": "Корпоративен",
         "p-corp-f1": "Неограничен брой коли",
         "p-corp-f2": "Пълна автоматизация",
@@ -141,16 +146,26 @@ window.translations = {
         "about-b2": "<strong>Сигурност:</strong> Интелигентни NFC карти с профилна снимка за предотвратяване на злоупотреби.",
         "about-b3": "<strong>Ефективност:</strong> Облачна синхронизация и автоматизирано генериране на отчети.",
         "about-corp-info": "Корпоративна Информация",
-        "about-addr": "Седалище: гр. Плевен (5802), жк. \"Сторгозия\", ул. „Цар Самуил“",
+        "about-addr": "Седалище: гр. Плевен (5802), жк. \"Сторгозия\", ул. „Цар Самуил“ - паркинга срещу бл. 34А",
         "about-manager": "Управител: Дейвид Василев Димитров",
+        "about-uic": "ЕИК/ПИК: 204356138",
+        "about-vat": "Регистрация по ЗДДС: Не",
+        "about-activity": "Предмет на дейност: покупка на стоки с цел продажба, производство на стоки, комисионна, складова, лизингова дейност.",
 
         // Legal Pages Titles
         "legal-terms-h1": "Общи Условия",
-        "legal-terms-p": "Настоящият уебсайт се управлява от <strong>\"ДАВИДА БГ\" ЕООД</strong>, ЕИК: 204356138. Тези Общи условия уреждат ползването на уебсайта и функционалностите на платформата TransitFlow.",
+        "legal-terms-p": "Настоящият уебсайт се управлява от <strong>\"ДАВИДА БГ\" ЕООД</strong>, ЕИК: 204356138, със седалище гр. Плевен, ул. „Цар Самуил“. Тези Общи условия уреждат ползването на платформата TransitFlow.",
         "legal-priv-h1": "Политика за Поверителност",
-        "legal-priv-p": "Администратор на лични данни е <strong>\"ДАВИДА БГ\" ЕООД</strong>. Събираме само данни, предоставени доброволно от Вас чрез контактната ни форма.",
+        "legal-priv-p": "Администратор на лични данни е <strong>\"ДАВИДА БГ\" ЕООД</strong>. Ние обработваме Вашите данни съгласно изискванията на GDPR и местното законодателство.",
         "legal-cookies-h1": "Политика за Бисквитките",
         "legal-cookies-p": "Бисквитките ни помагат да подобрим Вашето преживяване. Можете да ги контролирате през настройките на Вашия браузър.",
+
+        // Supervisory Authorities
+        "legal-sup-h": "Надзорни органи",
+        "legal-sup-kzld-h": "Комисия за защита на личните данни (КЗЛД)",
+        "legal-sup-kzld-p": "Адрес: София 1592, бул. „Проф. Цветан Лазаров” № 2, тел.: 02/91-53-518, имейл: kzld@cpdp.bg, уебсайт: www.cpdp.bg",
+        "legal-sup-kzp-h": "Комисия за защита на потребителите (КЗП)",
+        "legal-sup-kzp-p": "Адрес: 1000 гр. София, пл. „Славейков“ №4А, ет.3, 4 и 6, гореща линия: 0700 111 22, уебсайт: www.kzp.bg",
 
         // Common
         "back-home": "Начало"
@@ -217,8 +232,10 @@ window.translations = {
         "feat-8-p": "Industrial tablets, external readers and docking stations, tested for harsh conditions.",
         "feat-9-h": "24/7 Support",
         "feat-9-p": "Continuous technical assistance and regular updates to always stay on top.",
-
-        // myPOS Section
+        "feat-10-h": "Schedule Graphs",
+        "feat-10-p": "Visual representation of routes and schedules through dynamic graphs for easy and intuitive course management.",
+        "feat-11-h": "Smart Notifications",
+        "feat-11-p": "Integrated subscription system for customers to receive updates and news directly on their phones.",
         "mypos-badge": "PARTNER INTEGRATION",
         "mypos-h2": "Professional <span class=\"gradient-text\">Terminal Solutions</span> from Our Partners",
         "mypos-p": "The only device the driver needs. Replace complex configurations with one powerful all-in-one device.",
@@ -250,6 +267,7 @@ window.translations = {
         "p-pro-f3": "Dynamic schedules",
         "p-pro-f4": "Detailed financial analysis",
         "p-pro-f5": "Priority support",
+        "p-pro-f6": "Smart Notifications (SMS/Push)",
         "p-corp-h": "Corporate",
         "p-corp-f1": "Unlimited vehicles",
         "p-corp-f2": "Full automation",
@@ -297,16 +315,26 @@ window.translations = {
         "about-b2": "<strong>Security:</strong> Smart NFC cards with profile photos to prevent abuse.",
         "about-b3": "<strong>Efficiency:</strong> Cloud synchronization and automated report generation.",
         "about-corp-info": "Corporate Information",
-        "about-addr": "Headquarters: Pleven (5802), Storgosia, Tsar Samuil St.",
+        "about-addr": "Headquarters: Pleven (5802), Storgosia, Tsar Samuil St. - parking opposite bl. 34A",
         "about-manager": "Manager: Deivid Vasilev Dimitrov",
+        "about-uic": "UIC/PIK: 204356138",
+        "about-vat": "VAT Registered: No",
+        "about-activity": "Subject of activity: purchase of goods for resale, production of goods, commission, storage, leasing activities.",
 
         // Legal Pages Titles
         "legal-terms-h1": "Terms of Service",
-        "legal-terms-p": "This website is operated by <strong>\"DAVIDA BG\" Ltd.</strong>, EIK: 204356138. These Terms govern the use of the website and the TransitFlow platform.",
+        "legal-terms-p": "This website is operated by <strong>\"DAVIDA BG\" Ltd.</strong>, EIK: 204356138, based in Pleven. These Terms govern the use of the TransitFlow platform.",
         "legal-priv-h1": "Privacy Policy",
-        "legal-priv-p": "The data controller is <strong>\"DAVIDA BG\" Ltd.</strong> We only collect data provided voluntarily by you via our contact form.",
+        "legal-priv-p": "The data controller is <strong>\"DAVIDA BG\" Ltd.</strong> We process your data in accordance with GDPR and local legislation.",
         "legal-cookies-h1": "Cookies Policy",
         "legal-cookies-p": "Cookies help us improve your experience. You can control them through your browser settings.",
+
+        // Supervisory Authorities
+        "legal-sup-h": "Supervisory Authorities",
+        "legal-sup-kzld-h": "Commission for Personal Data Protection (CPDP)",
+        "legal-sup-kzld-p": "Address: Sofia 1592, Prof. Tsvetan Lazarov Blvd. No. 2, Tel: 02/91-53-518, Email: kzld@cpdp.bg, Website: www.cpdp.bg",
+        "legal-sup-kzp-h": "Commission for Consumer Protection (CCP)",
+        "legal-sup-kzp-p": "Address: 1000 Sofia, 4A Slaveykov Sq., floor 3, 4 and 6, Hotline: 0700 111 22, Website: www.kzp.bg",
 
         // Common
         "back-home": "Home"
