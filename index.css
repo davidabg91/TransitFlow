@@ -590,13 +590,13 @@ footer {
 
 @media (max-width: 768px) {
     .mypos-image-stack {
-        height: 350px !important;
+        max-width: 100% !important;
+        height: auto !important;
+        margin-top: 40px !important;
     }
     
-    .terminal-validation {
-        width: 120px !important;
-        bottom: 40px !important;
-        left: -10px !important;
+    .terminal-main, .terminal-validation {
+        width: 100% !important;
     }
 }
 

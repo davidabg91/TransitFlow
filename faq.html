@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Въпроси и Отговори | TransitFlow - Дигитализация на Транспорта</title>
+    <meta name="description" content="Често задавани въпроси за системата TransitFlow. Научете всичко за внедряването, таксите, хардуера и сигурността на нашия софтуер.">
+    
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="translations.js"></script>
+    <style>
+        .faq-item {
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .faq-question {
+            padding: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: var(--text);
+        }
+        .faq-answer {
+            padding: 0 25px 25px;
+            color: var(--text-muted);
+            line-height: 1.7;
+            display: none;
+            border-top: 1px solid var(--glass-border);
+            padding-top: 20px;
+        }
+        .faq-item.active .faq-answer {
+            display: block;
+        }
+        .faq-item.active .faq-question i {
+            transform: rotate(180deg);
+            color: var(--primary);
+        }
+        .faq-question i {
+            transition: var(--transition);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-glow"></div>
+    <div class="grid-overlay"></div>
+
+    <nav id="navbar" class="scrolled">
+        <div class="container nav-content">
+            <a href="index.html" class="logo">
+                <i class="fas fa-bus-simple"></i>
+                Transit<span>Flow</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="index.html#features" data-i18n="nav-features">Функции</a></li>
+                <li><a href="index.html#pricing" data-i18n="nav-pricing">Цени</a></li>
+                <li><a href="index.html#contact" data-i18n="nav-contact">Контакти</a></li>
+            </ul>
+            <a href="index.html" class="btn btn-outline" style="padding: 10px 24px;" data-i18n="back-home">Начало</a>
+        </div>
+    </nav>
+
+    <section style="padding-top: 180px;">
+        <div class="container">
+            <div style="text-align: center; margin-bottom: 60px;">
+                <h1 class="gradient-text reveal active" style="font-size: 3.5rem; margin-bottom: 20px;" data-i18n="faq-h1">Въпроси и Отговори</h1>
+                <p class="reveal active" style="color: var(--text-muted); font-size: 1.2rem;" data-i18n="faq-p">Всичко, което трябва да знаете за TransitFlow на едно място.</p>
+            </div>
+
+            <div style="max-width: 900px; margin: 0 auto;" class="reveal active">
+                <!-- FAQ List will be populated via translations.js logic or hardcoded if needed -->
+                <div class="faq-list">
+                    <div class="faq-item glass" onclick="this.classList.toggle('active')">
+                        <div class="faq-question">
+                            <span data-i18n="faq-q1">Наистина ли няма месечни такси?</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer" data-i18n="faq-a1">
+                            Да, TransitFlow е създаден с модел „Плащаш, когато печелиш“. Нямате фиксирани месечни абонаменти за софтуера. Единствената такса е минимален процент (1.4%) само при транзакции с банкова карта чрез myPOS терминала. Всички проверки на абонаментни карти са напълно безплатни.
+                        </div>
+                    </div>
+
+                    <div class="faq-item glass" onclick="this.classList.toggle('active')">
+                        <div class="faq-question">
+                            <span data-i18n="faq-q2">Как точно ще спра загубите от нередовни пътници?</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer" data-i18n="faq-a2">
+                            Системата използва NFC карти, обвързани с цифров профил, който включва снимка на пътника. При всяко сканиране на екрана на шофьора се визуализира снимката на собственика на картата. Това прави преотстъпването на карти на други лица невъзможно и елиминира измамите, които традиционно отнемат до 10-15% от оборота.
+                        </div>
+                    </div>
+
+                    <div class="faq-item glass" onclick="this.classList.toggle('active')">
+                        <div class="faq-question">
+                            <span data-i18n="faq-q3">Какво става, ако автобусът влезе в район без интернет?</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer" data-i18n="faq-a3">
+                            Системата разполага с интелигентен офлайн режим. Всички валидации се записват локално на устройството и се синхронизират автоматично с облака веднага щом превозното средство влезе в зона с обхват. Работата на шофьора не прекъсва нито за секунда.
+                        </div>
+                    </div>
+
+                    <div class="faq-item glass" onclick="this.classList.toggle('active')">
+                        <div class="faq-question">
+                            <span data-i18n="faq-q4">Колко здрави са устройствата?</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer" data-i18n="faq-a4">
+                            TransitFlow работи с индустриален хардуер, проектиран специално за тежки условия. Терминалите са устойчиви на вибрации, прах и високи температури. Батериите са с голям капацитет, а докинг станциите осигуряват постоянно захранване по време на път.
+                        </div>
+                    </div>
+
+                    <div class="faq-item glass" onclick="this.classList.toggle('active')">
+                        <div class="faq-question">
+                            <span data-i18n="faq-q5">Отговаря ли системата на изискванията на НАП?</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer" data-i18n="faq-a5">
+                            Да, използваните от нас myPOS терминали са сертифицирани фискални устройства (СУПТО съвместими, когато е приложимо), които издават валидни касови бележки и билети, отговарящи на българското законодателство. Всички плащания се регистрират коректно към данъчните органи.
+                        </div>
+                    </div>
+
+                    <div class="faq-item glass" onclick="this.classList.toggle('active')">
+                        <div class="faq-question">
+                            <span data-i18n="faq-q6">Как се съхраняват личните данни (GDPR)?</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer" data-i18n="faq-a6">
+                            Сигурността е наш приоритет. Всички данни, включително снимки и имена, се криптират и съхраняват на защитени европейски сървъри. Достъп до тях има само оторизираният персонал на Вашата фирма. Системата е напълно съобразена с изискванията на GDPR.
+                        </div>
+                    </div>
+
+                    <div class="faq-item glass" onclick="this.classList.toggle('active')">
+                        <div class="faq-question">
+                            <span data-i18n="faq-q7">Къде пътниците могат да си зареждат картите?</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer" data-i18n="faq-a7">
+                            Зареждането може да става на три нива: директно при шофьора (чрез терминала), в централния Ви офис чрез специализиран софтуер или чрез автоматизирани киоск станции. Процесът отнема по-малко от 30 секунди.
+                        </div>
+                    </div>
+
+                    <div class="faq-item glass" onclick="this.classList.toggle('active')">
+                        <div class="faq-question">
+                            <span data-i18n="faq-q8">Може ли да се плаща с банкова карта или телефон?</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer" data-i18n="faq-a8">
+                            Разбира се! Системата поддържа безконтактни плащания с Visa, Mastercard, Apple Pay и Google Pay. Това е огромно улеснение за туристи и случайни пътници, които нямат абонаментна карта.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 80px;" class="reveal active">
+                <h3 style="margin-bottom: 20px;" data-i18n="faq-more">Имате още въпроси?</h3>
+                <a href="index.html#contact" class="btn btn-primary" data-i18n="nav-contact">Свържете се с нас</a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container footer-content">
+            <div class="footer-logo">
+                <a href="#" class="logo" style="margin-bottom: 20px;">
+                    <i class="fas fa-bus-simple"></i>
+                    Transit<span>Flow</span>
+                </a>
+                <p data-i18n="foot-p">Лидер в дигиталната трансформация на градския и крайградския транспорт.</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-column">
+                    <h4 data-i18n="foot-prod">Продукт</h4>
+                    <ul>
+                        <li><a href="index.html#features" data-i18n="nav-features">Функции</a></li>
+                        <li><a href="index.html#pricing" data-i18n="nav-pricing">Цени</a></li>
+                        <li><a href="faq.html" data-i18n="foot-faq">Въпроси и Отговори</a></li>
+                        <li><a href="#" data-i18n="foot-hw">Хардуер</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4 data-i18n="foot-comp">Компания</h4>
+                    <ul>
+                        <li><a href="about.html" data-i18n="foot-about">За Нас</a></li>
+                        <li><a href="index.html#contact" data-i18n="foot-careers">Кариери</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4 data-i18n="foot-legal">Правно</h4>
+                    <ul>
+                        <li><a href="terms.html" data-i18n="foot-terms">Условия</a></li>
+                        <li><a href="privacy.html" data-i18n="foot-priv">Поверителност</a></li>
+                        <li><a href="cookies.html" data-i18n="foot-cookies">Бисквитки</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="container footer-bottom">
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <p>&copy; 2026 TransitFlow. <span data-i18n="foot-rights">Всички права запазени.</span></p>
+                <p style="font-size: 0.8rem; opacity: 0.6; color: var(--text-muted);">
+                    <strong>"ДАВИДА БГ" ЕООД</strong> | <span data-i18n="about-uic">ЕИК 204356138</span>
+                </p>
+            </div>
+            <div style="display: flex; gap: 20px;">
+                <a href="#"><i class="fab fa-linkedin-in"></i></a>
+                <a href="#"><i class="fab fa-facebook-f"></i></a>
+                <a href="#"><i class="fab fa-twitter"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+</body>
+</html>
