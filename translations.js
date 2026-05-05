@@ -78,10 +78,10 @@ window.translations = {
         "mypos-b2-p": "Издавайте билети моментално с вградения принтер.",
         "mypos-b3-h": "Онлайн Плащания",
         "mypos-b3-p": "Приемайте карти и мобилни портфейли незабавно.",
-        "mypos-b4-h": "Безплатна 4G DATA SIM",
-        "mypos-b4-p": "Винаги свързани, без месечни такси за данни.",
-        "mypos-b5-h": "Само 1.4% Такса",
-        "mypos-b5-p": "Важи само за плащания с карта. Плащанията в брой и проверката са напълно безплатни.",
+        "mypos-b4-h": "Без Месечни Такси",
+        "mypos-b4-p": "Нямате никакви фиксирани месечни разходи за използването на апарата и софтуера.",
+        "mypos-b5-h": "Такса само при Плащане",
+        "mypos-b5-p": "Заплащате минимална такса (1.4%) само при транзакции с банкова карта. Проверките са безплатни.",
         "mypos-fee": "ФИКСИРАНА ТАКСА",
 
         // Pricing
@@ -252,10 +252,10 @@ window.translations = {
         "mypos-b2-p": "Issue tickets instantly with the next-gen built-in printer.",
         "mypos-b3-h": "Online Payments",
         "mypos-b3-p": "Accept cards and mobile wallets with immediate fund receipt.",
-        "mypos-b4-h": "Free 4G DATA SIM",
-        "mypos-b4-p": "Always connected, anywhere, with no monthly data fees.",
-        "mypos-b5-h": "Only 1.4% Fee",
-        "mypos-b5-p": "Applies only to card payments. Cash payments and inspections are completely free of charge.",
+        "mypos-b4-h": "No Monthly Fees",
+        "mypos-b4-p": "There are no fixed monthly costs for using the device and the software.",
+        "mypos-b5-h": "Pay Only per Transaction",
+        "mypos-b5-p": "Pay a minimal fee (1.4%) only on bank card transactions. Inspections are free of charge.",
         "mypos-fee": "FIXED FEE",
 
         // Pricing
