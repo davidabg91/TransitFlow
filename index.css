@@ -694,6 +694,73 @@ footer {
     align-items: center;
 }
 
+/* Desktop Software Showcase */
+.software-inner {
+    position: relative;
+    z-index: 1;
+}
+
+.software-showcase {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 60px;
+    align-items: center;
+}
+
+.software-visual {
+    position: relative;
+}
+
+.software-visual img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 20px;
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55);
+    position: relative;
+    z-index: 1;
+}
+
+.software-glow {
+    position: absolute;
+    inset: -10% -10% -25% -10%;
+    background: radial-gradient(circle at 30% 40%, rgba(34, 211, 238, 0.35) 0%, transparent 60%);
+    filter: blur(40px);
+    z-index: 0;
+    opacity: 0.8;
+}
+
+.software-float-badge {
+    position: absolute;
+    bottom: -24px;
+    right: -24px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 22px;
+    border: 1px solid var(--primary);
+    border-radius: 18px;
+    box-shadow: 0 15px 40px rgba(34, 211, 238, 0.2);
+}
+
+.software-float-badge i {
+    font-size: 1.6rem;
+    color: var(--primary);
+}
+
+.software-float-badge strong {
+    display: block;
+    font-size: 1rem;
+    color: var(--text);
+}
+
+.software-float-badge span {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
 .info-icon {
     width: 120px;
     height: 120px;
@@ -911,6 +978,19 @@ footer {
         grid-template-columns: 1fr;
         gap: 40px;
         text-align: center;
+    }
+
+    .software-showcase {
+        grid-template-columns: 1fr;
+        gap: 50px;
+        text-align: left;
+    }
+
+    .software-float-badge {
+        right: 50%;
+        transform: translateX(50%);
+        bottom: -28px;
+        white-space: nowrap;
     }
 
     .info-icon {
