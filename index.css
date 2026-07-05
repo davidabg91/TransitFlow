@@ -181,25 +181,49 @@ h2 {
     border-color: var(--primary);
 }
 
-/* Specific Nav Button Style */
+/* Specific Nav Button Style — gradient CTA pill */
 .nav-content .btn-outline {
-    background: rgba(255, 255, 255, 0.05); /* iOS Glass effect */
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(34, 211, 238, 0.3); /* Primary Cyan border */
-    border-radius: 16px;
-    color: var(--text);
-    font-weight: 600;
+    position: relative;
+    background: var(--gradient);
+    border: none;
+    border-radius: 100px;
+    color: var(--bg);
+    font-weight: 700;
+    font-size: 0.95rem;
     display: flex;
     align-items: center;
+    gap: 8px;
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35);
     transition: var(--transition);
+    overflow: hidden;
+}
+
+.nav-content .btn-outline::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.45) 50%, transparent 60%);
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
 }
 
 .nav-content .btn-outline:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: var(--primary);
     transform: translateY(-2px);
-    color: var(--primary);
+    box-shadow: 0 8px 30px rgba(34, 211, 238, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    color: var(--bg);
+}
+
+.nav-content .btn-outline:hover::after {
+    transform: translateX(100%);
+}
+
+.nav-content .btn-outline i {
+    font-size: 0.85em;
+    transition: var(--transition);
+}
+
+.nav-content .btn-outline:hover i.fa-arrow-right {
+    transform: translateX(3px);
 }
 
 /* Layout */
@@ -251,32 +275,40 @@ nav.scrolled {
 
 .nav-links {
     display: flex;
-    gap: 40px;
+    gap: 4px;
     list-style: none;
+    padding: 6px;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: 100px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 24px rgba(2, 6, 23, 0.35);
 }
 
 .nav-links a {
+    position: relative;
     text-decoration: none;
-    color: var(--text);
+    color: var(--text-muted);
     font-weight: 600;
     font-size: 0.95rem;
-    padding: 10px 20px;
-    background: rgba(255, 255, 255, 0.05); /* iOS Glass panel */
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(34, 211, 238, 0.3); /* Primary Cyan border */
-    border-radius: 14px;
+    padding: 9px 18px;
+    border-radius: 100px;
     transition: var(--transition);
     display: block;
     white-space: nowrap;
 }
 
 .nav-links a:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: var(--primary);
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    color: var(--text);
+    background: rgba(34, 211, 238, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.25), 0 0 18px rgba(34, 211, 238, 0.12);
+}
+
+.nav-links a.active {
     color: var(--primary);
+    background: rgba(34, 211, 238, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.3);
 }
 
 /* Animations */

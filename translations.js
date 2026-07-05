@@ -2,7 +2,9 @@ window.translations = {
     bg: {
         // Navigation
         "nav-features": "Функции",
+        "nav-hardware": "Хардуер",
         "nav-pricing": "Цени",
+        "nav-faq": "Въпроси",
         "nav-contact": "Контакти",
         "nav-demo": "Демо",
         "nav-home": "Начало",
@@ -228,7 +230,9 @@ window.translations = {
     en: {
         // Navigation
         "nav-features": "Features",
+        "nav-hardware": "Hardware",
         "nav-pricing": "Pricing",
+        "nav-faq": "FAQ",
         "nav-contact": "Contact",
         "nav-demo": "Demo",
         "nav-home": "Home",
