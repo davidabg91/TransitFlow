@@ -39,6 +39,18 @@ window.translations = {
         "val-c3-desc": "Модерен имидж и навременните известия изграждат доверие и трайни навици.",
         "val-c4-title": "Модерен имидж",
         "val-c4-desc": "Брандираното приложение отличава фирмата Ви и Ви прави лидер пред общините.",
+
+        // Anti-fraud protections
+        "prot-clone-h": "Защита от клониране",
+        "prot-clone-d": "Автоматично засичане на дублирана карта с аларма и моментално известие към диспечера.",
+        "prot-share-h": "Забрана за преотстъпване (Anti-Passback)",
+        "prot-share-d": "Картата не може да бъде маркирана повторно в същия автобус за 15 минути, предотвратявайки предаването ѝ на друг пътник.",
+        "prot-photo-h": "Снимка на водача / инспектора",
+        "prot-photo-d": "При маркиране на терминала се визуализира голяма профилна снимка за бърза визуална верификация.",
+        "prot-lock-h": "Моментално блокиране",
+        "prot-lock-d": "При загубена или открадната карта, тя се блокира от диспечера за 1 секунда на всички терминали в движение.",
+        "prot-encrypt-h": "Хардуерно криптиране (DESFire)",
+        "prot-encrypt-d": "Чиповете на картите са защитени с криптографски ключове, което прави невъзможно тяхното копиране или подправяне.",
         // Advantage Panel
         "adv-h3": "Вашата Карта е Вечна",
         "adv-p": "Веднъж издадена, картата остава у клиента перманентно. Подновяването е въпрос на секунди:",
@@ -311,6 +323,18 @@ window.translations = {
         "val-c3-desc": "Modern service and timely notifications build trust and solid riding habits.",
         "val-c4-title": "Modern Image",
         "val-c4-desc": "A branded app distinguishes your company and makes you a leader for municipalities.",
+
+        // Anti-fraud protections
+        "prot-clone-h": "Clone Protection",
+        "prot-clone-d": "Automatic detection of duplicated cards with alarms and instant notification to the dispatcher.",
+        "prot-share-h": "Anti-Sharing Protection (Anti-Passback)",
+        "prot-share-d": "A card cannot be validated again in the same bus for 15 minutes, preventing passengers from sharing it.",
+        "prot-photo-h": "Driver / Inspector Photo Profile",
+        "prot-photo-d": "On validation, the screen displays a large profile photo of the owner for quick visual validation.",
+        "prot-lock-h": "Instant Blocking",
+        "prot-lock-d": "Lost or stolen cards can be blocked by the dispatcher in 1 second, updating all active bus terminals dynamically.",
+        "prot-encrypt-h": "Hardware Encryption (DESFire)",
+        "prot-encrypt-d": "Card chips are secured with cryptographic keys, making copying or forging mathematically impossible.",
         // Advantage Panel
         "adv-h3": "Your Card is Eternal",
         "adv-p": "Once issued, the card remains with the customer permanently. Renewal is a matter of seconds:",
