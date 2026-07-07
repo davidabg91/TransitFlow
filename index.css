@@ -2401,3 +2401,76 @@ select.form-input option {
         font-size: 0.75rem !important;
     }
 }
+
+
+/* --- Value Proposition Grid (Business Value) --- */
+.value-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+}
+
+.value-card {
+    padding: 35px 28px;
+    border-radius: 24px;
+    text-align: left;
+    transition: var(--transition);
+    border: 1px solid var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.value-card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(34, 211, 238, 0.22);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25), 0 0 15px rgba(34, 211, 238, 0.05);
+}
+
+.value-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    font-size: 1.25rem;
+    margin-bottom: 24px;
+}
+
+.value-icon.bg-cyan {
+    color: #22d3ee;
+    background: rgba(34, 211, 238, 0.1);
+    box-shadow: 0 0 15px rgba(34, 211, 238, 0.03);
+}
+
+.value-icon.bg-green {
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.1);
+    box-shadow: 0 0 15px rgba(74, 222, 128, 0.03);
+}
+
+.value-icon.bg-yellow {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.1);
+    box-shadow: 0 0 15px rgba(251, 191, 36, 0.03);
+}
+
+.value-icon.bg-purple {
+    color: #a78bfa;
+    background: rgba(167, 139, 250, 0.1);
+    box-shadow: 0 0 15px rgba(167, 139, 250, 0.03);
+}
+
+.value-card h3 {
+    font-size: 1.15rem;
+    margin-bottom: 12px;
+    font-weight: 700;
+    color: var(--text);
+    font-family: 'Unbounded', sans-serif;
+}
+
+.value-card p {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}

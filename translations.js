@@ -28,6 +28,17 @@ window.translations = {
         "step-3-h3": "Контрол от Шофьора",
         "step-3-p": "Шофьорът вижда ясния статус на плащане и продължава директно със следващия клиент. Бързо, лесно и безгрешно.",
 
+        // Value Grid (Business benefits)
+        "val-eyebrow": "Ползи за бизнеса",
+        "val-h2": "Защо превозвачите избират <span class=\"gradient-text\">TransitFlow</span>",
+        "val-c1-title": "Повече продажби",
+        "val-c1-desc": "Удобното зареждане в приложението мотивира пътниците да предплащат дългосрочни карти.",
+        "val-c2-title": "По-малко обаждания",
+        "val-c2-desc": "Пътниците виждат разписанията и закъсненията в реално време, вместо да звънят на касите.",
+        "val-c3-title": "Лоялни пътници",
+        "val-c3-desc": "Модерен имидж и навременните известия изграждат доверие и трайни навици.",
+        "val-c4-title": "Модерен имидж",
+        "val-c4-desc": "Брандираното приложение отличава фирмата Ви и Ви прави лидер пред общините.",
         // Advantage Panel
         "adv-h3": "Вашата Карта е Вечна",
         "adv-p": "Веднъж издадена, картата остава у клиента перманентно. Подновяването е въпрос на секунди:",
@@ -289,6 +300,17 @@ window.translations = {
         "step-3-h3": "Driver Control",
         "step-3-p": "The driver sees the clear payment status and continues directly with the next customer. Fast, easy, and error-free.",
 
+        // Value Grid (Business benefits)
+        "val-eyebrow": "Business Benefits",
+        "val-h2": "Why Operators Choose <span class=\"gradient-text\">TransitFlow</span>",
+        "val-c1-title": "More Sales",
+        "val-c1-desc": "Convenient recharge in the app motivates passengers to pre-pay long-term passes.",
+        "val-c2-title": "Fewer Calls",
+        "val-c2-desc": "Passengers see schedules and delays in real-time, instead of calling the support desk.",
+        "val-c3-title": "Loyal Passengers",
+        "val-c3-desc": "Modern service and timely notifications build trust and solid riding habits.",
+        "val-c4-title": "Modern Image",
+        "val-c4-desc": "A branded app distinguishes your company and makes you a leader for municipalities.",
         // Advantage Panel
         "adv-h3": "Your Card is Eternal",
         "adv-p": "Once issued, the card remains with the customer permanently. Renewal is a matter of seconds:",
