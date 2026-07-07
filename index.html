@@ -505,48 +505,51 @@
 
                 <!-- Starter -->
                 <div class="price-card glass reveal">
-                    <div class="price-tier-icon tier-start">
-                        <i class="fas fa-seedling"></i>
+                    <div class="price-header">
+                        <div class="price-plan-label" data-i18n="p-start-h">Старт</div>
+                        <div class="price-amount-row">
+                            <span class="price-currency">€</span>
+                            <span class="price-number">120</span>
+                            <span class="price-period" data-i18n="p-start-m">/месец</span>
+                        </div>
+                        <p class="price-desc" data-i18n="p-start-desc">Идеален за малки превозвачи, тепърва навлизащи в дигитализацията.</p>
                     </div>
-                    <div class="price-plan-label" data-i18n="p-start-h">Старт</div>
-                    <div class="price-amount-row">
-                        <span class="price-currency">€</span>
-                        <span class="price-number">120</span>
-                        <span class="price-period" data-i18n="p-start-m">/месец</span>
-                    </div>
-                    <div class="price-vehicles" data-i18n="p-start-vehicles">До 5 автомобила</div>
                     <div class="price-divider"></div>
                     <ul class="price-features">
+                        <li><i class="fas fa-check"></i> <span data-i18n="p-start-vehicles">До 5 автомобила</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-start-f2">NFC Валидация</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-start-f3">Статични графици</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-start-f4">Базови отчети</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-start-f5">Имейл поддръжка</span></li>
-                        <li class="price-feature-missing"><i class="fas fa-xmark"></i> <span data-i18n="p-start-no1">Пасажерско приложение</span></li>
-                        <li class="price-feature-missing"><i class="fas fa-xmark"></i> <span data-i18n="p-start-no2">SMS/Push известия</span></li>
+                        <li class="price-feature-missing"><i class="fas fa-minus"></i> <span data-i18n="p-start-no1">Пасажерско приложение</span></li>
+                        <li class="price-feature-missing"><i class="fas fa-minus"></i> <span data-i18n="p-start-no2">SMS/Push известия</span></li>
                     </ul>
                     <a href="#contact" class="btn btn-outline price-btn" data-plan="start" data-i18n="p-btn-select">Избери</a>
                 </div>
 
                 <!-- Pro — Featured -->
                 <div class="price-card glass featured reveal" style="transition-delay: 0.1s;">
-                    <div class="price-badge" data-i18n="p-pro-badge">Най-популярен</div>
-                    <div class="price-tier-icon tier-pro">
-                        <i class="fas fa-bolt"></i>
+                    <div class="price-accent-bar"></div>
+                    <div class="price-header">
+                        <div class="price-header-top">
+                            <div class="price-plan-label" data-i18n="p-pro-h">Професионален</div>
+                            <span class="price-badge" data-i18n="p-pro-badge">Най-популярен</span>
+                        </div>
+                        <div class="price-amount-row">
+                            <span class="price-currency">€</span>
+                            <span class="price-number">200</span>
+                            <span class="price-period" data-i18n="p-start-m">/месец</span>
+                        </div>
+                        <p class="price-desc" data-i18n="p-pro-desc">За активни превозвачи, търсещи пълен контрол и пасажерско приложение.</p>
                     </div>
-                    <div class="price-plan-label" data-i18n="p-pro-h">Професионален</div>
-                    <div class="price-amount-row">
-                        <span class="price-currency">€</span>
-                        <span class="price-number">200</span>
-                        <span class="price-period" data-i18n="p-start-m">/месец</span>
-                    </div>
-                    <div class="price-vehicles" data-i18n="p-pro-vehicles">До 15 автомобила</div>
                     <div class="price-divider"></div>
                     <ul class="price-features">
+                        <li><i class="fas fa-check"></i> <span data-i18n="p-pro-vehicles">До 15 автомобила</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-pro-f2">NFC Валидация</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-pro-f3">Динамични графици</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-pro-f4">Детайлен финансов анализ</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-pro-f5">Приоритетна поддръжка</span></li>
-                        <li><i class="fas fa-check"></i> <span data-i18n="p-pro-f6">Смарт Известия (SMS/Push)</span></li>
+                        <li><i class="fas fa-check"></i> <span data-i18n="p-pro-f6">SMS/Push известия</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-pro-f7">Пасажерско приложение</span></li>
                     </ul>
                     <a href="#contact" class="btn btn-primary price-btn" data-plan="pro" data-i18n="p-btn-select">Избери</a>
@@ -554,16 +557,16 @@
 
                 <!-- Enterprise -->
                 <div class="price-card glass enterprise reveal" style="transition-delay: 0.2s;">
-                    <div class="price-tier-icon tier-corp">
-                        <i class="fas fa-building-columns"></i>
+                    <div class="price-header">
+                        <div class="price-plan-label" data-i18n="p-corp-h">Корпоративен</div>
+                        <div class="price-amount-row">
+                            <span class="price-number price-custom" data-i18n="p-corp-custom">По договаряне</span>
+                        </div>
+                        <p class="price-desc" data-i18n="p-corp-desc">За транспортни компании с голям флот и специфични изисквания.</p>
                     </div>
-                    <div class="price-plan-label" data-i18n="p-corp-h">Корпоративен</div>
-                    <div class="price-amount-row">
-                        <span class="price-number price-custom" data-i18n="p-corp-custom">По договаряне</span>
-                    </div>
-                    <div class="price-vehicles" data-i18n="p-corp-vehicles">Неограничен брой автомобила</div>
                     <div class="price-divider"></div>
                     <ul class="price-features">
+                        <li><i class="fas fa-check"></i> <span data-i18n="p-corp-vehicles">Неограничен брой автомобила</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-corp-f0">Всичко от другите планове</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-corp-f2">Пълна автоматизация</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-corp-f3">Персонални функции</span></li>
@@ -576,13 +579,14 @@
 
             </div>
 
-            <!-- Money-back note -->
+            <!-- Guarantee note -->
             <div class="price-note reveal">
                 <i class="fas fa-shield-halved"></i>
                 <span data-i18n="price-trial">60-дневен тестов период — върнете хардуера без такси ако не сте доволни.</span>
             </div>
         </div>
     </section>
+
 
 
     <!-- Contact Section -->
