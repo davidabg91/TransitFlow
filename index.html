@@ -493,59 +493,97 @@
     </section>
 
     <!-- Pricing Section -->
-    <section id="pricing" style="background: rgba(255,255,255,0.02);">
+    <section id="pricing" class="pricing-section">
         <div class="container">
             <div class="section-head">
+                <span class="eyebrow" data-i18n="price-eyebrow">Абонаментни планове</span>
                 <h2 class="reveal" data-i18n="price-h2">Изберете <span class="gradient-text">Вашия План</span></h2>
                 <p class="reveal" data-i18n="price-p">Прозрачни цени за всякакъв брой превозни средства.</p>
             </div>
+
             <div class="price-grid">
+
+                <!-- Starter -->
                 <div class="price-card glass reveal">
-                    <h3 data-i18n="p-start-h">Старт</h3>
-                    <div class="price-amount">€120<span data-i18n="p-start-m">/месец</span></div>
+                    <div class="price-tier-icon tier-start">
+                        <i class="fas fa-seedling"></i>
+                    </div>
+                    <div class="price-plan-label" data-i18n="p-start-h">Старт</div>
+                    <div class="price-amount-row">
+                        <span class="price-currency">€</span>
+                        <span class="price-number">120</span>
+                        <span class="price-period" data-i18n="p-start-m">/месец</span>
+                    </div>
+                    <div class="price-vehicles" data-i18n="p-start-vehicles">До 5 автомобила</div>
+                    <div class="price-divider"></div>
                     <ul class="price-features">
-                        <li><i class="fas fa-check"></i> <span data-i18n="p-start-f1">До 5 автомобила</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-start-f2">NFC Валидация</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-start-f3">Статични графици</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-start-f4">Базови отчети</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-start-f5">Имейл поддръжка</span></li>
+                        <li class="price-feature-missing"><i class="fas fa-xmark"></i> <span data-i18n="p-start-no1">Пасажерско приложение</span></li>
+                        <li class="price-feature-missing"><i class="fas fa-xmark"></i> <span data-i18n="p-start-no2">SMS/Push известия</span></li>
                     </ul>
-                    <a href="#contact" class="btn btn-outline" data-plan="start" style="width: 100%;" data-i18n="p-btn-select">Избери</a>
+                    <a href="#contact" class="btn btn-outline price-btn" data-plan="start" data-i18n="p-btn-select">Избери</a>
                 </div>
-                <div class="price-card glass featured reveal">
-                    <div style="position: absolute; top: 20px; right: -30px; background: var(--primary); color: var(--bg); padding: 5px 40px; transform: rotate(45deg); font-weight: 800; font-size: 0.8rem;">BEST</div>
-                    <h3 data-i18n="p-pro-h">Професионален</h3>
-                    <div class="price-amount">€200<span data-i18n="p-start-m">/месец</span></div>
+
+                <!-- Pro — Featured -->
+                <div class="price-card glass featured reveal" style="transition-delay: 0.1s;">
+                    <div class="price-badge" data-i18n="p-pro-badge">Най-популярен</div>
+                    <div class="price-tier-icon tier-pro">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <div class="price-plan-label" data-i18n="p-pro-h">Професионален</div>
+                    <div class="price-amount-row">
+                        <span class="price-currency">€</span>
+                        <span class="price-number">200</span>
+                        <span class="price-period" data-i18n="p-start-m">/месец</span>
+                    </div>
+                    <div class="price-vehicles" data-i18n="p-pro-vehicles">До 15 автомобила</div>
+                    <div class="price-divider"></div>
                     <ul class="price-features">
-                        <li><i class="fas fa-check"></i> <span data-i18n="p-pro-f1">До 15 автомобила</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-pro-f2">NFC Валидация</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-pro-f3">Динамични графици</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-pro-f4">Детайлен финансов анализ</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-pro-f5">Приоритетна поддръжка</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-pro-f6">Смарт Известия (SMS/Push)</span></li>
+                        <li><i class="fas fa-check"></i> <span data-i18n="p-pro-f7">Пасажерско приложение</span></li>
                     </ul>
-                    <a href="#contact" class="btn btn-primary" data-plan="pro" style="width: 100%;" data-i18n="p-btn-select">Избери</a>
+                    <a href="#contact" class="btn btn-primary price-btn" data-plan="pro" data-i18n="p-btn-select">Избери</a>
                 </div>
-                <div class="price-card glass reveal">
-                    <h3 data-i18n="p-corp-h">Корпоративен</h3>
-                    <div class="price-amount">Custom</div>
+
+                <!-- Enterprise -->
+                <div class="price-card glass enterprise reveal" style="transition-delay: 0.2s;">
+                    <div class="price-tier-icon tier-corp">
+                        <i class="fas fa-building-columns"></i>
+                    </div>
+                    <div class="price-plan-label" data-i18n="p-corp-h">Корпоративен</div>
+                    <div class="price-amount-row">
+                        <span class="price-number price-custom" data-i18n="p-corp-custom">По договаряне</span>
+                    </div>
+                    <div class="price-vehicles" data-i18n="p-corp-vehicles">Неограничен брой автомобила</div>
+                    <div class="price-divider"></div>
                     <ul class="price-features">
-                        <li><i class="fas fa-check"></i> <span data-i18n="p-corp-f0">Включва всичко от другите планове</span></li>
-                        <li><i class="fas fa-check"></i> <span data-i18n="p-corp-f1">Неограничен брой коли</span></li>
+                        <li><i class="fas fa-check"></i> <span data-i18n="p-corp-f0">Всичко от другите планове</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-corp-f2">Пълна автоматизация</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-corp-f3">Персонални функции</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-corp-f4">24/7 Личен мениджър</span></li>
                         <li><i class="fas fa-check"></i> <span data-i18n="p-corp-f5">Внезапен контрол на билети</span></li>
+                        <li><i class="fas fa-check"></i> <span data-i18n="p-corp-f6">SLA гаранция за uptime</span></li>
                     </ul>
-                    <a href="#contact" class="btn btn-outline" data-plan="corp" style="width: 100%;" data-i18n="p-btn-contact">Контакт</a>
+                    <a href="#contact" class="btn btn-outline price-btn" data-plan="corp" data-i18n="p-btn-contact">Свържете се</a>
                 </div>
+
             </div>
 
-            <div style="text-align: center; margin-top: 50px; opacity: 0.6; font-size: 0.85rem;" class="reveal">
-                <p data-i18n="price-trial">* 60-дневен тестов период: Можете да върнете хардуера и да се откажете от услугата без никакви такси, ако не сте напълно доволни.</p>
+            <!-- Money-back note -->
+            <div class="price-note reveal">
+                <i class="fas fa-shield-halved"></i>
+                <span data-i18n="price-trial">60-дневен тестов период — върнете хардуера без такси ако не сте доволни.</span>
             </div>
         </div>
     </section>
+
 
     <!-- Contact Section -->
     <section id="contact">
