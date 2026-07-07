@@ -219,6 +219,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Live Reference Widget Simulation
     const refValidations = document.getElementById('ref-validations');
     const refFeed = document.getElementById('ref-feed');
+    
+    // Feature list items
+    const featPassengers = document.getElementById('ref-feat-passengers');
+    const featReports = document.getElementById('ref-feat-reports');
+    const featControl = document.getElementById('ref-feat-control');
+
     if (refValidations && refFeed) {
         let count = 42851;
         const linesBg = [
@@ -242,31 +248,67 @@ document.addEventListener('DOMContentLoaded', () => {
             const isBg = document.documentElement.lang === 'bg';
             const lines = isBg ? linesBg : linesEn;
             
+            // Choose event type: 0 = Passengers App, 1 = Daily Reports, 2 = Field Control
+            const rand = Math.random();
+            let eventType = 0;
+            if (rand > 0.7) {
+                eventType = 2; // Field Control
+            } else if (rand > 0.45) {
+                eventType = 1; // Daily Reports
+            } else {
+                eventType = 0; // Passengers App
+            }
+
+            // Sync left-hand menu active state highlights
+            if (featPassengers && featReports && featControl) {
+                featPassengers.classList.remove('active');
+                featReports.classList.remove('active');
+                featControl.classList.remove('active');
+                
+                if (eventType === 0) featPassengers.classList.add('active');
+                if (eventType === 1) featReports.classList.add('active');
+                if (eventType === 2) featControl.classList.add('active');
+            }
+            
             // Increment counter
             const increment = Math.floor(Math.random() * 2) + 1;
             count += increment;
             refValidations.textContent = count.toLocaleString(isBg ? 'bg-BG' : 'en-US');
             
-            // Generate random validation
-            const isCard = Math.random() > 0.3;
-            const type = isCard ? (isBg ? 'Карта' : 'Card') : (isBg ? 'Билет' : 'Ticket');
-            const status = isBg ? 'Валидирана' : 'Validated';
-            const statusTicket = isBg ? 'Валидиран' : 'Validated';
-            const lineText = isBg ? 'Линия' : 'Line';
-            const timeText = isBg ? 'Време' : 'Time';
-            const nowText = isBg ? 'сега' : 'now';
+            // Generate details based on event type
+            let type = '';
+            let status = '';
+            let iconHtml = '';
             
             const num = Math.floor(Math.random() * 9000) + 1000;
             const line = lines[Math.floor(Math.random() * lines.length)];
             const time = (0.5 + Math.random() * 0.4).toFixed(1); // 0.5s to 0.9s
             
+            if (eventType === 0) {
+                type = isBg ? 'Карта' : 'Card';
+                status = isBg ? 'Валидирана' : 'Validated';
+                iconHtml = '<i class="fas fa-check-circle"></i>';
+            } else if (eventType === 1) {
+                type = isBg ? 'Билет' : 'Ticket';
+                status = isBg ? 'Издаден' : 'Issued';
+                iconHtml = '<i class="fas fa-ticket-simple"></i>';
+            } else {
+                type = isBg ? 'Инспекция' : 'Inspection';
+                status = isBg ? 'Изрядна' : 'Verified';
+                iconHtml = '<i class="fas fa-user-shield"></i>';
+            }
+            
+            const lineText = isBg ? 'Линия' : 'Line';
+            const timeText = isBg ? 'Време' : 'Time';
+            const nowText = isBg ? 'сега' : 'now';
+            
             // Create item element
             const item = document.createElement('div');
             item.className = 'feed-item';
             item.innerHTML = `
-                <div class="feed-icon success"><i class="fas fa-check-circle"></i></div>
+                <div class="feed-icon success">${iconHtml}</div>
                 <div class="feed-info">
-                    <strong>${type} #${num} - ${isCard ? status : statusTicket}</strong>
+                    <strong>${type} #${num} - ${status}</strong>
                     <span>${lineText}: ${line} | ${timeText}: ${time}s</span>
                 </div>
                 <div class="feed-time">${nowText}</div>

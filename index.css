@@ -1540,9 +1540,25 @@ select.form-input option {
 }
 .split-row.reverse .split-visual { order: 2; }
 .split-list { list-style: none; display: grid; gap: 20px; margin-top: 30px; }
-.split-list li { display: flex; gap: 14px; align-items: flex-start; }
-.split-list li i { color: var(--primary); margin-top: 4px; font-size: 1.1rem; }
-.split-list li strong { display: block; margin-bottom: 3px; }
+.split-list li { 
+    display: flex; 
+    gap: 14px; 
+    align-items: flex-start;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border-left: 3px solid transparent;
+    transition: var(--transition);
+}
+.split-list li.active {
+    background: rgba(34, 211, 238, 0.04);
+    border-left: 3px solid var(--primary);
+    box-shadow: 0 10px 30px rgba(34, 211, 238, 0.03);
+    transform: translateX(6px);
+}
+.split-list li i { color: var(--text-muted); margin-top: 4px; font-size: 1.1rem; transition: var(--transition); }
+.split-list li.active i { color: var(--primary); text-shadow: 0 0 10px rgba(34, 211, 238, 0.6); }
+.split-list li strong { display: block; margin-bottom: 3px; transition: var(--transition); }
+.split-list li.active strong { color: var(--text); }
 .split-list li span { color: var(--text-muted); font-size: 0.95rem; }
 @media (max-width: 900px) {
     .split-row { grid-template-columns: 1fr; gap: 40px; margin-bottom: 70px; }
