@@ -199,13 +199,29 @@
 
             </div>
 
-            <!-- Connector lines: all 3 processes flow into the admin panel (desktop) -->
-            <svg class="admin-connect-svg reveal" viewBox="0 0 1200 90" preserveAspectRatio="none" aria-hidden="true">
-                <path d="M200 0 V50 M600 0 V50 M1000 0 V50 M200 50 H1000 M600 50 V80" fill="none" stroke="var(--primary)" stroke-width="2" stroke-dasharray="7 7" vector-effect="non-scaling-stroke" opacity="0.5"/>
-                <circle cx="200" cy="0" r="4" fill="var(--primary)"/>
-                <circle cx="600" cy="0" r="4" fill="var(--primary)"/>
-                <circle cx="1000" cy="0" r="4" fill="var(--primary)"/>
-                <path d="M600 90 L591 76 L609 76 Z" fill="var(--primary)"/>
+            <!-- Connector: all 3 processes stream down curved rails into the admin command center -->
+            <svg class="admin-connect-svg reveal" viewBox="0 0 1200 100" preserveAspectRatio="none" fill="none" aria-hidden="true">
+                <!-- static base rails -->
+                <g class="cc-rail">
+                    <path d="M200 16 C200 54 430 62 600 62"/>
+                    <path d="M600 16 L600 62"/>
+                    <path d="M1000 16 C1000 54 770 62 600 62"/>
+                    <path d="M600 62 L600 90"/>
+                </g>
+                <!-- animated flow (data streaming into the panel) -->
+                <g class="cc-flow">
+                    <path d="M200 16 C200 54 430 62 600 62"/>
+                    <path d="M600 16 L600 62" style="animation-delay: .55s;"/>
+                    <path d="M1000 16 C1000 54 770 62 600 62" style="animation-delay: 1.1s;"/>
+                    <path d="M600 62 L600 90" style="animation-delay: .3s;"/>
+                </g>
+                <!-- source nodes at each step card -->
+                <circle class="cc-node" cx="200" cy="16" r="4"/>
+                <circle class="cc-node" cx="600" cy="16" r="4"/>
+                <circle class="cc-node" cx="1000" cy="16" r="4"/>
+                <!-- collector hub + funnel arrow into the command center -->
+                <circle class="cc-hub" cx="600" cy="62" r="6"/>
+                <path class="cc-arrow" d="M600 99 L589 82 L611 82 Z"/>
             </svg>
 
             <!-- Wide Admin Oversight Panel (Step 04) — live command center -->
