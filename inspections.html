@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Контрол и Сигурност | TransitFlow - Ревизия на билети и защита от измами</title>
-    <meta name="description" content="Мобилен контрол на билети с GPS локация, кръстосана проверка при качване, защита срещу клониране на карти и пълен одит журнал. Спрете загубите на приходи с TransitFlow.">
+    <title data-i18n-title="m-inspections-title">Контрол и Сигурност | TransitFlow - Ревизия на билети и защита от измами</title>
+    <meta name="description" content="Мобилен контрол на билети с GPS локация, кръстосана проверка при качване, защита срещу клониране на карти и пълен одит журнал. Спрете загубите на приходи с TransitFlow." data-i18n-content="m-inspections-desc">
     <link rel="canonical" href="https://transitflow.org/inspections.html">
     <link rel="icon" type="image/png" href="assets/favicon.png">
     <link rel="stylesheet" href="index.css">
@@ -20,15 +20,15 @@
             <a href="index.html" class="logo"><i class="fas fa-bus-simple"></i> Transit<span>Flow</span></a>
             <ul class="nav-links">
                 <li class="has-dropdown">
-                    <a href="#" class="active">Продукт <i class="fas fa-chevron-down"></i></a>
+                    <a href="#" class="active"><span data-i18n="nav-product">Продукт</span> <i class="fas fa-chevron-down"></i></a>
                     <div class="nav-dropdown">
-                        <a href="features.html"><i class="fas fa-layer-group dd-icon"></i><span class="dd-text"><strong>Функции</strong><span>Пълен каталог възможности</span></span></a>
-                        <a href="nfc-cards.html"><i class="fas fa-id-card dd-icon"></i><span class="dd-text"><strong>NFC Карти и Валидиране</strong><span>Безконтактни карти и заверка</span></span></a>
-                        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button dd-icon"></i><span class="dd-text"><strong>Приложение за пътници</strong><span>Разписания и известия в реално време</span></span></a>
-                        <a href="inspections.html"><i class="fas fa-user-shield dd-icon"></i><span class="dd-text"><strong>Контрол и Сигурност</strong><span>Ревизори, GPS и защита от измами</span></span></a>
-                        <a href="fleet.html"><i class="fas fa-bus dd-icon"></i><span class="dd-text"><strong>Наемане на автобуси</strong><span>Допълнителен приход за автопарка</span></span></a>
-                        <a href="reports.html"><i class="fas fa-chart-column dd-icon"></i><span class="dd-text"><strong>Отчети и Анализ</strong><span>Приходи, справки и експорт</span></span></a>
-                        <a href="hardware.html"><i class="fas fa-microchip dd-icon"></i><span class="dd-text"><strong>Хардуер</strong><span>myPOS Ultra и NFC устройства</span></span></a>
+                        <a href="features.html"><i class="fas fa-layer-group dd-icon"></i><span class="dd-text"><strong data-i18n="nav-features">Функции</strong><span data-i18n="dd-features-d">Пълен каталог възможности</span></span></a>
+                        <a href="nfc-cards.html"><i class="fas fa-id-card dd-icon"></i><span class="dd-text"><strong data-i18n="dd-nfc-t">NFC Карти и Валидиране</strong><span data-i18n="dd-nfc-d">Безконтактни карти и заверка</span></span></a>
+                        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button dd-icon"></i><span class="dd-text"><strong data-i18n="dd-app-t">Приложение за пътници</strong><span data-i18n="dd-app-d">Разписания и известия в реално време</span></span></a>
+                        <a href="inspections.html"><i class="fas fa-user-shield dd-icon"></i><span class="dd-text"><strong data-i18n="dd-insp-t">Контрол и Сигурност</strong><span data-i18n="dd-insp-d">Ревизори, GPS и защита от измами</span></span></a>
+                        <a href="fleet.html"><i class="fas fa-bus dd-icon"></i><span class="dd-text"><strong data-i18n="dd-fleet-t">Наемане на автобуси</strong><span data-i18n="dd-fleet-d">Допълнителен приход за автопарка</span></span></a>
+                        <a href="reports.html"><i class="fas fa-chart-column dd-icon"></i><span class="dd-text"><strong data-i18n="dd-rep-t">Отчети и Анализ</strong><span data-i18n="dd-rep-d">Приходи, справки и експорт</span></span></a>
+                        <a href="hardware.html"><i class="fas fa-microchip dd-icon"></i><span class="dd-text"><strong data-i18n="nav-hardware">Хардуер</strong><span data-i18n="dd-hw-d">myPOS Ultra и NFC устройства</span></span></a>
                     </div>
                 </li>
                 <li><a href="index.html#pricing" data-i18n="nav-pricing">Цени</a></li>
@@ -38,25 +38,25 @@
             </ul>
             <div style="display: flex; align-items: center; gap: 14px;">
                 <a href="index.html#contact" class="btn btn-outline" style="padding: 10px 24px;"><span data-i18n="nav-demo">Демо</span><i class="fas fa-arrow-right"></i></a>
-                <button class="nav-toggle" aria-label="Меню"><i class="fas fa-bars"></i></button>
+                <button class="nav-toggle" aria-label="Меню" data-i18n-attr="aria-label:nav-menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </nav>
 
     <div class="mobile-menu" id="mobile-menu">
-        <span class="mm-label">Продукт</span>
-        <a href="features.html"><i class="fas fa-layer-group"></i> Функции</a>
-        <a href="nfc-cards.html"><i class="fas fa-id-card"></i> NFC Карти и Валидиране</a>
-        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button"></i> Приложение за пътници</a>
-        <a href="inspections.html"><i class="fas fa-user-shield"></i> Контрол и Сигурност</a>
-        <a href="fleet.html"><i class="fas fa-bus"></i> Наемане на автобуси</a>
-        <a href="reports.html"><i class="fas fa-chart-column"></i> Отчети и Анализ</a>
-        <a href="hardware.html"><i class="fas fa-microchip"></i> Хардуер</a>
-        <span class="mm-label">Компания</span>
-        <a href="index.html#pricing"><i class="fas fa-tag"></i> Цени</a>
-        <a href="faq.html"><i class="fas fa-circle-question"></i> Въпроси</a>
-        <a href="about.html"><i class="fas fa-building"></i> За нас</a>
-        <a href="index.html#contact"><i class="fas fa-envelope"></i> Контакти</a>
+        <span class="mm-label" data-i18n="nav-product">Продукт</span>
+        <a href="features.html"><i class="fas fa-layer-group"></i> <span data-i18n="nav-features">Функции</span></a>
+        <a href="nfc-cards.html"><i class="fas fa-id-card"></i> <span data-i18n="dd-nfc-t">NFC Карти и Валидиране</span></a>
+        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button"></i> <span data-i18n="dd-app-t">Приложение за пътници</span></a>
+        <a href="inspections.html"><i class="fas fa-user-shield"></i> <span data-i18n="dd-insp-t">Контрол и Сигурност</span></a>
+        <a href="fleet.html"><i class="fas fa-bus"></i> <span data-i18n="dd-fleet-t">Наемане на автобуси</span></a>
+        <a href="reports.html"><i class="fas fa-chart-column"></i> <span data-i18n="dd-rep-t">Отчети и Анализ</span></a>
+        <a href="hardware.html"><i class="fas fa-microchip"></i> <span data-i18n="nav-hardware">Хардуер</span></a>
+        <span class="mm-label" data-i18n="nav-company">Компания</span>
+        <a href="index.html#pricing"><i class="fas fa-tag"></i> <span data-i18n="nav-pricing">Цени</span></a>
+        <a href="faq.html"><i class="fas fa-circle-question"></i> <span data-i18n="nav-faq">Въпроси</span></a>
+        <a href="about.html"><i class="fas fa-building"></i> <span data-i18n="foot-about">За нас</span></a>
+        <a href="index.html#contact"><i class="fas fa-envelope"></i> <span data-i18n="nav-contact">Контакти</span></a>
     </div>
 
     <!-- Hero -->
@@ -64,14 +64,14 @@
         <div class="container">
             <div class="split-row" style="margin-bottom: 0;">
                 <div class="reveal active">
-                    <span class="eyebrow">Контрол и Сигурност</span>
-                    <h1 style="font-size: clamp(2.2rem, 5.5vw, 3.8rem); margin: 20px 0 24px;">Всеки лев приход – <span class="gradient-text">под контрол</span></h1>
-                    <p style="color: var(--text-muted); font-size: 1.2rem; line-height: 1.7; margin-bottom: 32px;">
-                        Загубите от неплатени пътувания, споделени и клонирани карти изяждат до 10% от оборота. TransitFlow затваря всяка вратичка – от снимката на профила до полевата ревизия с GPS.
+                    <span class="eyebrow" data-i18n="insp-eyebrow">Контрол и Сигурност</span>
+                    <h1 style="font-size: clamp(2.2rem, 5.5vw, 3.8rem); margin: 20px 0 24px;"><span data-i18n="insp-h1a">Всеки лев приход –</span> <span class="gradient-text" data-i18n="insp-h1b">под контрол</span></h1>
+                    <p style="color: var(--text-muted); font-size: 1.2rem; line-height: 1.7; margin-bottom: 32px;" data-i18n="insp-hero-p">
+                        __WRAPTEXT__
                     </p>
                     <div class="btn-group">
-                        <a href="index.html#contact" class="btn btn-primary">Спрете загубите</a>
-                        <a href="#how" class="btn btn-outline">Как работи</a>
+                        <a href="index.html#contact" class="btn btn-primary" data-i18n="insp-stop">Спрете загубите</a>
+                        <a href="#how" class="btn btn-outline" data-i18n="insp-how">Как работи</a>
                     </div>
                 </div>
                 <div class="split-visual reveal active">
@@ -87,37 +87,37 @@
     <section id="how">
         <div class="container">
             <div class="section-head">
-                <span class="eyebrow reveal">Полеви контрол</span>
-                <h2 class="reveal">Мобилен ревизор с <span class="gradient-text">неоспорими доказателства</span></h2>
-                <p class="reveal">Вашите инспектори проверяват пътниците на място с телефон. Всяка проверка се записва с време, локация и резултат.</p>
+                <span class="eyebrow reveal" data-i18n="insp-field-eyebrow">Полеви контрол</span>
+                <h2 class="reveal"><span data-i18n="insp-field-h2a">Мобилен ревизор с</span> <span class="gradient-text" data-i18n="insp-field-h2b">неоспорими доказателства</span></h2>
+                <p class="reveal" data-i18n="insp-field-p">Вашите инспектори проверяват пътниците на място с телефон. Всяка проверка се записва с време, локация и резултат.</p>
             </div>
             <div class="feature-grid">
                 <div class="feature-card glass reveal" style="min-height:auto;">
                     <div class="feature-card-content">
                         <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-id-card-clip"></i></div>
-                        <h3>Проверка на място</h3>
-                        <p>Ревизорът сканира картата на пътника и вижда моментално дали абонаментът е валиден, кой е клиентът и неговата снимка.</p>
+                        <h3 data-i18n="insp-c1-h">Проверка на място</h3>
+                        <p data-i18n="insp-c1-p">Ревизорът сканира картата на пътника и вижда моментално дали абонаментът е валиден, кой е клиентът и неговата снимка.</p>
                     </div>
                 </div>
                 <div class="feature-card glass reveal" style="min-height:auto;">
                     <div class="feature-card-content">
                         <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-location-dot"></i></div>
-                        <h3>GPS локация и адрес</h3>
-                        <p>Всяка ревизия записва точната географска локация и адрес, нанесени на карта – доказателство къде и кога е извършена.</p>
+                        <h3 data-i18n="insp-c2-h">GPS локация и адрес</h3>
+                        <p data-i18n="insp-c2-p">Всяка ревизия записва точната географска локация и адрес, нанесени на карта – доказателство къде и кога е извършена.</p>
                     </div>
                 </div>
                 <div class="feature-card glass reveal" style="min-height:auto;">
                     <div class="feature-card-content">
                         <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-arrows-left-right"></i></div>
-                        <h3>Кръстосана проверка при качване</h3>
-                        <p>Системата сравнява дали картата е била заверена при качване. Ако не – пътникът се качил без валидиране и се маркира автоматично.</p>
+                        <h3 data-i18n="insp-c3-h">Кръстосана проверка при качване</h3>
+                        <p data-i18n="insp-c3-p">Системата сравнява дали картата е била заверена при качване. Ако не – пътникът се качил без валидиране и се маркира автоматично.</p>
                     </div>
                 </div>
                 <div class="feature-card glass reveal" style="min-height:auto;">
                     <div class="feature-card-content">
                         <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-file-lines"></i></div>
-                        <h3>Доклади от ревизия</h3>
-                        <p>Инспекторът въвежда шофьор, автобус, дестинация, брой проверени и евентуален проблем – структуриран отчет за ръководството.</p>
+                        <h3 data-i18n="insp-c4-h">Доклади от ревизия</h3>
+                        <p data-i18n="insp-c4-p">Инспекторът въвежда шофьор, автобус, дестинация, брой проверени и евентуален проблем – структуриран отчет за ръководството.</p>
                     </div>
                 </div>
             </div>
@@ -129,9 +129,9 @@
         <div class="container">
             <div class="split-row" style="margin-bottom: 0;">
                 <div class="reveal">
-                    <span class="eyebrow">Защита от измами</span>
-                    <h2 style="margin: 20px 0 24px;">Клонирането на карти – <span class="gradient-text">невъзможно</span></h2>
-                    <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.7;">TransitFlow следи поведението на всяка карта. Когато една и съща карта се появи на две места едновременно или показва подозрителна активност, системата вдига аларма и я блокира.</p>
+                    <span class="eyebrow" data-i18n="insp-fraud-eyebrow">Защита от измами</span>
+                    <h2 style="margin: 20px 0 24px;"><span data-i18n="insp-fraud-h2a">Клонирането на карти –</span> <span class="gradient-text" data-i18n="insp-fraud-h2b">невъзможно</span></h2>
+                    <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.7;" data-i18n="insp-fraud-p">TransitFlow следи поведението на всяка карта. Когато една и съща карта се появи на две места едновременно или показва подозрителна активност, системата вдига аларма и я блокира.</p>
                     <div class="protection-list">
                         <div class="protection-item reveal">
                             <div class="protection-icon bg-red"><i class="fas fa-clone"></i></div>
@@ -174,15 +174,15 @@
                     <div class="glass" style="padding: 40px; border-radius: 24px; display:flex; flex-direction:column; gap: 18px;">
                         <div style="display:flex; align-items:center; gap:14px; padding:16px; background:rgba(255,82,82,0.08); border:1px solid rgba(255,82,82,0.25); border-radius:14px;">
                             <i class="fas fa-triangle-exclamation" style="color:#ff5252; font-size:1.4rem;"></i>
-                            <div><strong style="display:block;">Аларма: дублирана карта</strong><span style="color:var(--text-muted); font-size:0.85rem;">Карта #4471 засечена на 2 устройства</span></div>
+                            <div><strong style="display:block;" data-i18n="insp-al1-h">Аларма: дублирана карта</strong><span style="color:var(--text-muted); font-size:0.85rem;" data-i18n="insp-al1-d">Карта #4471 засечена на 2 устройства</span></div>
                         </div>
                         <div style="display:flex; align-items:center; gap:14px; padding:16px; background:rgba(34,211,238,0.06); border:1px solid var(--glass-border); border-radius:14px;">
                             <i class="fas fa-shield-halved" style="color:var(--primary); font-size:1.4rem;"></i>
-                            <div><strong style="display:block;">Автоматично блокирана</strong><span style="color:var(--text-muted); font-size:0.85rem;">Балансът е защитен, издадена нова карта</span></div>
+                            <div><strong style="display:block;" data-i18n="insp-al2-h">Автоматично блокирана</strong><span style="color:var(--text-muted); font-size:0.85rem;" data-i18n="insp-al2-d">Балансът е защитен, издадена нова карта</span></div>
                         </div>
                         <div style="display:flex; align-items:center; gap:14px; padding:16px; background:rgba(74,222,128,0.06); border:1px solid rgba(74,222,128,0.2); border-radius:14px;">
                             <i class="fas fa-circle-check" style="color:#4ade80; font-size:1.4rem;"></i>
-                            <div><strong style="display:block;">Записано в журнала</strong><span style="color:var(--text-muted); font-size:0.85rem;">Време, устройство и оператор</span></div>
+                            <div><strong style="display:block;" data-i18n="insp-al3-h">Записано в журнала</strong><span style="color:var(--text-muted); font-size:0.85rem;" data-i18n="insp-al3-d">Време, устройство и оператор</span></div>
                         </div>
                     </div>
                 </div>
@@ -194,24 +194,24 @@
     <section>
         <div class="container">
             <div class="section-head">
-                <span class="eyebrow reveal">Роли и достъп</span>
-                <h2 class="reveal">Всеки вижда точно <span class="gradient-text">каквото трябва</span></h2>
+                <span class="eyebrow reveal" data-i18n="insp-roles-eyebrow">Роли и достъп</span>
+                <h2 class="reveal"><span data-i18n="insp-roles-h2a">Всеки вижда точно</span> <span class="gradient-text" data-i18n="insp-roles-h2b">каквото трябва</span></h2>
             </div>
             <div class="module-grid">
                 <div class="glass reveal" style="padding:36px; border-radius:20px;">
                     <div class="mod-icon" style="margin-bottom:18px;"><i class="fas fa-user-gear"></i></div>
-                    <h3 style="margin-bottom:12px;">Администратор</h3>
-                    <p style="color:var(--text-muted);">Пълен достъп до клиенти, финанси, известия, ревизии и настройки на системата.</p>
+                    <h3 style="margin-bottom:12px;" data-i18n="insp-r1-h">Администратор</h3>
+                    <p style="color:var(--text-muted);" data-i18n="insp-r1-p">Пълен достъп до клиенти, финанси, известия, ревизии и настройки на системата.</p>
                 </div>
                 <div class="glass reveal" style="padding:36px; border-radius:20px;">
                     <div class="mod-icon" style="margin-bottom:18px;"><i class="fas fa-headset"></i></div>
-                    <h3 style="margin-bottom:12px;">Персонал / Гише</h3>
-                    <p style="color:var(--text-muted);">Издаване и подновяване на карти, регистрация на клиенти и приемане на плащания.</p>
+                    <h3 style="margin-bottom:12px;" data-i18n="insp-r2-h">Персонал / Гише</h3>
+                    <p style="color:var(--text-muted);" data-i18n="insp-r2-p">Издаване и подновяване на карти, регистрация на клиенти и приемане на плащания.</p>
                 </div>
                 <div class="glass reveal" style="padding:36px; border-radius:20px;">
                     <div class="mod-icon" style="margin-bottom:18px;"><i class="fas fa-user-shield"></i></div>
-                    <h3 style="margin-bottom:12px;">Ревизор</h3>
-                    <p style="color:var(--text-muted);">Мобилна проверка на пътници с GPS и доклади – без достъп до финансови данни.</p>
+                    <h3 style="margin-bottom:12px;" data-i18n="insp-r3-h">Ревизор</h3>
+                    <p style="color:var(--text-muted);" data-i18n="insp-r3-p">Мобилна проверка на пътници с GPS и доклади – без достъп до финансови данни.</p>
                 </div>
             </div>
         </div>
@@ -221,9 +221,9 @@
     <section>
         <div class="container">
             <div class="glass reveal" style="padding: 70px 40px; text-align: center; border-color: rgba(34,211,238,0.4);">
-                <h2 style="margin-bottom: 20px;">Спрете да губите приходи още този месец</h2>
-                <p style="color: var(--text-muted); font-size: 1.2rem; max-width: 700px; margin: 0 auto 40px;">Ще Ви покажем колко пари се губят без контрол – и как TransitFlow ги връща обратно в касата.</p>
-                <a href="index.html#contact" class="btn btn-primary">Заявете демонстрация <i class="fas fa-arrow-right"></i></a>
+                <h2 style="margin-bottom: 20px;" data-i18n="insp-cta-h">Спрете да губите приходи още този месец</h2>
+                <p style="color: var(--text-muted); font-size: 1.2rem; max-width: 700px; margin: 0 auto 40px;" data-i18n="insp-cta-p">Ще Ви покажем колко пари се губят без контрол – и как TransitFlow ги връща обратно в касата.</p>
+                <a href="index.html#contact" class="btn btn-primary"><span data-i18n="req-demo">Заявете демонстрация</span> <i class="fas fa-arrow-right"></i></a>
             </div>
         </div>
     </section>
@@ -239,9 +239,9 @@
                     <h4 data-i18n="foot-prod">Продукт</h4>
                     <ul>
                         <li><a href="features.html" data-i18n="nav-features">Функции</a></li>
-                        <li><a href="passenger-app.html">Приложение за пътници</a></li>
-                        <li><a href="inspections.html">Контрол и Сигурност</a></li>
-                        <li><a href="fleet.html">Наемане на автобуси</a></li>
+                        <li><a href="passenger-app.html" data-i18n="dd-app-t">Приложение за пътници</a></li>
+                        <li><a href="inspections.html" data-i18n="dd-insp-t">Контрол и Сигурност</a></li>
+                        <li><a href="fleet.html" data-i18n="dd-fleet-t">Наемане на автобуси</a></li>
                         <li><a href="hardware.html" data-i18n="foot-hw">Хардуер</a></li>
                     </ul>
                 </div>

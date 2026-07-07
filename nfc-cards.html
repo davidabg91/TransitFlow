@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFC Карти и Валидиране | TransitFlow - Безконтактни абонаментни карти</title>
-    <meta name="description" content="Безконтактни NFC абонаментни карти със снимка, мигновена облачна заверка под 1 секунда, вечни карти, категории с автоматични отстъпки, издаване и печат, прехвърляне при загуба и офлайн режим.">
+    <title data-i18n-title="m-nfc-cards-title">NFC Карти и Валидиране | TransitFlow - Безконтактни абонаментни карти</title>
+    <meta name="description" content="Безконтактни NFC абонаментни карти със снимка, мигновена облачна заверка под 1 секунда, вечни карти, категории с автоматични отстъпки, издаване и печат, прехвърляне при загуба и офлайн режим." data-i18n-content="m-nfc-cards-desc">
     <link rel="canonical" href="https://transitflow.org/nfc-cards.html">
     <link rel="icon" type="image/png" href="assets/favicon.png">
     <link rel="stylesheet" href="index.css">
@@ -20,15 +20,15 @@
             <a href="index.html" class="logo"><i class="fas fa-bus-simple"></i> Transit<span>Flow</span></a>
             <ul class="nav-links">
                 <li class="has-dropdown">
-                    <a href="#" class="active">Продукт <i class="fas fa-chevron-down"></i></a>
+                    <a href="#" class="active"><span data-i18n="nav-product">Продукт</span> <i class="fas fa-chevron-down"></i></a>
                     <div class="nav-dropdown">
-                        <a href="features.html"><i class="fas fa-layer-group dd-icon"></i><span class="dd-text"><strong>Функции</strong><span>Пълен каталог възможности</span></span></a>
-                        <a href="nfc-cards.html"><i class="fas fa-id-card dd-icon"></i><span class="dd-text"><strong>NFC Карти и Валидиране</strong><span>Безконтактни карти и заверка</span></span></a>
-                        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button dd-icon"></i><span class="dd-text"><strong>Приложение за пътници</strong><span>Разписания и известия в реално време</span></span></a>
-                        <a href="inspections.html"><i class="fas fa-user-shield dd-icon"></i><span class="dd-text"><strong>Контрол и Сигурност</strong><span>Ревизори, GPS и защита от измами</span></span></a>
-                        <a href="fleet.html"><i class="fas fa-bus dd-icon"></i><span class="dd-text"><strong>Наемане на автобуси</strong><span>Допълнителен приход за автопарка</span></span></a>
-                        <a href="reports.html"><i class="fas fa-chart-column dd-icon"></i><span class="dd-text"><strong>Отчети и Анализ</strong><span>Приходи, справки и експорт</span></span></a>
-                        <a href="hardware.html"><i class="fas fa-microchip dd-icon"></i><span class="dd-text"><strong>Хардуер</strong><span>myPOS Ultra и NFC устройства</span></span></a>
+                        <a href="features.html"><i class="fas fa-layer-group dd-icon"></i><span class="dd-text"><strong data-i18n="nav-features">Функции</strong><span data-i18n="dd-features-d">Пълен каталог възможности</span></span></a>
+                        <a href="nfc-cards.html"><i class="fas fa-id-card dd-icon"></i><span class="dd-text"><strong data-i18n="dd-nfc-t">NFC Карти и Валидиране</strong><span data-i18n="dd-nfc-d">Безконтактни карти и заверка</span></span></a>
+                        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button dd-icon"></i><span class="dd-text"><strong data-i18n="dd-app-t">Приложение за пътници</strong><span data-i18n="dd-app-d">Разписания и известия в реално време</span></span></a>
+                        <a href="inspections.html"><i class="fas fa-user-shield dd-icon"></i><span class="dd-text"><strong data-i18n="dd-insp-t">Контрол и Сигурност</strong><span data-i18n="dd-insp-d">Ревизори, GPS и защита от измами</span></span></a>
+                        <a href="fleet.html"><i class="fas fa-bus dd-icon"></i><span class="dd-text"><strong data-i18n="dd-fleet-t">Наемане на автобуси</strong><span data-i18n="dd-fleet-d">Допълнителен приход за автопарка</span></span></a>
+                        <a href="reports.html"><i class="fas fa-chart-column dd-icon"></i><span class="dd-text"><strong data-i18n="dd-rep-t">Отчети и Анализ</strong><span data-i18n="dd-rep-d">Приходи, справки и експорт</span></span></a>
+                        <a href="hardware.html"><i class="fas fa-microchip dd-icon"></i><span class="dd-text"><strong data-i18n="nav-hardware">Хардуер</strong><span data-i18n="dd-hw-d">myPOS Ultra и NFC устройства</span></span></a>
                     </div>
                 </li>
                 <li><a href="index.html#pricing" data-i18n="nav-pricing">Цени</a></li>
@@ -38,25 +38,25 @@
             </ul>
             <div style="display: flex; align-items: center; gap: 14px;">
                 <a href="index.html#contact" class="btn btn-outline" style="padding: 10px 24px;"><span data-i18n="nav-demo">Демо</span><i class="fas fa-arrow-right"></i></a>
-                <button class="nav-toggle" aria-label="Меню"><i class="fas fa-bars"></i></button>
+                <button class="nav-toggle" aria-label="Меню" data-i18n-attr="aria-label:nav-menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </nav>
 
     <div class="mobile-menu" id="mobile-menu">
-        <span class="mm-label">Продукт</span>
-        <a href="features.html"><i class="fas fa-layer-group"></i> Функции</a>
-        <a href="nfc-cards.html"><i class="fas fa-id-card"></i> NFC Карти и Валидиране</a>
-        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button"></i> Приложение за пътници</a>
-        <a href="inspections.html"><i class="fas fa-user-shield"></i> Контрол и Сигурност</a>
-        <a href="fleet.html"><i class="fas fa-bus"></i> Наемане на автобуси</a>
-        <a href="reports.html"><i class="fas fa-chart-column"></i> Отчети и Анализ</a>
-        <a href="hardware.html"><i class="fas fa-microchip"></i> Хардуер</a>
-        <span class="mm-label">Компания</span>
-        <a href="index.html#pricing"><i class="fas fa-tag"></i> Цени</a>
-        <a href="faq.html"><i class="fas fa-circle-question"></i> Въпроси</a>
-        <a href="about.html"><i class="fas fa-building"></i> За нас</a>
-        <a href="index.html#contact"><i class="fas fa-envelope"></i> Контакти</a>
+        <span class="mm-label" data-i18n="nav-product">Продукт</span>
+        <a href="features.html"><i class="fas fa-layer-group"></i> <span data-i18n="nav-features">Функции</span></a>
+        <a href="nfc-cards.html"><i class="fas fa-id-card"></i> <span data-i18n="dd-nfc-t">NFC Карти и Валидиране</span></a>
+        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button"></i> <span data-i18n="dd-app-t">Приложение за пътници</span></a>
+        <a href="inspections.html"><i class="fas fa-user-shield"></i> <span data-i18n="dd-insp-t">Контрол и Сигурност</span></a>
+        <a href="fleet.html"><i class="fas fa-bus"></i> <span data-i18n="dd-fleet-t">Наемане на автобуси</span></a>
+        <a href="reports.html"><i class="fas fa-chart-column"></i> <span data-i18n="dd-rep-t">Отчети и Анализ</span></a>
+        <a href="hardware.html"><i class="fas fa-microchip"></i> <span data-i18n="nav-hardware">Хардуер</span></a>
+        <span class="mm-label" data-i18n="nav-company">Компания</span>
+        <a href="index.html#pricing"><i class="fas fa-tag"></i> <span data-i18n="nav-pricing">Цени</span></a>
+        <a href="faq.html"><i class="fas fa-circle-question"></i> <span data-i18n="nav-faq">Въпроси</span></a>
+        <a href="about.html"><i class="fas fa-building"></i> <span data-i18n="foot-about">За нас</span></a>
+        <a href="index.html#contact"><i class="fas fa-envelope"></i> <span data-i18n="nav-contact">Контакти</span></a>
     </div>
 
     <!-- Hero -->
@@ -64,14 +64,14 @@
         <div class="container">
             <div class="split-row" style="margin-bottom: 0;">
                 <div class="reveal active">
-                    <span class="eyebrow">NFC Карти и Валидиране</span>
-                    <h1 style="font-size: clamp(2.2rem, 5.5vw, 3.8rem); margin: 20px 0 24px;">Една карта. <span class="gradient-text">Секунда заверка.</span></h1>
-                    <p style="color: var(--text-muted); font-size: 1.2rem; line-height: 1.7; margin-bottom: 32px;">
+                    <span class="eyebrow" data-i18n="dd-nfc-t">NFC Карти и Валидиране</span>
+                    <h1 style="font-size: clamp(2.2rem, 5.5vw, 3.8rem); margin: 20px 0 24px;"><span data-i18n="nfc-h1a">Една карта.</span> <span class="gradient-text" data-i18n="nfc-h1b">Секунда заверка.</span></h1>
+                    <p style="color: var(--text-muted); font-size: 1.2rem; line-height: 1.7; margin-bottom: 32px;" data-i18n="nfc-hero-p">
                         Сърцето на TransitFlow са интелигентните безконтактни карти. Всяка карта носи снимка и цифров профил, а заверката се случва с едно докосване – проверена в облака за части от секундата.
                     </p>
                     <div class="btn-group">
-                        <a href="index.html#contact" class="btn btn-primary">Искам NFC система</a>
-                        <a href="#validation" class="btn btn-outline">Как работи заверката</a>
+                        <a href="index.html#contact" class="btn btn-primary" data-i18n="nfc-want">Искам NFC система</a>
+                        <a href="#validation" class="btn btn-outline" data-i18n="nfc-howval">Как работи заверката</a>
                     </div>
                 </div>
                 <div class="split-visual reveal active">
@@ -87,51 +87,51 @@
     <section id="validation" style="background: rgba(255,255,255,0.02);">
         <div class="container">
             <div class="section-head">
-                <span class="eyebrow reveal">Валидиране</span>
-                <h2 class="reveal">Заверка, на която <span class="gradient-text">шофьорът вярва</span></h2>
-                <p class="reveal">Ясен статус, звуков сигнал и снимка на пътника – без колебание и без спорове на вратата.</p>
+                <span class="eyebrow reveal" data-i18n="nfc-val-eyebrow">Валидиране</span>
+                <h2 class="reveal"><span data-i18n="nfc-val-h2a">Заверка, на която</span> <span class="gradient-text" data-i18n="nfc-val-h2b">шофьорът вярва</span></h2>
+                <p class="reveal" data-i18n="nfc-val-p">Ясен статус, звуков сигнал и снимка на пътника – без колебание и без спорове на вратата.</p>
             </div>
             <div class="feature-grid">
                 <div class="feature-card glass reveal" style="min-height:auto;">
                     <div class="feature-card-content">
                         <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-wifi"></i></div>
-                        <h3>Безконтактна заверка</h3>
-                        <p>Пътникът докосва картата до четеца или смарт терминала. Разпознават се както безконтактни, така и контактни карти.</p>
+                        <h3 data-i18n="nfc-v1-h">Безконтактна заверка</h3>
+                        <p data-i18n="nfc-v1-p">Пътникът докосва картата до четеца или смарт терминала. Разпознават се както безконтактни, така и контактни карти.</p>
                     </div>
                 </div>
                 <div class="feature-card glass reveal" style="min-height:auto;">
                     <div class="feature-card-content">
                         <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-bolt"></i></div>
-                        <h3>Облачна проверка под 1 секунда</h3>
-                        <p>Статусът се проверява отдалечено в базата данни за части от секундата и се показва ясно „Валиден" или „Невалиден".</p>
+                        <h3 data-i18n="nfc-v2-h">Облачна проверка под 1 секунда</h3>
+                        <p data-i18n="nfc-v2-p">Статусът се проверява отдалечено в базата данни за части от секундата и се показва ясно „Валиден" или „Невалиден".</p>
                     </div>
                 </div>
                 <div class="feature-card glass reveal" style="min-height:auto;">
                     <div class="feature-card-content">
                         <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-volume-high"></i></div>
-                        <h3>Звуков и визуален сигнал</h3>
-                        <p>Различим звук и цветен екран уведомяват шофьора и пътника за резултата – без нужда да се вглежда.</p>
+                        <h3 data-i18n="nfc-v3-h">Звуков и визуален сигнал</h3>
+                        <p data-i18n="nfc-v3-p">Различим звук и цветен екран уведомяват шофьора и пътника за резултата – без нужда да се вглежда.</p>
                     </div>
                 </div>
                 <div class="feature-card glass reveal" style="min-height:auto;">
                     <div class="feature-card-content">
                         <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-image-portrait"></i></div>
-                        <h3>Снимка на пътника</h3>
-                        <p>При заверка на екрана изскача снимката от профила – преотстъпването на карти става невъзможно.</p>
+                        <h3 data-i18n="nfc-v4-h">Снимка на пътника</h3>
+                        <p data-i18n="nfc-v4-p">При заверка на екрана изскача снимката от профила – преотстъпването на карти става невъзможно.</p>
                     </div>
                 </div>
                 <div class="feature-card glass reveal" style="min-height:auto;">
                     <div class="feature-card-content">
                         <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-cloud-arrow-up"></i></div>
-                        <h3>Офлайн режим</h3>
-                        <p>При слаба връзка заверките се записват локално и се синхронизират автоматично при възстановяване на обхвата.</p>
+                        <h3 data-i18n="nfc-v5-h">Офлайн режим</h3>
+                        <p data-i18n="nfc-v5-p">При слаба връзка заверките се записват локално и се синхронизират автоматично при възстановяване на обхвата.</p>
                     </div>
                 </div>
                 <div class="feature-card glass reveal" style="min-height:auto;">
                     <div class="feature-card-content">
                         <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-clock-rotate-left"></i></div>
-                        <h3>История на всяка заверка</h3>
-                        <p>Всяко докосване се записва с време и устройство – пълна проследимост за отчети и контрол.</p>
+                        <h3 data-i18n="nfc-v6-h">История на всяка заверка</h3>
+                        <p data-i18n="nfc-v6-p">Всяко докосване се записва с време и устройство – пълна проследимост за отчети и контрол.</p>
                     </div>
                 </div>
             </div>
@@ -142,40 +142,40 @@
     <section>
         <div class="container">
             <div class="section-head">
-                <span class="eyebrow reveal">Видове карти</span>
-                <h2 class="reveal">Всяка категория пътник – <span class="gradient-text">със своята тарифа</span></h2>
-                <p class="reveal">Системата разпознава типа карта и прилага правилната цена и отстъпка автоматично при издаване и подновяване.</p>
+                <span class="eyebrow reveal" data-i18n="nfc-types-eyebrow">Видове карти</span>
+                <h2 class="reveal"><span data-i18n="nfc-types-h2a">Всяка категория пътник –</span> <span class="gradient-text" data-i18n="nfc-types-h2b">със своята тарифа</span></h2>
+                <p class="reveal" data-i18n="nfc-types-p">Системата разпознава типа карта и прилага правилната цена и отстъпка автоматично при издаване и подновяване.</p>
             </div>
             <div class="module-grid">
                 <div class="glass reveal" style="padding:32px; border-radius:20px;">
                     <div class="mod-icon" style="margin-bottom:16px;"><i class="fas fa-id-badge"></i></div>
-                    <h3 style="margin-bottom:8px;">Нормална карта</h3>
-                    <p style="color:var(--text-muted);">Стандартен абонамент за редовни пътници по пълна тарифа.</p>
+                    <h3 style="margin-bottom:8px;" data-i18n="nfc-t1-h">Нормална карта</h3>
+                    <p style="color:var(--text-muted);" data-i18n="nfc-t1-p">Стандартен абонамент за редовни пътници по пълна тарифа.</p>
                 </div>
                 <div class="glass reveal" style="padding:32px; border-radius:20px;">
                     <div class="mod-icon" style="margin-bottom:16px;"><i class="fas fa-graduation-cap"></i></div>
-                    <h3 style="margin-bottom:8px;">Ученическа карта</h3>
-                    <p style="color:var(--text-muted);">Преференциална тарифа, обвързана с училище и община за отчет към субсидиращите органи.</p>
+                    <h3 style="margin-bottom:8px;" data-i18n="nfc-t2-h">Ученическа карта</h3>
+                    <p style="color:var(--text-muted);" data-i18n="nfc-t2-p">Преференциална тарифа, обвързана с училище и община за отчет към субсидиращите органи.</p>
                 </div>
                 <div class="glass reveal" style="padding:32px; border-radius:20px;">
                     <div class="mod-icon" style="margin-bottom:16px;"><i class="fas fa-user-group"></i></div>
-                    <h3 style="margin-bottom:8px;">Пенсионерска карта</h3>
-                    <p style="color:var(--text-muted);">Намалена цена за пенсионери с автоматично приложена отстъпка.</p>
+                    <h3 style="margin-bottom:8px;" data-i18n="nfc-t3-h">Пенсионерска карта</h3>
+                    <p style="color:var(--text-muted);" data-i18n="nfc-t3-p">Намалена цена за пенсионери с автоматично приложена отстъпка.</p>
                 </div>
                 <div class="glass reveal" style="padding:32px; border-radius:20px;">
                     <div class="mod-icon" style="margin-bottom:16px;"><i class="fas fa-chalkboard-user"></i></div>
-                    <h3 style="margin-bottom:8px;">Учителска карта</h3>
-                    <p style="color:var(--text-muted);">Специална категория за преподаватели с индивидуална тарифа.</p>
+                    <h3 style="margin-bottom:8px;" data-i18n="nfc-t4-h">Учителска карта</h3>
+                    <p style="color:var(--text-muted);" data-i18n="nfc-t4-p">Специална категория за преподаватели с индивидуална тарифа.</p>
                 </div>
                 <div class="glass reveal" style="padding:32px; border-radius:20px;">
                     <div class="mod-icon" style="margin-bottom:16px;"><i class="fas fa-wheelchair"></i></div>
-                    <h3 style="margin-bottom:8px;">Инвалидна карта</h3>
-                    <p style="color:var(--text-muted);">Отстъпка за хора с увреждания над 70.99%, с адрес и категория за доказване на правото.</p>
+                    <h3 style="margin-bottom:8px;" data-i18n="nfc-t5-h">Инвалидна карта</h3>
+                    <p style="color:var(--text-muted);" data-i18n="nfc-t5-p">Отстъпка за хора с увреждания над 70.99%, с адрес и категория за доказване на правото.</p>
                 </div>
                 <div class="glass reveal" style="padding:32px; border-radius:20px;">
                     <div class="mod-icon" style="margin-bottom:16px;"><i class="fas fa-briefcase"></i></div>
-                    <h3 style="margin-bottom:8px;">Служебна карта</h3>
-                    <p style="color:var(--text-muted);">За служители и персонал – със собствени правила за достъп и валидност.</p>
+                    <h3 style="margin-bottom:8px;" data-i18n="nfc-t6-h">Служебна карта</h3>
+                    <p style="color:var(--text-muted);" data-i18n="nfc-t6-p">За служители и персонал – със собствени правила за достъп и валидност.</p>
                 </div>
             </div>
         </div>
@@ -192,14 +192,14 @@
                     </div>
                 </div>
                 <div class="reveal">
-                    <span class="eyebrow">Издаване и кодиране</span>
-                    <h2 style="margin: 20px 0 24px;">Нова карта <span class="gradient-text">за под минута</span></h2>
-                    <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.7;">Служителят работи с нашата настолна програма за Windows и свързан NFC четец. Създава профил със снимка, кодира картата и я активира на място – без телефон и без сложни настройки.</p>
+                    <span class="eyebrow" data-i18n="nfc-iss-eyebrow">Издаване и кодиране</span>
+                    <h2 style="margin: 20px 0 24px;"><span data-i18n="nfc-iss-h2a">Нова карта</span> <span class="gradient-text" data-i18n="nfc-iss-h2b">за под минута</span></h2>
+                    <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.7;" data-i18n="nfc-iss-p">Служителят работи с нашата настолна програма за Windows и свързан NFC четец. Създава профил със снимка, кодира картата и я активира на място – без телефон и без сложни настройки.</p>
                     <ul class="split-list">
-                        <li><i class="fas fa-user-plus"></i><div><strong>Профил със снимка</strong><span>Лични данни, категория и снимка се въвеждат за секунди.</span></div></li>
-                        <li><i class="fas fa-id-card"></i><div><strong>Кодиране на картата</strong><span>Празната NFC карта се записва и обвързва с профила на клиента.</span></div></li>
-                        <li><i class="fas fa-wallet"></i><div><strong>Зареждане и подновяване</strong><span>Абонаменти и баланс се добавят директно от работното място.</span></div></li>
-                        <li><i class="fas fa-magnifying-glass"></i><div><strong>Търсене и история</strong><span>Всеки клиент се намира моментално, с пълна история на плащанията.</span></div></li>
+                        <li><i class="fas fa-user-plus"></i><div><strong data-i18n="nfc-i1-h">Профил със снимка</strong><span data-i18n="nfc-i1-p">Лични данни, категория и снимка се въвеждат за секунди.</span></div></li>
+                        <li><i class="fas fa-id-card"></i><div><strong data-i18n="nfc-i2-h">Кодиране на картата</strong><span data-i18n="nfc-i2-p">Празната NFC карта се записва и обвързва с профила на клиента.</span></div></li>
+                        <li><i class="fas fa-wallet"></i><div><strong data-i18n="nfc-i3-h">Зареждане и подновяване</strong><span data-i18n="nfc-i3-p">Абонаменти и баланс се добавят директно от работното място.</span></div></li>
+                        <li><i class="fas fa-magnifying-glass"></i><div><strong data-i18n="nfc-i4-h">Търсене и история</strong><span data-i18n="nfc-i4-p">Всеки клиент се намира моментално, с пълна история на плащанията.</span></div></li>
                     </ul>
                 </div>
             </div>
@@ -216,12 +216,12 @@
                     </div>
                 </div>
                 <div class="reveal">
-                    <span class="eyebrow">Дизайн и печат</span>
-                    <h2 style="margin: 20px 0 24px;">Карти с <span class="gradient-text">Вашия бранд</span>, готови за работа</h2>
-                    <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.7;">Грижим се за всичко – от изработката и кодирането до висококачествения печат. Получавате карти с дизайн по Ваш избор, напълно готови за издаване от първия ден.</p>
+                    <span class="eyebrow" data-i18n="nfc-des-eyebrow">Дизайн и печат</span>
+                    <h2 style="margin: 20px 0 24px;"><span data-i18n="nfc-des-h2a">Карти с</span> <span class="gradient-text" data-i18n="nfc-des-h2b">Вашия бранд</span><span data-i18n="nfc-des-h2c">, готови за работа</span></h2>
+                    <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.7;" data-i18n="nfc-des-p">Грижим се за всичко – от изработката и кодирането до висококачествения печат. Получавате карти с дизайн по Ваш избор, напълно готови за издаване от първия ден.</p>
                     <ul class="split-list">
-                        <li><i class="fas fa-palette"></i><div><strong>Персонализиран дизайн</strong><span>Лого, цветове и оформление на Вашата фирма.</span></div></li>
-                        <li><i class="fas fa-print"></i><div><strong>Професионален печат</strong><span>Издръжливи карти с високо качество за ежедневна употреба.</span></div></li>
+                        <li><i class="fas fa-palette"></i><div><strong data-i18n="nfc-d1-h">Персонализиран дизайн</strong><span data-i18n="nfc-d1-p">Лого, цветове и оформление на Вашата фирма.</span></div></li>
+                        <li><i class="fas fa-print"></i><div><strong data-i18n="nfc-d2-h">Професионален печат</strong><span data-i18n="nfc-d2-p">Издръжливи карти с високо качество за ежедневна употреба.</span></div></li>
                     </ul>
                 </div>
             </div>
@@ -231,21 +231,21 @@
                     <div class="glass" style="padding: 40px; border-radius: 24px; display:flex; flex-direction:column; gap: 16px;">
                         <div style="display:flex; align-items:center; gap:14px; padding:16px; background:rgba(255,82,82,0.08); border:1px solid rgba(255,82,82,0.25); border-radius:14px;">
                             <i class="fas fa-ban" style="color:#ff5252; font-size:1.4rem;"></i>
-                            <div><strong style="display:block;">Картата е блокирана</strong><span style="color:var(--text-muted); font-size:0.85rem;">Загубена карта #4471 – деактивирана от разстояние</span></div>
+                            <div><strong style="display:block;" data-i18n="nfc-al1-h">Картата е блокирана</strong><span style="color:var(--text-muted); font-size:0.85rem;" data-i18n="nfc-al1-p">Загубена карта #4471 – деактивирана от разстояние</span></div>
                         </div>
                         <div style="display:flex; align-items:center; gap:14px; padding:16px; background:rgba(74,222,128,0.06); border:1px solid rgba(74,222,128,0.2); border-radius:14px;">
                             <i class="fas fa-right-left" style="color:#4ade80; font-size:1.4rem;"></i>
-                            <div><strong style="display:block;">Профилът е прехвърлен</strong><span style="color:var(--text-muted); font-size:0.85rem;">Баланс и абонамент – върху нова карта</span></div>
+                            <div><strong style="display:block;" data-i18n="nfc-al2-h">Профилът е прехвърлен</strong><span style="color:var(--text-muted); font-size:0.85rem;" data-i18n="nfc-al2-p">Баланс и абонамент – върху нова карта</span></div>
                         </div>
                     </div>
                 </div>
                 <div class="reveal">
-                    <span class="eyebrow">Загубена карта</span>
-                    <h2 style="margin: 20px 0 24px;">Загуба без <span class="gradient-text">загуба на пари</span></h2>
-                    <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.7;">Ако пътник загуби картата си, я блокирате моментално от разстояние. Профилът, балансът и абонаментът се прехвърлят на нова карта за секунди – без загуба на информация и без ощетен клиент.</p>
+                    <span class="eyebrow" data-i18n="nfc-lost-eyebrow">Загубена карта</span>
+                    <h2 style="margin: 20px 0 24px;"><span data-i18n="nfc-lost-h2a">Загуба без</span> <span class="gradient-text" data-i18n="nfc-lost-h2b">загуба на пари</span></h2>
+                    <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.7;" data-i18n="nfc-lost-p">Ако пътник загуби картата си, я блокирате моментално от разстояние. Профилът, балансът и абонаментът се прехвърлят на нова карта за секунди – без загуба на информация и без ощетен клиент.</p>
                     <ul class="split-list">
-                        <li><i class="fas fa-lock"></i><div><strong>Моментално блокиране</strong><span>Изгубената карта става невалидна веднага.</span></div></li>
-                        <li><i class="fas fa-arrows-rotate"></i><div><strong>Прехвърляне на баланса</strong><span>Цялата стойност се пренася върху новата карта.</span></div></li>
+                        <li><i class="fas fa-lock"></i><div><strong data-i18n="nfc-l1-h">Моментално блокиране</strong><span data-i18n="nfc-l1-p">Изгубената карта става невалидна веднага.</span></div></li>
+                        <li><i class="fas fa-arrows-rotate"></i><div><strong data-i18n="nfc-l2-h">Прехвърляне на баланса</strong><span data-i18n="nfc-l2-p">Цялата стойност се пренася върху новата карта.</span></div></li>
                     </ul>
                 </div>
             </div>
@@ -321,9 +321,9 @@
     <section>
         <div class="container">
             <div class="glass reveal" style="padding: 70px 40px; text-align: center; border-color: rgba(34,211,238,0.4);">
-                <h2 style="margin-bottom: 20px;">Дайте на пътниците си истинска карта</h2>
-                <p style="color: var(--text-muted); font-size: 1.2rem; max-width: 700px; margin: 0 auto 40px;">Ще Ви покажем целия процес – от кодирането до заверката – с реални карти и устройства.</p>
-                <a href="index.html#contact" class="btn btn-primary">Заявете демонстрация <i class="fas fa-arrow-right"></i></a>
+                <h2 style="margin-bottom: 20px;" data-i18n="nfc-cta-h">Дайте на пътниците си истинска карта</h2>
+                <p style="color: var(--text-muted); font-size: 1.2rem; max-width: 700px; margin: 0 auto 40px;" data-i18n="nfc-cta-p">Ще Ви покажем целия процес – от кодирането до заверката – с реални карти и устройства.</p>
+                <a href="index.html#contact" class="btn btn-primary"><span data-i18n="req-demo">Заявете демонстрация</span> <i class="fas fa-arrow-right"></i></a>
             </div>
         </div>
     </section>
@@ -339,10 +339,10 @@
                     <h4 data-i18n="foot-prod">Продукт</h4>
                     <ul>
                         <li><a href="features.html" data-i18n="nav-features">Функции</a></li>
-                        <li><a href="nfc-cards.html">NFC Карти и Валидиране</a></li>
-                        <li><a href="passenger-app.html">Приложение за пътници</a></li>
-                        <li><a href="inspections.html">Контрол и Сигурност</a></li>
-                        <li><a href="reports.html">Отчети и Анализ</a></li>
+                        <li><a href="nfc-cards.html" data-i18n="dd-nfc-t">NFC Карти и Валидиране</a></li>
+                        <li><a href="passenger-app.html" data-i18n="dd-app-t">Приложение за пътници</a></li>
+                        <li><a href="inspections.html" data-i18n="dd-insp-t">Контрол и Сигурност</a></li>
+                        <li><a href="reports.html" data-i18n="dd-rep-t">Отчети и Анализ</a></li>
                         <li><a href="hardware.html" data-i18n="foot-hw">Хардуер</a></li>
                     </ul>
                 </div>

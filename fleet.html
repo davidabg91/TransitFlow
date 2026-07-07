@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Наемане на Автобуси | TransitFlow - Чартър и екскурзии модул</title>
-    <meta name="description" content="Готов модул за наемане на автобуси и чартърни превози. Показвайте автопарка си, приемайте онлайн запитвания за оферти и открийте нов приходен канал за Вашата транспортна фирма.">
+    <title data-i18n-title="m-fleet-title">Наемане на Автобуси | TransitFlow - Чартър и екскурзии модул</title>
+    <meta name="description" content="Готов модул за наемане на автобуси и чартърни превози. Показвайте автопарка си, приемайте онлайн запитвания за оферти и открийте нов приходен канал за Вашата транспортна фирма." data-i18n-content="m-fleet-desc">
     <link rel="canonical" href="https://transitflow.org/fleet.html">
     <link rel="icon" type="image/png" href="assets/favicon.png">
     <link rel="stylesheet" href="index.css">
@@ -20,15 +20,15 @@
             <a href="index.html" class="logo"><i class="fas fa-bus-simple"></i> Transit<span>Flow</span></a>
             <ul class="nav-links">
                 <li class="has-dropdown">
-                    <a href="#" class="active">Продукт <i class="fas fa-chevron-down"></i></a>
+                    <a href="#" class="active"><span data-i18n="nav-product">Продукт</span> <i class="fas fa-chevron-down"></i></a>
                     <div class="nav-dropdown">
-                        <a href="features.html"><i class="fas fa-layer-group dd-icon"></i><span class="dd-text"><strong>Функции</strong><span>Пълен каталог възможности</span></span></a>
-                        <a href="nfc-cards.html"><i class="fas fa-id-card dd-icon"></i><span class="dd-text"><strong>NFC Карти и Валидиране</strong><span>Безконтактни карти и заверка</span></span></a>
-                        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button dd-icon"></i><span class="dd-text"><strong>Приложение за пътници</strong><span>Разписания и известия в реално време</span></span></a>
-                        <a href="inspections.html"><i class="fas fa-user-shield dd-icon"></i><span class="dd-text"><strong>Контрол и Сигурност</strong><span>Ревизори, GPS и защита от измами</span></span></a>
-                        <a href="fleet.html"><i class="fas fa-bus dd-icon"></i><span class="dd-text"><strong>Наемане на автобуси</strong><span>Допълнителен приход за автопарка</span></span></a>
-                        <a href="reports.html"><i class="fas fa-chart-column dd-icon"></i><span class="dd-text"><strong>Отчети и Анализ</strong><span>Приходи, справки и експорт</span></span></a>
-                        <a href="hardware.html"><i class="fas fa-microchip dd-icon"></i><span class="dd-text"><strong>Хардуер</strong><span>myPOS Ultra и NFC устройства</span></span></a>
+                        <a href="features.html"><i class="fas fa-layer-group dd-icon"></i><span class="dd-text"><strong data-i18n="nav-features">Функции</strong><span data-i18n="dd-features-d">Пълен каталог възможности</span></span></a>
+                        <a href="nfc-cards.html"><i class="fas fa-id-card dd-icon"></i><span class="dd-text"><strong data-i18n="dd-nfc-t">NFC Карти и Валидиране</strong><span data-i18n="dd-nfc-d">Безконтактни карти и заверка</span></span></a>
+                        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button dd-icon"></i><span class="dd-text"><strong data-i18n="dd-app-t">Приложение за пътници</strong><span data-i18n="dd-app-d">Разписания и известия в реално време</span></span></a>
+                        <a href="inspections.html"><i class="fas fa-user-shield dd-icon"></i><span class="dd-text"><strong data-i18n="dd-insp-t">Контрол и Сигурност</strong><span data-i18n="dd-insp-d">Ревизори, GPS и защита от измами</span></span></a>
+                        <a href="fleet.html"><i class="fas fa-bus dd-icon"></i><span class="dd-text"><strong data-i18n="dd-fleet-t">Наемане на автобуси</strong><span data-i18n="dd-fleet-d">Допълнителен приход за автопарка</span></span></a>
+                        <a href="reports.html"><i class="fas fa-chart-column dd-icon"></i><span class="dd-text"><strong data-i18n="dd-rep-t">Отчети и Анализ</strong><span data-i18n="dd-rep-d">Приходи, справки и експорт</span></span></a>
+                        <a href="hardware.html"><i class="fas fa-microchip dd-icon"></i><span class="dd-text"><strong data-i18n="nav-hardware">Хардуер</strong><span data-i18n="dd-hw-d">myPOS Ultra и NFC устройства</span></span></a>
                     </div>
                 </li>
                 <li><a href="index.html#pricing" data-i18n="nav-pricing">Цени</a></li>
@@ -38,35 +38,35 @@
             </ul>
             <div style="display: flex; align-items: center; gap: 14px;">
                 <a href="index.html#contact" class="btn btn-outline" style="padding: 10px 24px;"><span data-i18n="nav-demo">Демо</span><i class="fas fa-arrow-right"></i></a>
-                <button class="nav-toggle" aria-label="Меню"><i class="fas fa-bars"></i></button>
+                <button class="nav-toggle" aria-label="Меню" data-i18n-attr="aria-label:nav-menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </nav>
 
     <div class="mobile-menu" id="mobile-menu">
-        <span class="mm-label">Продукт</span>
-        <a href="features.html"><i class="fas fa-layer-group"></i> Функции</a>
-        <a href="nfc-cards.html"><i class="fas fa-id-card"></i> NFC Карти и Валидиране</a>
-        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button"></i> Приложение за пътници</a>
-        <a href="inspections.html"><i class="fas fa-user-shield"></i> Контрол и Сигурност</a>
-        <a href="fleet.html"><i class="fas fa-bus"></i> Наемане на автобуси</a>
-        <a href="reports.html"><i class="fas fa-chart-column"></i> Отчети и Анализ</a>
-        <a href="hardware.html"><i class="fas fa-microchip"></i> Хардуер</a>
-        <span class="mm-label">Компания</span>
-        <a href="index.html#pricing"><i class="fas fa-tag"></i> Цени</a>
-        <a href="faq.html"><i class="fas fa-circle-question"></i> Въпроси</a>
-        <a href="about.html"><i class="fas fa-building"></i> За нас</a>
-        <a href="index.html#contact"><i class="fas fa-envelope"></i> Контакти</a>
+        <span class="mm-label" data-i18n="nav-product">Продукт</span>
+        <a href="features.html"><i class="fas fa-layer-group"></i> <span data-i18n="nav-features">Функции</span></a>
+        <a href="nfc-cards.html"><i class="fas fa-id-card"></i> <span data-i18n="dd-nfc-t">NFC Карти и Валидиране</span></a>
+        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button"></i> <span data-i18n="dd-app-t">Приложение за пътници</span></a>
+        <a href="inspections.html"><i class="fas fa-user-shield"></i> <span data-i18n="dd-insp-t">Контрол и Сигурност</span></a>
+        <a href="fleet.html"><i class="fas fa-bus"></i> <span data-i18n="dd-fleet-t">Наемане на автобуси</span></a>
+        <a href="reports.html"><i class="fas fa-chart-column"></i> <span data-i18n="dd-rep-t">Отчети и Анализ</span></a>
+        <a href="hardware.html"><i class="fas fa-microchip"></i> <span data-i18n="nav-hardware">Хардуер</span></a>
+        <span class="mm-label" data-i18n="nav-company">Компания</span>
+        <a href="index.html#pricing"><i class="fas fa-tag"></i> <span data-i18n="nav-pricing">Цени</span></a>
+        <a href="faq.html"><i class="fas fa-circle-question"></i> <span data-i18n="nav-faq">Въпроси</span></a>
+        <a href="about.html"><i class="fas fa-building"></i> <span data-i18n="foot-about">За нас</span></a>
+        <a href="index.html#contact"><i class="fas fa-envelope"></i> <span data-i18n="nav-contact">Контакти</span></a>
     </div>
 
     <!-- Hero -->
     <header class="page-hero">
         <div class="container">
-            <span class="eyebrow reveal active">Допълнителен приход</span>
-            <h1 class="reveal active">Автопаркът Ви работи <span class="gradient-text">и извън линиите</span></h1>
-            <p class="reveal active">Всяка транспортна фирма има автобуси, които стоят между курсовете. Модулът за наемане ги превръща в приход – чартъри, екскурзии, сватби и корпоративни събития, заявени директно онлайн.</p>
+            <span class="eyebrow reveal active" data-i18n="fleet-eyebrow">Допълнителен приход</span>
+            <h1 class="reveal active"><span data-i18n="fleet-h1a">Автопаркът Ви работи</span> <span class="gradient-text" data-i18n="fleet-h1b">и извън линиите</span></h1>
+            <p class="reveal active" data-i18n="fleet-hero-p">Всяка транспортна фирма има автобуси, които стоят между курсовете. Модулът за наемане ги превръща в приход – чартъри, екскурзии, сватби и корпоративни събития, заявени директно онлайн.</p>
             <div class="btn-group" style="justify-content:center; margin-top:36px;">
-                <a href="index.html#contact" class="btn btn-primary">Активирайте модула</a>
+                <a href="index.html#contact" class="btn btn-primary" data-i18n="fleet-activate">Активирайте модула</a>
             </div>
         </div>
     </header>
@@ -75,28 +75,28 @@
     <section>
         <div class="container">
             <div class="section-head">
-                <span class="eyebrow reveal">Витрина на автопарка</span>
-                <h2 class="reveal">Представете превозните си средства <span class="gradient-text">професионално</span></h2>
-                <p class="reveal">Готова страница, на която клиентите виждат типовете автобуси, капацитета и удобствата – и подават запитване с няколко клика.</p>
+                <span class="eyebrow reveal" data-i18n="fleet-show-eyebrow">Витрина на автопарка</span>
+                <h2 class="reveal"><span data-i18n="fleet-show-h2a">Представете превозните си средства</span> <span class="gradient-text" data-i18n="fleet-show-h2b">професионално</span></h2>
+                <p class="reveal" data-i18n="fleet-show-p">Готова страница, на която клиентите виждат типовете автобуси, капацитета и удобствата – и подават запитване с няколко клика.</p>
             </div>
             <div class="module-grid">
                 <div class="glass reveal" style="padding:40px; border-radius:24px;">
                     <div class="mod-icon" style="margin-bottom:18px;"><i class="fas fa-van-shuttle"></i></div>
-                    <h3 style="margin-bottom:6px;">Микробуси</h3>
-                    <div style="color:var(--primary); font-weight:800; margin-bottom:14px;">8 – 20 места</div>
-                    <p style="color:var(--text-muted);">Летищни трансфери, малки групи и ВИП клиенти с луксозен интериор и климатик.</p>
+                    <h3 style="margin-bottom:6px;" data-i18n="fleet-mini-h">Микробуси</h3>
+                    <div style="color:var(--primary); font-weight:800; margin-bottom:14px;" data-i18n="fleet-mini-c">8 – 20 места</div>
+                    <p style="color:var(--text-muted);" data-i18n="fleet-mini-p">Летищни трансфери, малки групи и ВИП клиенти с луксозен интериор и климатик.</p>
                 </div>
                 <div class="glass reveal" style="padding:40px; border-radius:24px;">
                     <div class="mod-icon" style="margin-bottom:18px;"><i class="fas fa-bus"></i></div>
-                    <h3 style="margin-bottom:6px;">Средни автобуси</h3>
-                    <div style="color:var(--primary); font-weight:800; margin-bottom:14px;">21 – 45 места</div>
-                    <p style="color:var(--text-muted);">Корпоративни пътувания, тимбилдинги и сватби с удобни седалки и багажно отделение.</p>
+                    <h3 style="margin-bottom:6px;" data-i18n="fleet-mid-h">Средни автобуси</h3>
+                    <div style="color:var(--primary); font-weight:800; margin-bottom:14px;" data-i18n="fleet-mid-c">21 – 45 места</div>
+                    <p style="color:var(--text-muted);" data-i18n="fleet-mid-p">Корпоративни пътувания, тимбилдинги и сватби с удобни седалки и багажно отделение.</p>
                 </div>
                 <div class="glass reveal" style="padding:40px; border-radius:24px;">
                     <div class="mod-icon" style="margin-bottom:18px;"><i class="fas fa-bus-simple"></i></div>
-                    <h3 style="margin-bottom:6px;">Големи автобуси</h3>
-                    <div style="color:var(--primary); font-weight:800; margin-bottom:14px;">46 – 75 места</div>
-                    <p style="color:var(--text-muted);">Мащабни екскурзии, училищни мероприятия и делегации с панорамен изглед и максимален комфорт.</p>
+                    <h3 style="margin-bottom:6px;" data-i18n="fleet-big-h">Големи автобуси</h3>
+                    <div style="color:var(--primary); font-weight:800; margin-bottom:14px;" data-i18n="fleet-big-c">46 – 75 места</div>
+                    <p style="color:var(--text-muted);" data-i18n="fleet-big-p">Мащабни екскурзии, училищни мероприятия и делегации с панорамен изглед и максимален комфорт.</p>
                 </div>
             </div>
         </div>
@@ -107,25 +107,25 @@
         <div class="container">
             <div class="split-row" style="margin-bottom: 0;">
                 <div class="reveal">
-                    <span class="eyebrow">Онлайн запитвания</span>
-                    <h2 style="margin: 20px 0 24px;">От интерес до <span class="gradient-text">оферта</span> – без пропуснати обаждания</h2>
-                    <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.7;">Клиентът попълва форма с дата, брой пътници и дестинация. Запитването влиза директно във Вашия административен панел, готово за обработка и изпращане на индивидуална оферта.</p>
+                    <span class="eyebrow" data-i18n="fleet-inq-eyebrow">Онлайн запитвания</span>
+                    <h2 style="margin: 20px 0 24px;"><span data-i18n="fleet-inq-h2a">От интерес до</span> <span class="gradient-text" data-i18n="fleet-inq-h2b">оферта</span> <span data-i18n="fleet-inq-h2c">– без пропуснати обаждания</span></h2>
+                    <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.7;" data-i18n="fleet-inq-p">Клиентът попълва форма с дата, брой пътници и дестинация. Запитването влиза директно във Вашия административен панел, готово за обработка и изпращане на индивидуална оферта.</p>
                     <ul class="split-list">
-                        <li><i class="fas fa-calendar-check"></i><div><strong>Структурирани заявки</strong><span>Дата, брой пътници, дестинация и детайли – всичко предварително събрано.</span></div></li>
-                        <li><i class="fas fa-inbox"></i><div><strong>Централизиран панел</strong><span>Всички запитвания на едно място със статуси „ново“, „в процес“, „завършено“.</span></div></li>
-                        <li><i class="fas fa-bolt"></i><div><strong>Бърз отговор</strong><span>Отговаряте за часове, докато конкуренцията още вдига телефона.</span></div></li>
+                        <li><i class="fas fa-calendar-check"></i><div><strong data-i18n="fleet-inq-1-h">Структурирани заявки</strong><span data-i18n="fleet-inq-1-p">Дата, брой пътници, дестинация и детайли – всичко предварително събрано.</span></div></li>
+                        <li><i class="fas fa-inbox"></i><div><strong data-i18n="fleet-inq-2-h">Централизиран панел</strong><span data-i18n="fleet-inq-2-p">Всички запитвания на едно място със статуси „ново“, „в процес“, „завършено“.</span></div></li>
+                        <li><i class="fas fa-bolt"></i><div><strong data-i18n="fleet-inq-3-h">Бърз отговор</strong><span data-i18n="fleet-inq-3-p">Отговаряте за часове, докато конкуренцията още вдига телефона.</span></div></li>
                     </ul>
                 </div>
                 <div class="split-visual reveal">
                     <div class="glass" style="padding: 32px; border-radius: 24px;">
-                        <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); font-weight:800; margin-bottom:20px;">Ново запитване за наемане</div>
+                        <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); font-weight:800; margin-bottom:20px;" data-i18n="fleet-card-label">Ново запитване за наемане</div>
                         <div style="display:grid; gap:14px;">
-                            <div style="padding:14px 16px; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:12px;"><span style="color:var(--text-muted); font-size:0.8rem;">Дестинация</span><div style="font-weight:700;">София → Банско (2 дни)</div></div>
+                            <div style="padding:14px 16px; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:12px;"><span style="color:var(--text-muted); font-size:0.8rem;" data-i18n="fleet-card-dest">Дестинация</span><div style="font-weight:700;" data-i18n="fleet-card-destv">София → Банско (2 дни)</div></div>
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
-                                <div style="padding:14px 16px; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:12px;"><span style="color:var(--text-muted); font-size:0.8rem;">Пътници</span><div style="font-weight:700;">42</div></div>
-                                <div style="padding:14px 16px; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:12px;"><span style="color:var(--text-muted); font-size:0.8rem;">Дата</span><div style="font-weight:700;">14.08.2026</div></div>
+                                <div style="padding:14px 16px; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:12px;"><span style="color:var(--text-muted); font-size:0.8rem;" data-i18n="fleet-card-pax">Пътници</span><div style="font-weight:700;">42</div></div>
+                                <div style="padding:14px 16px; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:12px;"><span style="color:var(--text-muted); font-size:0.8rem;" data-i18n="fleet-card-date">Дата</span><div style="font-weight:700;">14.08.2026</div></div>
                             </div>
-                            <div style="padding:12px 16px; background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.25); border-radius:12px; color:#4ade80; font-weight:700; font-size:0.85rem; display:flex; align-items:center; gap:8px;"><i class="fas fa-circle-check"></i> Готово за оферта</div>
+                            <div style="padding:12px 16px; background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.25); border-radius:12px; color:#4ade80; font-weight:700; font-size:0.85rem; display:flex; align-items:center; gap:8px;"><i class="fas fa-circle-check"></i> <span data-i18n="fleet-card-ready">Готово за оферта</span></div>
                         </div>
                     </div>
                 </div>
@@ -137,23 +137,23 @@
     <section>
         <div class="container">
             <div class="section-head">
-                <h2 class="reveal">Изградете <span class="gradient-text">доверие</span> към чартърната си услуга</h2>
+                <h2 class="reveal"><span data-i18n="fleet-trust-h2a">Изградете</span> <span class="gradient-text" data-i18n="fleet-trust-h2b">доверие</span> <span data-i18n="fleet-trust-h2c">към чартърната си услуга</span></h2>
             </div>
             <div class="module-grid">
                 <div class="glass reveal" style="padding:36px; border-radius:20px; text-align:center;">
                     <i class="fas fa-shield-halved" style="color:var(--primary); font-size:2.2rem; margin-bottom:16px;"></i>
-                    <h3 style="margin-bottom:10px;">Сигурност</h3>
-                    <p style="color:var(--text-muted);">Редовни технически прегледи и застраховки на всички превозни средства.</p>
+                    <h3 style="margin-bottom:10px;" data-i18n="fleet-val1-h">Сигурност</h3>
+                    <p style="color:var(--text-muted);" data-i18n="fleet-val1-p">Редовни технически прегледи и застраховки на всички превозни средства.</p>
                 </div>
                 <div class="glass reveal" style="padding:36px; border-radius:20px; text-align:center;">
                     <i class="fas fa-clock" style="color:var(--primary); font-size:2.2rem; margin-bottom:16px;"></i>
-                    <h3 style="margin-bottom:10px;">Коректност</h3>
-                    <p style="color:var(--text-muted);">Точност и професионализъм при всяко изпълнение на заявка.</p>
+                    <h3 style="margin-bottom:10px;" data-i18n="fleet-val2-h">Коректност</h3>
+                    <p style="color:var(--text-muted);" data-i18n="fleet-val2-p">Точност и професионализъм при всяко изпълнение на заявка.</p>
                 </div>
                 <div class="glass reveal" style="padding:36px; border-radius:20px; text-align:center;">
                     <i class="fas fa-star" style="color:var(--primary); font-size:2.2rem; margin-bottom:16px;"></i>
-                    <h3 style="margin-bottom:10px;">Опитни шофьори</h3>
-                    <p style="color:var(--text-muted);">Доказани професионалисти с дългогодишен опит в туризма.</p>
+                    <h3 style="margin-bottom:10px;" data-i18n="fleet-val3-h">Опитни шофьори</h3>
+                    <p style="color:var(--text-muted);" data-i18n="fleet-val3-p">Доказани професионалисти с дългогодишен опит в туризма.</p>
                 </div>
             </div>
         </div>
@@ -163,9 +163,9 @@
     <section>
         <div class="container">
             <div class="glass reveal" style="padding: 70px 40px; text-align: center; border-color: rgba(34,211,238,0.4);">
-                <h2 style="margin-bottom: 20px;">Превърнете свободните автобуси в приход</h2>
-                <p style="color: var(--text-muted); font-size: 1.2rem; max-width: 700px; margin: 0 auto 40px;">Модулът за наемане е включен в платформата TransitFlow. Ще го настроим с Вашия автопарк и брандинг.</p>
-                <a href="index.html#contact" class="btn btn-primary">Заявете демонстрация <i class="fas fa-arrow-right"></i></a>
+                <h2 style="margin-bottom: 20px;" data-i18n="fleet-cta-h">Превърнете свободните автобуси в приход</h2>
+                <p style="color: var(--text-muted); font-size: 1.2rem; max-width: 700px; margin: 0 auto 40px;" data-i18n="fleet-cta-p">Модулът за наемане е включен в платформата TransitFlow. Ще го настроим с Вашия автопарк и брандинг.</p>
+                <a href="index.html#contact" class="btn btn-primary"><span data-i18n="req-demo">Заявете демонстрация</span> <i class="fas fa-arrow-right"></i></a>
             </div>
         </div>
     </section>
@@ -181,9 +181,9 @@
                     <h4 data-i18n="foot-prod">Продукт</h4>
                     <ul>
                         <li><a href="features.html" data-i18n="nav-features">Функции</a></li>
-                        <li><a href="passenger-app.html">Приложение за пътници</a></li>
-                        <li><a href="inspections.html">Контрол и Сигурност</a></li>
-                        <li><a href="fleet.html">Наемане на автобуси</a></li>
+                        <li><a href="passenger-app.html" data-i18n="dd-app-t">Приложение за пътници</a></li>
+                        <li><a href="inspections.html" data-i18n="dd-insp-t">Контрол и Сигурност</a></li>
+                        <li><a href="fleet.html" data-i18n="dd-fleet-t">Наемане на автобуси</a></li>
                         <li><a href="hardware.html" data-i18n="foot-hw">Хардуер</a></li>
                     </ul>
                 </div>

@@ -36,6 +36,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Translatable attribute content (meta tags, aria-label, alt, title attr)
+        document.querySelectorAll('[data-i18n-content]').forEach(el => {
+            const key = el.getAttribute('data-i18n-content');
+            const translation = window.translations[lang][key];
+            if (translation) {
+                el.setAttribute('content', translation);
+            }
+        });
+        document.querySelectorAll('[data-i18n-attr]').forEach(el => {
+            // format: "attr:key" e.g. data-i18n-attr="aria-label:nav-menu"
+            el.getAttribute('data-i18n-attr').split(';').forEach(pair => {
+                const [attr, key] = pair.split(':');
+                const translation = window.translations[lang][key && key.trim()];
+                if (attr && translation) el.setAttribute(attr.trim(), translation);
+            });
+        });
+
+        // Document <title>
+        const titleEl = document.querySelector('title[data-i18n-title]');
+        if (titleEl) {
+            const t = window.translations[lang][titleEl.getAttribute('data-i18n-title')];
+            if (t) document.title = t;
+        }
+
         // Update button text
         if (langSwitchBtn) {
             langSwitchBtn.innerHTML = lang === 'bg' ? 'BG | <span>EN</span>' : '<span>BG</span> | EN';
