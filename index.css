@@ -2294,3 +2294,39 @@ select.form-input option {
         font-size: 0.7rem !important;
     }
 }
+
+/* --- Header Navigation Mobile Fit --- */
+@media (max-width: 992px) {
+    nav .btn-outline {
+        padding: 8px 18px !important;
+        font-size: 0.85rem !important;
+    }
+    nav .btn-outline i {
+        font-size: 0.8rem !important;
+        margin-left: 6px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .logo {
+        font-size: 1.4rem !important; /* Shrink logo to fit next to elements */
+        gap: 6px !important;
+    }
+    nav .btn-outline {
+        padding: 6px 12px !important;
+        font-size: 0.8rem !important;
+    }
+    nav .btn-outline i {
+        display: none !important; /* Hide arrow icon to save space */
+    }
+}
+
+@media (max-width: 360px) {
+    .logo {
+        font-size: 1.22rem !important; /* Extra shrink for tiny viewports (320px) */
+    }
+    nav .btn-outline {
+        padding: 5px 10px !important;
+        font-size: 0.75rem !important;
+    }
+}
