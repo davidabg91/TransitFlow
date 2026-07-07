@@ -333,7 +333,7 @@ nav.scrolled {
 /* Pricing Grid */
 .price-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 30px;
     margin-top: 60px;
 }
@@ -495,7 +495,7 @@ nav.scrolled {
 /* Feature Cards - Modern Visual Layout */
 .feature-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 30px;
 }
 
@@ -672,7 +672,7 @@ footer {
 
 .how-it-works-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 30px;
 }
 
@@ -1326,7 +1326,7 @@ select.form-input option {
 /* --- Module cards (homepage overview) --- */
 .module-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 28px;
 }
 .module-card {
@@ -2242,4 +2242,55 @@ select.form-input option {
     0% { top: 0%; }
     50% { top: 100%; }
     100% { top: 0%; }
+}
+
+/* --- Mobile Responsive Overflows Fixes --- */
+@media (max-width: 768px) {
+    .price-card.featured {
+        transform: none !important; /* Reset desktop scale to prevent overlaps and edge clipping when stacked */
+        margin: 15px 0 !important;
+    }
+    .price-card {
+        padding: 30px 20px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .reference-widget {
+        padding: 20px 14px !important;
+        border-radius: 20px !important;
+    }
+    .widget-stats {
+        gap: 10px !important;
+        margin-bottom: 16px !important;
+    }
+    .stat-box {
+        padding: 10px !important;
+        border-radius: 12px !important;
+    }
+    .stat-val {
+        font-size: 1.15rem !important;
+    }
+    .stat-lbl {
+        font-size: 0.7rem !important;
+    }
+    .widget-screen {
+        height: 95px !important;
+        margin-bottom: 16px !important;
+    }
+    .validation-feed {
+        min-height: 200px !important;
+        gap: 10px !important;
+    }
+    .feed-item {
+        padding: 10px !important;
+        gap: 10px !important;
+        border-radius: 12px !important;
+    }
+    .feed-info strong {
+        font-size: 0.78rem !important;
+    }
+    .feed-info span {
+        font-size: 0.7rem !important;
+    }
 }
