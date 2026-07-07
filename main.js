@@ -59,6 +59,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Mobile Menu Toggle
+    const navToggle = document.querySelector('.nav-toggle');
+    const mobileMenu = document.getElementById('mobile-menu');
+    if (navToggle && mobileMenu) {
+        const toggleIcon = navToggle.querySelector('i');
+        
+        // Dynamically inject close button inside mobile menu overlay
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'mobile-menu-close';
+        closeBtn.setAttribute('aria-label', 'Затвори');
+        closeBtn.innerHTML = '<i class="fas fa-xmark"></i>';
+        mobileMenu.prepend(closeBtn);
+
+        const closeMenu = () => {
+            mobileMenu.classList.remove('open');
+            document.body.style.overflow = '';
+            if (toggleIcon) toggleIcon.className = 'fas fa-bars';
+        };
+
+        navToggle.addEventListener('click', () => {
+            const isOpen = mobileMenu.classList.toggle('open');
+            document.body.style.overflow = isOpen ? 'hidden' : '';
+            if (toggleIcon) toggleIcon.className = isOpen ? 'fas fa-xmark' : 'fas fa-bars';
+        });
+
+        closeBtn.addEventListener('click', closeMenu);
+        mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMenu));
+    }
+
     // Navbar Scroll Effect
     const navbar = document.getElementById('navbar');
     window.addEventListener('scroll', () => {

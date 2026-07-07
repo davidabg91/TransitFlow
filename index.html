@@ -5,16 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TransitFlow | Професионален Софтуер за Автобусни Системи и Транспорт</title>
     <meta name="robots" content="index, follow">
-    <meta name="description" content="TransitFlow – лидер в дигитализацията на транспорта. Професионален софтуер за автобусни системи, NFC валидиране на билети и пълен контрол на графици и разплащания за градски и междуградски линии.">
-    <meta name="keywords" content="автобусни системи, транспортен софтуер, система за обществен транспорт, автобусен софтуер, NFC билетна система, дигитализация транспорт, управление на автопарк България, софтуер за управление на автобуси">
+    <meta name="description" content="TransitFlow – цялостна платформа за дигитализация на автобусни компании: NFC валидиране, приложение за пътници с разписания в реално време, контрол на билети, финансова отчетност и хардуер myPOS.">
+    <meta name="keywords" content="автобусни системи, транспортен софтуер, система за обществен транспорт, NFC билетна система, приложение за пътници, контрол на билети, дигитализация транспорт, управление на автопарк България">
     <link rel="canonical" href="https://transitflow.org/">
-    
+
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="assets/favicon.png">
 
     <!-- Social Media Sharing (Open Graph) -->
     <meta property="og:title" content="TransitFlow | Професионален Софтуер за Транспортен Контрол">
-    <meta property="og:description" content="Революция в управлението на автобусни компании. NFC карти, реални графици и пълна отчетност.">
+    <meta property="og:description" content="Революция в управлението на автобусни компании. NFC карти, приложение за пътници, реални графици и пълна отчетност.">
     <meta property="og:image" content="https://transitflow.org/assets/transitflow_logo.png">
     <meta property="og:url" content="https://transitflow.org">
     <meta property="og:type" content="website">
@@ -25,7 +25,7 @@
     <!-- Twitter Cards -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="TransitFlow | Софтуер за Автобуси и Компании">
-    <meta name="twitter:description" content="Пълна дигитализация на Вашия транспортен бизнес с NFC валидация и автоматизирани отчети.">
+    <meta name="twitter:description" content="Пълна дигитализация на Вашия транспортен бизнес с NFC валидация, приложение за пътници и автоматизирани отчети.">
     <meta name="twitter:image" content="https://transitflow.org/assets/transitflow_logo.png">
 
     <!-- Structured Data (JSON-LD) -->
@@ -38,7 +38,7 @@
       "applicationCategory": "BusinessApplication, FleetManagement",
       "offers": {
         "@type": "Offer",
-        "price": "79.00",
+        "price": "120.00",
         "priceCurrency": "EUR",
         "availability": "https://schema.org/InStock"
       },
@@ -47,8 +47,8 @@
         "ratingValue": "4.9",
         "ratingCount": "24"
       },
-      "description": "TransitFlow е цялостна система за управление на автобусни компании, предлагаща NFC валидиране, динамични графици и финансова отчетност.",
-      "featureList": "NFC Валидиране, Динамични Графици, Финансов Анализ, Киоск Режим, Облачна Синхронизация",
+      "description": "TransitFlow е цялостна система за управление на автобусни компании, предлагаща NFC валидиране, приложение за пътници, динамични графици, контрол на билети и финансова отчетност.",
+      "featureList": "NFC Валидиране, Приложение за Пътници, Контрол на Билети, Динамични Графици, Финансов Анализ, Киоск Режим, Облачна Синхронизация",
       "screenshot": "https://transitflow.org/assets/transitflow_hero_final_branded_1775316190816.png",
       "author": {
         "@type": "Organization",
@@ -59,7 +59,6 @@
     </script>
 
     <link rel="stylesheet" href="index.css">
-    <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="translations.js"></script>
 </head>
@@ -71,21 +70,51 @@
     <!-- Navigation -->
     <nav id="navbar">
         <div class="container nav-content">
-            <a href="#" class="logo">
+            <a href="index.html" class="logo">
                 <i class="fas fa-bus-simple"></i>
                 Transit<span>Flow</span>
             </a>
             <ul class="nav-links">
-                <li><a href="#features" data-i18n="nav-features">Функции</a></li>
-                <li><a href="hardware.html" data-i18n="nav-hardware">Хардуер</a></li>
+                <li class="has-dropdown">
+                    <a href="#modules">Продукт <i class="fas fa-chevron-down"></i></a>
+                    <div class="nav-dropdown">
+                        <a href="features.html"><i class="fas fa-layer-group dd-icon"></i><span class="dd-text"><strong>Функции</strong><span>Пълен каталог възможности</span></span></a>
+                        <a href="nfc-cards.html"><i class="fas fa-id-card dd-icon"></i><span class="dd-text"><strong>NFC Карти и Валидиране</strong><span>Безконтактни карти и заверка</span></span></a>
+                        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button dd-icon"></i><span class="dd-text"><strong>Приложение за пътници</strong><span>Разписания и известия в реално време</span></span></a>
+                        <a href="inspections.html"><i class="fas fa-user-shield dd-icon"></i><span class="dd-text"><strong>Контрол и Сигурност</strong><span>Ревизори, GPS и защита от измами</span></span></a>
+                        <a href="fleet.html"><i class="fas fa-bus dd-icon"></i><span class="dd-text"><strong>Наемане на автобуси</strong><span>Допълнителен приход за автопарка</span></span></a>
+                        <a href="reports.html"><i class="fas fa-chart-column dd-icon"></i><span class="dd-text"><strong>Отчети и Анализ</strong><span>Приходи, справки и експорт</span></span></a>
+                        <a href="hardware.html"><i class="fas fa-microchip dd-icon"></i><span class="dd-text"><strong>Хардуер</strong><span>myPOS Ultra и NFC устройства</span></span></a>
+                    </div>
+                </li>
                 <li><a href="#pricing" data-i18n="nav-pricing">Цени</a></li>
                 <li><a href="faq.html" data-i18n="nav-faq">Въпроси</a></li>
-                <li><a href="#contact" data-i18n="nav-contact">Контакти</a></li>
+                <li><a href="about.html" data-i18n="foot-about">За нас</a></li>
                 <li><a href="#" class="lang-switch">BG | EN</a></li>
             </ul>
-            <a href="#contact" class="btn btn-outline" style="padding: 10px 24px;"><span data-i18n="nav-demo">Демо</span><i class="fas fa-arrow-right"></i></a>
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <a href="#contact" class="btn btn-outline" style="padding: 10px 24px;"><span data-i18n="nav-demo">Демо</span><i class="fas fa-arrow-right"></i></a>
+                <button class="nav-toggle" aria-label="Меню"><i class="fas fa-bars"></i></button>
+            </div>
         </div>
     </nav>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu" id="mobile-menu">
+        <span class="mm-label">Продукт</span>
+        <a href="features.html"><i class="fas fa-layer-group"></i> Функции</a>
+        <a href="nfc-cards.html"><i class="fas fa-id-card"></i> NFC Карти и Валидиране</a>
+        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button"></i> Приложение за пътници</a>
+        <a href="inspections.html"><i class="fas fa-user-shield"></i> Контрол и Сигурност</a>
+        <a href="fleet.html"><i class="fas fa-bus"></i> Наемане на автобуси</a>
+        <a href="reports.html"><i class="fas fa-chart-column"></i> Отчети и Анализ</a>
+        <a href="hardware.html"><i class="fas fa-microchip"></i> Хардуер</a>
+        <span class="mm-label">Компания</span>
+        <a href="#pricing"><i class="fas fa-tag"></i> Цени</a>
+        <a href="faq.html"><i class="fas fa-circle-question"></i> Въпроси</a>
+        <a href="about.html"><i class="fas fa-building"></i> За нас</a>
+        <a href="#contact"><i class="fas fa-envelope"></i> Контакти</a>
+    </div>
 
     <!-- Hero Section -->
     <header class="hero full-screen">
@@ -95,410 +124,285 @@
         </div>
         <div class="container hero-container">
             <div class="hero-text-integrated reveal">
-                <h1 style="text-align: center; margin-bottom: 40px;" data-i18n="hero-h1">Трансформирайте Вашия Транспортен Бизнес<br>с <span class="gradient-text">TransitFlow</span></h1>
+                <h1 style="text-align: center; margin-bottom: 40px;" data-i18n="hero-h1">Трансформирайте <span class="weight-bold">транспортния си бизнес</span> с<br><span class="hero-logo-wrapper"><img src="assets/transitflow_hero_logo.png" alt="TransitFlow" class="hero-logo-img"></span></h1>
                 <div class="hero-subline" style="justify-content: center; text-align: center; flex-direction: column;">
-                    <p style="margin: 0 auto 30px;" data-i18n="hero-p">Специализирана платформа за дигитализация на автобусни компании. Постигнете пълен контрол чрез интелигентни абонаментни карти, разписания в реално време и автоматизирана отчетност.</p>
+                    <p style="margin: 0 auto 30px;" data-i18n="hero-p">Специализирана платформа за дигитализация на автобусни компании. Постигнете пълен контрол чрез интелигентни абонаментни карти, приложение за пътници, разписания в реално време и автоматизирана отчетност.</p>
                     <div class="btn-group">
                         <a href="#contact" class="btn btn-primary" data-i18n="hero-start">Започнете Сега</a>
-                        <a href="#features" class="btn btn-outline" data-i18n="hero-learn">Научете Повече</a>
+                        <a href="#modules" class="btn btn-outline" data-i18n="hero-learn">Разгледайте Модулите</a>
                     </div>
                 </div>
             </div>
         </div>
     </header>
 
+    <!-- Trust / Proof thin panel -->
+    <section class="trust-bar-section">
+        <div class="container">
+            <div class="trust-bar glass reveal">
+                <span class="trust-title">
+                    <i class="fas fa-circle-check text-primary"></i>
+                    <strong data-i18n="bento-title">Изградена и доказана в реална експлоатация</strong>
+                </span>
+                <div class="trust-stats">
+                    <span class="trust-stat"><strong data-i18n="bento-stat1-val">39+</strong> <span data-i18n="bento-stat1-lbl">активни линии</span></span>
+                    <span class="trust-divider">|</span>
+                    <span class="trust-stat"><strong data-i18n="bento-stat2-val">&lt;1s</strong> <span data-i18n="bento-stat2-lbl">NFC валидиране</span></span>
+                    <span class="trust-divider">|</span>
+                    <span class="trust-stat"><strong data-i18n="bento-stat3-val">100%</strong> <span data-i18n="bento-stat3-lbl">точност</span></span>
+                    <span class="trust-divider">|</span>
+                    <span class="trust-stat"><strong data-i18n="bento-stat4-val">24/7</strong> <span data-i18n="bento-stat4-lbl">облак и поддръжка</span></span>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- How It Works Section -->
     <section id="how-it-works">
         <div class="container">
-            <div style="text-align: center; margin-bottom: 80px;">
+            <div class="section-head">
                 <h2 class="reveal" data-i18n="how-h2">Как работи <span class="gradient-text">TransitFlow</span>?</h2>
-                <p style="color: var(--text-muted); font-size: 1.25rem; max-width: 700px; margin: 15px auto 0;" class="reveal" data-i18n="how-p">Три лесни стъпки към пълна дигитализация на Вашия транспортен бизнес.</p>
+                <p class="reveal" data-i18n="how-p">Три лесни стъпки към пълна дигитализация на Вашия транспортен бизнес.</p>
             </div>
-            
+
             <div class="how-it-works-grid">
-                <!-- Step 1 -->
                 <div class="step-card glass reveal">
                     <div class="step-number">01</div>
                     <div class="step-visual">
-                        <img src="assets/custom_nfc_cards_visual_1775310254692.png" alt="Процес на издаване на NFC автобусна карта - Дигитализация на пътнически профили">
+                        <img src="assets/desktop_software_nfc.png" alt="Регистрация на клиент през настолната програма на TransitFlow със свързан NFC четец">
                     </div>
                     <div class="step-content">
                         <h3 data-i18n="step-1-h3">Създаване на профил на клиента</h3>
-                        <p data-i18n="step-1-p">Персоналът сканира празна карта с телефон или четец. Системата моментално отвежда към менюто за нов клиент. Процесът отнема под 1 минута.</p>
+                        <p data-i18n="step-1-p">Служителят регистрира клиента през нашата настолна програма за Windows със свързан NFC четец. Личните данни и снимката се въвеждат, а картата се кодира на място – готов профил за под минута.</p>
                     </div>
                 </div>
-
-                <!-- Step 2 -->
                 <div class="step-card glass reveal" style="transition-delay: 0.1s;">
                     <div class="step-number">02</div>
                     <div class="step-visual">
-                        <img src="assets/mypos_nfc_validation.png" alt="Валидиране на карта при шофьора - Бърза проверка на транспортен документ">
+                        <img src="assets/mypos_nfc_validation.png" alt="Валидиране на карта при шофьора">
                     </div>
                     <div class="step-content">
                         <h3 data-i18n="step-2-h3">Бърза Заверка</h3>
                         <p data-i18n="step-2-p">Клиентът поставя картата си върху четеца или смарт устройството при шофьора. Системата извършва мигновена проверка на статуса.</p>
                     </div>
                 </div>
-
-                <!-- Step 3 -->
                 <div class="step-card glass reveal" style="transition-delay: 0.2s;">
                     <div class="step-number">03</div>
                     <div class="step-visual">
-                        <img src="assets/driver_control_visual.png" alt="Контролен панел за шофьора на автобус - Мониторинг на плащанията в реално време">
+                        <img src="assets/driver_control_visual.png" alt="Контролен панел за шофьора на автобус">
                     </div>
                     <div class="step-content">
                         <h3 data-i18n="step-3-h3">Контрол от Шофьора</h3>
                         <p data-i18n="step-3-p">Шофьорът вижда ясния статус на плащане и продължава директно със следващия клиент. Бързо, лесно и безгрешно.</p>
                     </div>
                 </div>
-            </div>
-        </div>
-    </section>
 
-    <!-- Features Section -->
-    <section id="features">
-        <div class="container">
-            <div style="text-align: center; margin-bottom: 80px;">
-                <h2 class="reveal" data-i18n="feat-h2">Всичко, от което се нуждае <span class="gradient-text">Вашият бизнес</span></h2>
-                <p style="color: var(--text-muted); font-size: 1.25rem; max-width: 750px; margin: 15px auto 0;" class="reveal" data-i18n="feat-p">Единна платформа, създадена за максимална ефективност и детайлен контрол.</p>
             </div>
-            <div class="feature-grid">
-                <div class="feature-card glass reveal">
-                    <div class="feature-visual" style="overflow: hidden; background: #020617;">
-                        <video src="assets/feat1.mp4" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-                    </div>
-                    <div class="feature-card-content">
-                        <h3 data-i18n="feat-1-h">NFC Валидиране</h3>
-                        <p data-i18n="feat-1-p">Мигновено разпознаване на контактни и безконтактни карти. Системата извършва отдалечена проверка в облачната база данни за части от секундата, показвайки ясен статус 'Валиден' със звуков сигнал за шофьора и пътника.</p>
-                    </div>
-                </div>
-                <div class="feature-card glass reveal">
-                    <div class="feature-visual" style="overflow: hidden; background: #020617;">
-                        <video src="assets/feat2.mp4" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-                    </div>
-                    <div class="feature-card-content">
-                        <h3 data-i18n="feat-2-h">Динамични Графици</h3>
-                        <p data-i18n="feat-2-p">Автоматизация на линиите според деня (делничен, празничен, уикенд). Всяко превозно средство получава актуални курсове в реално време, елиминирайки грешки при закъснение или промени в маршрута.</p>
-                    </div>
-                </div>
-                <div class="feature-card glass reveal">
-                    <div class="feature-visual" style="overflow: hidden; background: #020617;">
-                        <video src="assets/feat3.mp4" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-                    </div>
-                    <div class="feature-card-content">
-                        <h3>Финансов Анализ</h3>
-                        <p>Детайлна справка за пробег, приходи от билети и карти. Възможност за експортиране на отчети за целия автопарк по шофьори, линии и конкретни периоди с 100% точност.</p>
+
+            <!-- Connector lines: all 3 processes flow into the admin panel (desktop) -->
+            <svg class="admin-connect-svg reveal" viewBox="0 0 1200 90" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M200 0 V50 M600 0 V50 M1000 0 V50 M200 50 H1000 M600 50 V80" fill="none" stroke="var(--primary)" stroke-width="2" stroke-dasharray="7 7" vector-effect="non-scaling-stroke" opacity="0.5"/>
+                <circle cx="200" cy="0" r="4" fill="var(--primary)"/>
+                <circle cx="600" cy="0" r="4" fill="var(--primary)"/>
+                <circle cx="1000" cy="0" r="4" fill="var(--primary)"/>
+                <path d="M600 90 L591 76 L609 76 Z" fill="var(--primary)"/>
+            </svg>
+
+            <!-- Wide Admin Oversight Panel (Step 04) — live command center -->
+            <div class="admin-cc reveal">
+                <div class="cc-left">
+                    <div class="cc-eye"><i class="fas fa-eye"></i></div>
+                    <span class="admin-badge"><i class="fas fa-circle" style="font-size: 0.5rem;"></i> ЖИВО НАБЛЮДЕНИЕ · 04</span>
+                    <h3 data-i18n="step-4-h3">Наблюдение от Администратора</h3>
+                    <p data-i18n="step-4-p">Всяка заверка и плащане се стичат в реално време към централния административен панел. Управителят следи приходите, активността и всяко устройство от едно място – пълна видимост и контрол.</p>
+                    <div class="cc-note">
+                        <i class="fas fa-circle-info"></i>
+                        <span>Три ясни канала, всеки с живо число, тренд и последно действие — цялата картина <strong>с един поглед</strong>.</span>
                     </div>
                 </div>
-                <div class="feature-card glass reveal">
-                    <div class="feature-visual" style="overflow: hidden; background: #020617;">
-                        <video src="assets/feat4.mp4" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-                    </div>
-                    <div class="feature-card-content">
-                        <h3 data-i18n="feat-4-h">Киоск Режим</h3>
-                        <p data-i18n="feat-4-p">Максимална сигурност чрез заключване на таблетите към софтуера на TransitFlow. Предпазва от софтуерни намеси и осигурява винаги включен екран за отлична видимост при шофиране.</p>
-                    </div>
-                </div>
-                <div class="feature-card glass reveal">
-                    <div class="feature-visual" style="overflow: hidden; background: #020617;">
-                        <video src="assets/feat5.mp4" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-                    </div>
-                    <div class="feature-card-content">
-                        <h3 data-i18n="feat-5-h">Облачна Схема</h3>
-                        <p data-i18n="feat-5-p">Сигурност на данните без прекъсване. При слаба връзка системата запазва информацията офлайн и я синхронизира със сървъра автоматично при възстановяване на обхвата.</p>
-                    </div>
-                </div>
-                <div class="feature-card glass reveal">
-                    <div class="feature-visual" style="overflow: hidden; background: #020617;">
-                        <video src="assets/feat6.mp4" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-                    </div>
-                    <div class="feature-card-content">
-                        <h3 data-i18n="feat-6-h">Медийна Монетизация</h3>
-                        <p data-i18n="feat-6-p">Възможност за пускане на видео реклами и промоции на таблетите, докато превозното средство е в движение. Добавете нов приходен канал за Вашата фирма чрез интегрирания модул за реклама.</p>
-                    </div>
-                </div>
-                <!-- New Added Features -->
-                <div class="feature-card glass reveal">
-                    <div class="feature-visual" style="overflow: hidden; background: #020617;">
-                        <video src="assets/feat7.mp4" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-                    </div>
-                    <div class="feature-card-content">
-                        <h3 data-i18n="feat-7-h">Дизайн и Печат на Карти</h3>
-                        <p data-i18n="feat-7-p">Ние се грижим за всичко – от изработването и кодирането до висококачествения печат. Предоставяме карти с дизайн по Ваш избор, напълно готови за работа от първия ден.</p>
-                    </div>
-                </div>
-                <div class="feature-card glass reveal">
-                    <div class="feature-visual" style="overflow: hidden; background: #020617;">
-                        <video src="assets/feat8.mp4" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-                    </div>
-                    <div class="feature-card-content">
-                        <h3 data-i18n="feat-8-h">Професионален Хардуер</h3>
-                        <p data-i18n="feat-8-p">Осигуряваме цялостно оборудване – индустриални таблети, външни четци и docking станции за непрекъснато захранване. Всичко е тествано за тежки условия на работа.</p>
-                    </div>
-                </div>
-                <div class="feature-card glass reveal">
-                    <div class="feature-visual" style="overflow: hidden; background: #020617;">
-                        <video src="assets/feat9.mp4" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-                    </div>
-                    <div class="feature-card-content">
-                        <h3 data-i18n="feat-9-h">24/7 Поддръжка</h3>
-                        <p data-i18n="feat-9-p">Ние се грижим за Вас на всяка стъпка. Осигуряваме непрекъснато техническо съдействие и редовни актуализации, за да бъде Вашата система винаги на върха на технологиите.</p>
-                    </div>
-                </div>
-                <!-- New Added Features -->
-                <div class="feature-card glass reveal">
-                    <div class="feature-visual" style="overflow: hidden; background: #020617;">
-                        <video src="assets/feat10.mp4" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-                    </div>
-                    <div class="feature-card-content">
-                        <h3 data-i18n="feat-10-h">Графични Разписания</h3>
-                        <p data-i18n="feat-10-p">Визуално представяне на маршрутите и графиците чрез динамични графики за лесно и интуитивно управление на курсовете.</p>
-                    </div>
-                </div>
-                <div class="feature-card glass reveal">
-                    <div class="feature-visual" style="overflow: hidden; background: #020617;">
-                        <video src="assets/feat11.mp4" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-                    </div>
-                    <div class="feature-card-content">
-                        <h3 data-i18n="feat-11-h">Смарт Известия</h3>
-                        <p data-i18n="feat-11-p">Интегрирана система за абониране на клиенти, които получават известия за новини и промени в графиците директно на телефона си.</p>
-                    </div>
-                </div>
-                <div class="feature-card glass reveal">
-                    <div class="feature-visual" style="overflow: hidden; background: #020617;">
-                        <video src="assets/feat12.mp4" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-                    </div>
-                    <div class="feature-card-content">
-                        <h3 data-i18n="feat-12-h">Контролен Одит</h3>
-                        <p data-i18n="feat-12-p">Внезапен контрол от мобилни екипи в произволни дни от месеца за проверка на валидността на картите и предотвратяване на злоупотреби.</p>
+                <div class="cc-right">
+                    <div class="cc-board">
+                        <div class="cc-board-head">
+                            <span class="bh-title"><i class="fas fa-gauge-high"></i> ADMIN · КОНТРОЛЕН ПАНЕЛ</span>
+                            <span class="cc-refresh"><span class="rdot"></span> На живо · обновяване на 5с</span>
+                        </div>
+
+                        <div class="cc-channels" id="cc-channels">
+                            <!-- Channel: cards issued -->
+                            <div class="cc-ch ch-c">
+                                <div class="ch-icon"><i class="fas fa-id-card"></i></div>
+                                <div class="ch-label"><span class="ch-live"></span> Издадени карти</div>
+                                <div class="ch-num" data-target="47" data-suffix="">0</div>
+                                <div class="ch-latest"><span class="lt-time">14:22</span> Ученическа · Гише</div>
+                                <div class="ch-spark"><span style="height:35%"></span><span style="height:55%"></span><span style="height:45%"></span><span style="height:70%"></span><span style="height:60%"></span><span class="now" style="height:90%"></span></div>
+                            </div>
+                            <!-- Channel: validations -->
+                            <div class="cc-ch ch-v">
+                                <div class="ch-icon"><i class="fas fa-wifi"></i></div>
+                                <div class="ch-label"><span class="ch-live"></span> Заверки днес</div>
+                                <div class="ch-num" data-target="1863" data-suffix="">0</div>
+                                <div class="ch-latest"><span class="lt-time">14:22</span> София–Самоков · Валиден</div>
+                                <div class="ch-spark"><span style="height:50%"></span><span style="height:65%"></span><span style="height:55%"></span><span style="height:80%"></span><span style="height:70%"></span><span class="now" style="height:95%"></span></div>
+                            </div>
+                            <!-- Channel: revenue -->
+                            <div class="cc-ch ch-p">
+                                <div class="ch-icon"><i class="fas fa-coins"></i></div>
+                                <div class="ch-label"><span class="ch-live"></span> Приход днес</div>
+                                <div class="ch-num" data-target="1240" data-prefix="€">€0</div>
+                                <div class="ch-latest"><span class="lt-time">14:21</span> €2.50 · в брой · Линия 3</div>
+                                <div class="ch-spark"><span style="height:40%"></span><span style="height:50%"></span><span style="height:65%"></span><span style="height:60%"></span><span style="height:75%"></span><span class="now" style="height:88%"></span></div>
+                            </div>
+                        </div>
+
+                        <div class="cc-statusbar">
+                            <span class="sb ok"><i class="fas fa-circle-check"></i> Свързано</span>
+                            <span class="sb"><i class="fas fa-tablet-screen-button"></i> 12/12 устройства онлайн</span>
+                            <span class="sb"><i class="fas fa-shield-halved"></i> 0 сигнала</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- myPOS All-in-One Highlight Section -->
-    <section id="mypos-solutions" style="padding: 100px 0; background: linear-gradient(to bottom, transparent, rgba(34, 211, 238, 0.05));">
+    <script>
+        (function () {
+            var board = document.getElementById('cc-channels');
+            if (!board) return;
+            var nums = board.querySelectorAll('.ch-num');
+            var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            var fmt = function (n) { return n.toLocaleString('bg-BG'); };
+            var render = function (el, n) {
+                el.textContent = (el.dataset.prefix || '') + fmt(n) + (el.dataset.suffix || '');
+            };
+
+            // Count-up on first reveal
+            nums.forEach(function (el) {
+                var target = parseInt(el.dataset.target, 10);
+                el.__cur = target;
+                if (reduce) { render(el, target); return; }
+                var start = performance.now(), dur = 1300;
+                var step = function (t) {
+                    var p = Math.min((t - start) / dur, 1);
+                    var e = 1 - Math.pow(1 - p, 3); // easeOutCubic
+                    render(el, Math.round(target * e));
+                    if (p < 1) requestAnimationFrame(step);
+                };
+                requestAnimationFrame(step);
+            });
+
+            // Calm live updates: one gentle refresh every 5s (not a flood)
+            var events = {
+                c: ['Ученическа · Гише', 'Нормална · Гише', 'Подновена · Онлайн', 'Пенсионерска · Гише'],
+                v: ['София–Самоков · Валиден', 'Пловдив–Асеновград · Валиден', 'Варна–Добрич · Валиден', 'Бургас–Поморие · Валиден'],
+                p: ['€2.50 · в брой · Линия 3', '€51.00 · карта · Абонамент', '€1.50 · в брой · Линия 5', '€25.50 · карта · Ученическа']
+            };
+            var keys = ['c', 'v', 'p'], idx = { c: 0, v: 0, p: 0 };
+            var pad = function (x) { return x < 10 ? '0' + x : '' + x; };
+
+            setInterval(function () {
+                var chs = board.querySelectorAll('.cc-ch');
+                var now = new Date();
+                var time = pad(now.getHours()) + ':' + pad(now.getMinutes());
+                chs.forEach(function (ch, i) {
+                    var k = keys[i];
+                    var numEl = ch.querySelector('.ch-num');
+                    var inc = k === 'v' ? 2 + Math.floor(Math.random() * 4) : (k === 'p' ? 2 + Math.floor(Math.random() * 5) : (Math.random() < 0.5 ? 1 : 0));
+                    numEl.__cur += inc;
+                    render(numEl, numEl.__cur);
+                    if (!reduce && inc) { numEl.classList.add('bump'); setTimeout(function () { numEl.classList.remove('bump'); }, 320); }
+
+                    // rotate the single latest event with a smooth fade (calm)
+                    idx[k] = (idx[k] + 1) % events[k].length;
+                    var latest = ch.querySelector('.ch-latest');
+                    latest.style.opacity = '0';
+                    setTimeout(function () {
+                        latest.innerHTML = '<span class="lt-time">' + time + '</span> ' + events[k][idx[k]];
+                        latest.style.opacity = '1';
+                    }, reduce ? 0 : 300);
+
+                    // nudge sparkline (subtle trend life)
+                    if (!reduce) {
+                        var bars = ch.querySelectorAll('.ch-spark span');
+                        for (var b = 0; b < bars.length - 1; b++) bars[b].style.height = bars[b + 1].style.height;
+                        bars[bars.length - 1].style.height = (55 + Math.floor(Math.random() * 45)) + '%';
+                    }
+                });
+            }, 5000);
+        })();
+    </script>
+
+    <!-- Modules Overview -->
+    <section id="modules">
         <div class="container">
-            <div class="mypos-layout glass reveal" style="padding: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; border: 1px solid rgba(34, 211, 238, 0.3); box-shadow: 0 0 50px rgba(34, 211, 238, 0.1);">
-                <div class="mypos-text">
-                    <div class="badge" style="display: inline-block; padding: 6px 16px; background: var(--primary); color: var(--bg); border-radius: 50px; font-weight: 800; font-size: 0.8rem; margin-bottom: 24px;" data-i18n="mypos-badge">ХАРДУЕРНИ РЕШЕНИЯ</div>
-                    <h2 style="margin-bottom: 30px; font-size: 2.8rem;" data-i18n="mypos-h2">Мощен Хардуер за <span class="gradient-text">Вашия Автопарк</span></h2>
-                    <p style="font-size: 1.1rem; color: var(--text-muted); margin-bottom: 40px;" data-i18n="mypos-p">TransitFlow работи съвместно с <strong>myPOS Ultra</strong> – най-модерният смарт терминал на пазара. Нашият софтуер е предварително инсталиран в устройството, осигурявайки светкавична скорост и надеждност.</p>
-                    
-                    <ul class="mypos-benefits" style="list-style: none; display: grid; gap: 20px;">
-                        <li style="display: flex; gap: 15px; align-items: flex-start;">
-                            <i class="fas fa-check-circle" style="color: var(--primary); margin-top: 5px;"></i>
-                            <div>
-                                <strong style="display: block; font-size: 1.1rem;" data-i18n="mypos-b1-h">Интегрирана Валидация</strong>
-                                <span style="color: var(--text-muted);" data-i18n="mypos-b1-p">Проверявайте картите на клиентите директно чрез нашата специализирана система.</span>
-                            </div>
-                        </li>
-                        <li style="display: flex; gap: 15px; align-items: flex-start;">
-                            <i class="fas fa-print" style="color: var(--primary); margin-top: 5px;"></i>
-                            <div>
-                                <strong style="display: block; font-size: 1.1rem;" data-i18n="mypos-b2-h">Светкавичен Принтер</strong>
-                                <span style="color: var(--text-muted);" data-i18n="mypos-b2-p">Издавайте билети моментално с вградения принтер от ново поколение.</span>
-                            </div>
-                        </li>
-                        <li style="display: flex; gap: 15px; align-items: flex-start;">
-                            <i class="fas fa-credit-card" style="color: var(--primary); margin-top: 5px;"></i>
-                            <div>
-                                <strong style="display: block; font-size: 1.1rem;" data-i18n="mypos-b3-h">Онлайн Плащания</strong>
-                                <span style="color: var(--text-muted);" data-i18n="mypos-b3-p">Приемайте карти и мобилни портфейли с незабавно получаване на сумите.</span>
-                            </div>
-                        </li>
-                        <li style="display: flex; gap: 15px; align-items: flex-start;">
-                            <i class="fas fa-calendar-xmark" style="color: var(--primary); margin-top: 5px;"></i>
-                            <div>
-                                <strong style="display: block; font-size: 1.1rem;" data-i18n="mypos-b4-h">Без Месечни Такси</strong>
-                                <span style="color: var(--text-muted);" data-i18n="mypos-b4-p">Нямате никакви фиксирани месечни разходи за използването на апарата и софтуера.</span>
-                            </div>
-                        </li>
-                        <li style="display: flex; gap: 15px; align-items: flex-start;">
-                            <i class="fas fa-hand-holding-dollar" style="color: var(--primary); margin-top: 5px;"></i>
-                            <div>
-                                <strong style="display: block; font-size: 1.1rem;" data-i18n="mypos-b5-h">Такса само при Плащане</strong>
-                                <span style="color: var(--text-muted);" data-i18n="mypos-b5-p">Заплащате минимална такса (1.4%) само при транзакции с банкова карта. Проверките са безплатни.</span>
-                            </div>
-                        </li>
+            <div class="section-head">
+                <span class="eyebrow reveal">Един продукт, всички модули</span>
+                <h2 class="reveal">Всичко, от което се нуждае <span class="gradient-text">Вашата компания</span></h2>
+                <p class="reveal">TransitFlow не е просто билетна система. Това е цялостна екосистема – от пътника до счетоводството. Разгледайте всеки модул в детайли.</p>
+            </div>
+
+            <div class="module-grid">
+                <a href="nfc-cards.html" class="module-card glass reveal">
+                    <div class="mod-icon"><i class="fas fa-id-card"></i></div>
+                    <h3>NFC Карти и Валидиране</h3>
+                    <p>Безконтактни абонаментни карти със снимка, мигновена облачна проверка, вечни карти и защита срещу споделяне.</p>
+                    <span class="mod-link">Виж картите <i class="fas fa-arrow-right"></i></span>
+                </a>
+                <a href="passenger-app.html" class="module-card glass reveal">
+                    <div class="mod-icon"><i class="fas fa-mobile-screen-button"></i></div>
+                    <h3>Приложение за Пътници</h3>
+                    <p>Брандирано приложение с разписания в реално време, брояч „следващ автобус“, известия за промени и онлайн подновяване.</p>
+                    <span class="mod-link">Разгледай приложението <i class="fas fa-arrow-right"></i></span>
+                </a>
+                <a href="inspections.html" class="module-card glass reveal">
+                    <div class="mod-icon"><i class="fas fa-user-shield"></i></div>
+                    <h3>Контрол и Сигурност</h3>
+                    <p>Мобилни ревизори с GPS, кръстосана проверка при качване, защита срещу клониране на карти и пълен одит журнал.</p>
+                    <span class="mod-link">Как пазим приходите <i class="fas fa-arrow-right"></i></span>
+                </a>
+                <a href="reports.html" class="module-card glass reveal">
+                    <div class="mod-icon"><i class="fas fa-chart-line"></i></div>
+                    <h3>Финанси и Отчети</h3>
+                    <p>Приходи по шофьори, линии и периоди. Разбивка по начин на плащане (брой, карта, банка) и експорт с един клик.</p>
+                    <span class="mod-link">Виж отчетите <i class="fas fa-arrow-right"></i></span>
+                </a>
+                <a href="hardware.html" class="module-card glass reveal">
+                    <div class="mod-icon"><i class="fas fa-microchip"></i></div>
+                    <h3>Хардуер myPOS Ultra</h3>
+                    <p>Смарт терминал с вграден софтуер, вграден принтер, банкови плащания и без месечни такси за устройството.</p>
+                    <span class="mod-link">Виж хардуера <i class="fas fa-arrow-right"></i></span>
+                </a>
+                <a href="fleet.html" class="module-card glass reveal">
+                    <div class="mod-icon"><i class="fas fa-bus"></i></div>
+                    <h3>Наемане на Автобуси</h3>
+                    <p>Готов модул за чартър и екскурзии – показвайте автопарка си и приемайте запитвания за оферти директно онлайн.</p>
+                    <span class="mod-link">Отвори нов приход <i class="fas fa-arrow-right"></i></span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Live Reference / Case -->
+    <section id="reference">
+        <div class="container">
+            <div class="split-row" style="margin-bottom: 0;">
+                <div class="reveal">
+                    <span class="eyebrow">Реален пример</span>
+                    <h2 style="margin: 20px 0 24px;">Не обещание, а <span class="gradient-text">работеща система</span></h2>
+                    <p style="color: var(--text-muted); font-size: 1.15rem; line-height: 1.7; margin-bottom: 30px;">
+                        TransitFlow е изградена върху доказан модел, който вече обслужва пътническия транспорт на един от най-големите оператори в страната – десетки междуградски линии, хиляди пътници и ежедневни разплащания. Всяка функция, която Ви предлагаме, е тествана в реални, тежки условия на работа – не в презентация.
+                    </p>
+                    <ul class="split-list">
+                        <li><i class="fas fa-check-circle"></i><div><strong>Пасажери с приложение</strong><span>Реални разписания, брояч за следващ курс и известия за всяка линия.</span></div></li>
+                        <li><i class="fas fa-check-circle"></i><div><strong>Ежедневни отчети</strong><span>Приходите от билети и карти се засичат автоматично, без ръчно броене.</span></div></li>
+                        <li><i class="fas fa-check-circle"></i><div><strong>Полеви контрол</strong><span>Ревизори проверяват валидността на място чрез мобилно устройство.</span></div></li>
                     </ul>
-                    <a href="hardware.html" class="btn btn-primary" style="margin-top: 30px;" data-i18n="mypos-more">Виж повече</a>
+                    <a href="#contact" class="btn btn-primary" style="margin-top: 36px;">Искам същото за моята фирма</a>
                 </div>
-                <div class="mypos-image-stack" style="display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; max-width: 420px; margin: 0 auto; position: relative;">
-                    <!-- Main Terminal Image -->
-                    <div class="terminal-main" style="width: 100%; filter: drop-shadow(0 20px 50px rgba(0,0,0,0.3));">
-                        <img src="assets/mypos_terminal_ultra.webp" alt="myPOS Ultra Terminal - Професионален терминал за разплащания и NFC валидиране" style="width: 100%; height: auto; border-radius: 24px; display: block;">
-                    </div>
-                    
-                    <!-- Plus Sign -->
-                    <div style="font-size: 5rem; color: var(--primary); font-weight: 900; line-height: 0.1; margin: 20px 0; text-shadow: 0 0 30px rgba(34, 211, 238, 0.4); z-index: 5;">+</div>
-
-                    <!-- Secondary Validation Visual -->
-                    <div class="terminal-validation glass" style="width: 100%; padding: 20px; border: 1px solid var(--glass-border); box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
-                        <img src="assets/mypos_nfc_validation.png" alt="Валидиране на карта при шофьора" style="width: 100%; height: auto; border-radius: 16px; display: block;">
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Desktop Software Section -->
-    <section id="desktop-software">
-        <div class="container">
-            <div style="text-align: center; margin-bottom: 80px;">
-                <h2 class="reveal" data-i18n="soft-h2">Офис Софтуер за <span class="gradient-text">Вашия Компютър</span></h2>
-                <p style="color: var(--text-muted); font-size: 1.25rem; max-width: 750px; margin: 15px auto 0;" class="reveal" data-i18n="soft-sub">Пълен контрол над клиентите и картите – директно от работното Ви място.</p>
-            </div>
-
-            <div class="info-panel glass reveal">
-                <div class="software-inner">
-                    <div class="software-showcase">
-                        <div class="software-visual">
-                            <div class="software-glow"></div>
-                            <img src="assets/desktop_software_nfc.png" alt="TransitFlow десктоп софтуер за управление на клиенти и карти с NFC четец за компютър">
-                            <div class="software-float-badge glass">
-                                <i class="fas fa-tower-broadcast"></i>
-                                <div>
-                                    <strong data-i18n="soft-badge-h">NFC Четец за PC</strong>
-                                    <span data-i18n="soft-badge-p">Plug &amp; Play през USB</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="info-text">
-                            <div class="badge" style="display: inline-block; padding: 6px 16px; background: var(--primary); color: var(--bg); border-radius: 50px; font-weight: 800; font-size: 0.8rem; margin-bottom: 24px;" data-i18n="soft-badge">СОФТУЕР ЗА КОМПЮТЪР</div>
-                            <h3 data-i18n="soft-h3">Десктоп Софтуер за Вашия Офис</h3>
-                            <p data-i18n="soft-p">Управлявайте клиентите и картите си директно от компютъра. Нашата Windows програма работи заедно с компактно NFC устройство за PC – свържете го през USB и започнете да издавате, редактирате и подновявате карти за секунди, без нужда от телефон или терминал.</p>
-                            <div class="renewal-methods">
-                                <div class="method">
-                                    <i class="fas fa-tower-broadcast"></i>
-                                    <div>
-                                        <strong data-i18n="soft-dev1-h">NFC Устройство за Компютър</strong>
-                                        <span data-i18n="soft-dev1-p">Компактен USB четец/записвач, който чете и кодира картите директно от работното Ви място.</span>
-                                    </div>
-                                </div>
-                                <div class="method">
-                                    <i class="fas fa-plug-circle-bolt"></i>
-                                    <div>
-                                        <strong data-i18n="soft-dev2-h">Plug &amp; Play Инсталация</strong>
-                                        <span data-i18n="soft-dev2-p">Инсталирате програмата, включвате четеца и сте готови – без сложни настройки.</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="benefits-divider"></div>
-
-                    <h4 class="benefits-title" data-i18n="soft-cap-h">Какво можете да правите със софтуера?</h4>
-                    <div class="benefits-grid">
-                            <div class="benefit-item">
-                                <div class="benefit-icon"><i class="fas fa-user-plus"></i></div>
-                                <div>
-                                    <strong data-i18n="soft-1-h">Добавяне на Клиенти</strong>
-                                    <p data-i18n="soft-1-p">Създавайте нови клиентски профили със снимка, лични данни и тип абонамент за под минута.</p>
-                                </div>
-                            </div>
-                            <div class="benefit-item">
-                                <div class="benefit-icon"><i class="fas fa-pen-to-square"></i></div>
-                                <div>
-                                    <strong data-i18n="soft-2-h">Редактиране на Профили</strong>
-                                    <p data-i18n="soft-2-p">Променяйте данни, снимки и настройки на всеки клиент по всяко време с няколко клика.</p>
-                                </div>
-                            </div>
-                            <div class="benefit-item">
-                                <div class="benefit-icon"><i class="fas fa-id-card"></i></div>
-                                <div>
-                                    <strong data-i18n="soft-3-h">Издаване и Кодиране на Карти</strong>
-                                    <p data-i18n="soft-3-p">Запишете нова NFC карта директно от компютъра и я свържете с профила на клиента.</p>
-                                </div>
-                            </div>
-                            <div class="benefit-item">
-                                <div class="benefit-icon"><i class="fas fa-wallet"></i></div>
-                                <div>
-                                    <strong data-i18n="soft-4-h">Зареждане и Подновяване</strong>
-                                    <p data-i18n="soft-4-p">Подновявайте абонаменти и добавяйте баланс към картите бързо от офиса.</p>
-                                </div>
-                            </div>
-                            <div class="benefit-item">
-                                <div class="benefit-icon"><i class="fas fa-ban"></i></div>
-                                <div>
-                                    <strong data-i18n="soft-5-h">Блокиране и Прехвърляне</strong>
-                                    <p data-i18n="soft-5-p">При загубена карта я блокирате и прехвърляте профила и баланса върху нова за секунди.</p>
-                                </div>
-                            </div>
-                            <div class="benefit-item">
-                                <div class="benefit-icon"><i class="fas fa-magnifying-glass"></i></div>
-                                <div>
-                                    <strong data-i18n="soft-6-h">Търсене и История</strong>
-                                    <p data-i18n="soft-6-p">Намерете всеки клиент моментално и вижте пълната история на плащанията и заверките.</p>
-                                </div>
-                            </div>
-                        </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Advantage Info Panel -->
-        <div class="container">
-            <div class="info-panel glass reveal" style="margin-top: 80px;">
-                <div class="info-panel-content">
-                    <div class="info-icon">
-                        <i class="fas fa-infinity"></i>
-                    </div>
-                    <div class="info-text">
-                        <h3 data-i18n="adv-h3">Вашата Карта е Вечна</h3>
-                        <p data-i18n="adv-p">Веднъж издадена, картата остава у клиента перманентно. Подновяването е въпрос на секунди:</p>
-                        <div class="renewal-methods">
-                            <div class="method">
-                                <i class="fas fa-mobile-screen-button"></i>
-                                <div>
-                                    <strong data-i18n="adv-online-h">Онлайн от Клиента</strong>
-                                    <span data-i18n="adv-online-p">Сканирате с телефона и плащате през платформата.</span>
-                                </div>
-                            </div>
-                            <div class="method">
-                                <i class="fas fa-user-shield"></i>
-                                <div>
-                                    <strong data-i18n="adv-office-h">Офис Обслужване</strong>
-                                    <span data-i18n="adv-office-p">Персоналът сканира картата и я подновява с един бутон.</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="benefits-divider"></div>
-
-                        <h4 class="benefits-title" data-i18n="adv-why-h">Защо това е важно за Вашия бизнес?</h4>
-                        <div class="benefits-grid">
-                            <div class="benefit-item">
-                                <div class="benefit-icon"><i class="fas fa-piggy-bank"></i></div>
-                                <div>
-                                    <strong data-i18n="benefit-1-h">Край на разходите за хартия</strong>
-                                    <p data-i18n="benefit-1-p">Забравете за постоянното закупуване на нови карти всеки месец. Една NFC карта се ползва години – плащането и подновяването стават изцяло в системата.</p>
-                                </div>
-                            </div>
-                            <div class="benefit-item">
-                                <div class="benefit-icon"><i class="fas fa-user-check"></i></div>
-                                <div>
-                                    <strong data-i18n="benefit-2-h">Елиминиране на измамите</strong>
-                                    <p data-i18n="benefit-2-p">Статистиката показва, че споделянето на карти отнема до 10% от оборота. Нашата система изисква профилна снимка за всеки клиент, правейки измамите невъзможни.</p>
-                                </div>
-                            </div>
-                            <div class="benefit-item">
-                                <div class="benefit-icon"><i class="fas fa-bolt"></i></div>
-                                <div>
-                                    <strong data-i18n="benefit-3-h">Моментално управление</strong>
-                                    <p data-i18n="benefit-3-p">При загуба картата се блокира веднага от разстояние. Балансът и профилът се прехвърлят на нова карта за секунди, без загуба на информация.</p>
-                                </div>
-                            </div>
-                            <div class="benefit-item">
-                                <div class="benefit-icon"><i class="fas fa-leaf"></i></div>
-                                <div>
-                                    <strong data-i18n="benefit-4-h">Екологична отговорност</strong>
-                                    <p data-i18n="benefit-4-p">Спестявате тонове хартиени отпадъци годишно, изграждайки модерен и екологичен имидж на Вашата транспортна компания.</p>
-                                </div>
-                            </div>
-                        </div>
+                <div class="split-visual reveal">
+                    <div class="glass" style="padding: 18px; border-radius: 28px; box-shadow: 0 30px 60px rgba(0,0,0,0.5);">
+                        <img src="assets/dary_commerce_hero_mockup_1775307478362.png" alt="Реална експлоатация на системата при голям транспортен оператор" style="width: 100%; border-radius: 18px; display: block;">
                     </div>
                 </div>
             </div>
@@ -508,9 +412,9 @@
     <!-- Pricing Section -->
     <section id="pricing" style="background: rgba(255,255,255,0.02);">
         <div class="container">
-            <div style="text-align: center; margin-bottom: 80px;">
+            <div class="section-head">
                 <h2 class="reveal" data-i18n="price-h2">Изберете <span class="gradient-text">Вашия План</span></h2>
-                <p style="color: var(--text-muted); font-size: 1.25rem; max-width: 700px; margin: 15px auto 0;" class="reveal" data-i18n="price-p">Прозрачни цени за всякакъв брой превозни средства.</p>
+                <p class="reveal" data-i18n="price-p">Прозрачни цени за всякакъв брой превозни средства.</p>
             </div>
             <div class="price-grid">
                 <div class="price-card glass reveal">
@@ -606,7 +510,7 @@
     <footer>
         <div class="container footer-content">
             <div class="footer-logo">
-                <a href="#" class="logo" style="margin-bottom: 20px;">
+                <a href="index.html" class="logo" style="margin-bottom: 20px;">
                     <i class="fas fa-bus-simple"></i>
                     Transit<span>Flow</span>
                 </a>
@@ -616,17 +520,20 @@
                 <div class="footer-column">
                     <h4 data-i18n="foot-prod">Продукт</h4>
                     <ul>
-                        <li><a href="#features" data-i18n="nav-features">Функции</a></li>
-                        <li><a href="#pricing" data-i18n="nav-pricing">Цени</a></li>
-                        <li><a href="faq.html" data-i18n="foot-faq">Въпроси и Отговори</a></li>
+                        <li><a href="features.html" data-i18n="nav-features">Функции</a></li>
+                        <li><a href="passenger-app.html">Приложение за пътници</a></li>
+                        <li><a href="inspections.html">Контрол и Сигурност</a></li>
+                        <li><a href="fleet.html">Наемане на автобуси</a></li>
                         <li><a href="hardware.html" data-i18n="foot-hw">Хардуер</a></li>
+                        <li><a href="#pricing" data-i18n="nav-pricing">Цени</a></li>
                     </ul>
                 </div>
                 <div class="footer-column">
                     <h4 data-i18n="foot-comp">Компания</h4>
                     <ul>
                         <li><a href="about.html" data-i18n="foot-about">За Нас</a></li>
-                        <li><a href="#contact" data-i18n="foot-careers">Кариери</a></li>
+                        <li><a href="faq.html" data-i18n="foot-faq">Въпроси и Отговори</a></li>
+                        <li><a href="#contact" data-i18n="nav-contact">Контакти</a></li>
                     </ul>
                 </div>
                 <div class="footer-column">

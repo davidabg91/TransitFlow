@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Отчети и Анализ | TransitFlow - Финансови справки за транспорт</title>
+    <meta name="description" content="Пълна финансова отчетност за автобусни компании: приход в реално време, месечни и дневни отчети, разбивка по начин на плащане, вид карта, маршрут и община, регистри за субсидии и експорт към PDF.">
+    <link rel="canonical" href="https://transitflow.org/reports.html">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="translations.js"></script>
+    <style>
+        .report-mock {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 28px;
+        }
+        .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+        .kpi-box {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 18px;
+        }
+        .kpi-box .k-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 800; }
+        .kpi-box .k-val { font-size: 1.7rem; font-weight: 900; margin-top: 6px; }
+        .filter-chip {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 16px;
+            background: rgba(34,211,238,0.06);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            font-weight: 600; font-size: 0.9rem;
+        }
+        .filter-chip i { color: var(--primary); }
+        .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 120px; margin-top: 10px; }
+        .bar-chart span { flex: 1; background: var(--gradient); border-radius: 4px 4px 0 0; opacity: 0.85; }
+        .rep-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .rep-table th, .rep-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .rep-table th { color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+    <div class="bg-glow"></div>
+    <div class="grid-overlay"></div>
+
+    <nav id="navbar" class="scrolled">
+        <div class="container nav-content">
+            <a href="index.html" class="logo"><i class="fas fa-bus-simple"></i> Transit<span>Flow</span></a>
+            <ul class="nav-links">
+                <li class="has-dropdown">
+                    <a href="#" class="active">Продукт <i class="fas fa-chevron-down"></i></a>
+                    <div class="nav-dropdown">
+                        <a href="features.html"><i class="fas fa-layer-group dd-icon"></i><span class="dd-text"><strong>Функции</strong><span>Пълен каталог възможности</span></span></a>
+                        <a href="nfc-cards.html"><i class="fas fa-id-card dd-icon"></i><span class="dd-text"><strong>NFC Карти и Валидиране</strong><span>Безконтактни карти и заверка</span></span></a>
+                        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button dd-icon"></i><span class="dd-text"><strong>Приложение за пътници</strong><span>Разписания и известия в реално време</span></span></a>
+                        <a href="inspections.html"><i class="fas fa-user-shield dd-icon"></i><span class="dd-text"><strong>Контрол и Сигурност</strong><span>Ревизори, GPS и защита от измами</span></span></a>
+                        <a href="fleet.html"><i class="fas fa-bus dd-icon"></i><span class="dd-text"><strong>Наемане на автобуси</strong><span>Допълнителен приход за автопарка</span></span></a>
+                        <a href="reports.html"><i class="fas fa-chart-column dd-icon"></i><span class="dd-text"><strong>Отчети и Анализ</strong><span>Приходи, справки и експорт</span></span></a>
+                        <a href="hardware.html"><i class="fas fa-microchip dd-icon"></i><span class="dd-text"><strong>Хардуер</strong><span>myPOS Ultra и NFC устройства</span></span></a>
+                    </div>
+                </li>
+                <li><a href="index.html#pricing" data-i18n="nav-pricing">Цени</a></li>
+                <li><a href="faq.html" data-i18n="nav-faq">Въпроси</a></li>
+                <li><a href="about.html" data-i18n="foot-about">За нас</a></li>
+                <li><a href="#" class="lang-switch">BG | EN</a></li>
+            </ul>
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <a href="index.html#contact" class="btn btn-outline" style="padding: 10px 24px;"><span data-i18n="nav-demo">Демо</span><i class="fas fa-arrow-right"></i></a>
+                <button class="nav-toggle" aria-label="Меню"><i class="fas fa-bars"></i></button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="mobile-menu" id="mobile-menu">
+        <span class="mm-label">Продукт</span>
+        <a href="features.html"><i class="fas fa-layer-group"></i> Функции</a>
+        <a href="nfc-cards.html"><i class="fas fa-id-card"></i> NFC Карти и Валидиране</a>
+        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button"></i> Приложение за пътници</a>
+        <a href="inspections.html"><i class="fas fa-user-shield"></i> Контрол и Сигурност</a>
+        <a href="fleet.html"><i class="fas fa-bus"></i> Наемане на автобуси</a>
+        <a href="reports.html"><i class="fas fa-chart-column"></i> Отчети и Анализ</a>
+        <a href="hardware.html"><i class="fas fa-microchip"></i> Хардуер</a>
+        <span class="mm-label">Компания</span>
+        <a href="index.html#pricing"><i class="fas fa-tag"></i> Цени</a>
+        <a href="faq.html"><i class="fas fa-circle-question"></i> Въпроси</a>
+        <a href="about.html"><i class="fas fa-building"></i> За нас</a>
+        <a href="index.html#contact"><i class="fas fa-envelope"></i> Контакти</a>
+    </div>
+
+    <!-- Hero -->
+    <header style="padding: 170px 0 60px;">
+        <div class="container">
+            <div class="split-row" style="margin-bottom: 0;">
+                <div class="reveal active">
+                    <span class="eyebrow">Отчети и Анализ</span>
+                    <h1 style="font-size: clamp(2.2rem, 5.5vw, 3.8rem); margin: 20px 0 24px;">Всеки лев – <span class="gradient-text">обяснен и доказан</span></h1>
+                    <p style="color: var(--text-muted); font-size: 1.2rem; line-height: 1.7; margin-bottom: 32px;">
+                        Край на ръчното броене и тетрадките. TransitFlow засича всяко плащане автоматично и го превръща в точни справки – по ден, месец, шофьор, линия, община и начин на плащане. Готови за печат и за счетоводството.
+                    </p>
+                    <div class="btn-group">
+                        <a href="index.html#contact" class="btn btn-primary">Искам такива отчети</a>
+                        <a href="#builder" class="btn btn-outline">Как се прави отчет</a>
+                    </div>
+                </div>
+                <div class="split-visual reveal active">
+                    <div class="glass" style="padding: 16px; border-radius: 24px; box-shadow: 0 30px 60px rgba(0,0,0,0.5);">
+                        <img src="assets/dashboard_finance_screenshot_1775309930724.png" alt="Финансово табло на TransitFlow с приходи и графики" style="width: 100%; border-radius: 14px; display: block;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Live dashboard -->
+    <section id="dashboard" style="background: rgba(255,255,255,0.02);">
+        <div class="container">
+            <div class="section-head">
+                <span class="eyebrow reveal">Живо табло</span>
+                <h2 class="reveal">Приходите Ви – <span class="gradient-text">в реално време</span></h2>
+                <p class="reveal">В момента, в който шофьор или гише приеме плащане, числата на таблото се обновяват. Без забавяне, без ръчно въвеждане.</p>
+            </div>
+            <div class="report-mock reveal" style="max-width: 900px; margin: 0 auto;">
+                <div class="kpi-row">
+                    <div class="kpi-box"><div class="k-label">Приход днес</div><div class="k-val gradient-text">1 240 €</div></div>
+                    <div class="kpi-box"><div class="k-label">Този месец</div><div class="k-val">28 750 €</div></div>
+                    <div class="kpi-box"><div class="k-label">Транзакции</div><div class="k-val">1 863</div></div>
+                    <div class="kpi-box"><div class="k-label">Най-натоварен ден</div><div class="k-val">15-о <span style="font-size:0.9rem; color:var(--text-muted);">число</span></div></div>
+                </div>
+                <div style="margin-top: 24px;">
+                    <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 800;">Приходи по дни (текущ месец)</div>
+                    <div class="bar-chart">
+                        <span style="height:40%"></span><span style="height:55%"></span><span style="height:35%"></span><span style="height:70%"></span>
+                        <span style="height:60%"></span><span style="height:85%"></span><span style="height:50%"></span><span style="height:65%"></span>
+                        <span style="height:90%"></span><span style="height:45%"></span><span style="height:75%"></span><span style="height:100%"></span>
+                        <span style="height:55%"></span><span style="height:80%"></span><span style="height:60%"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Report builder / filters -->
+    <section id="builder">
+        <div class="container">
+            <div class="split-row" style="margin-bottom: 0;">
+                <div class="reveal">
+                    <span class="eyebrow">Генератор на отчети</span>
+                    <h2 style="margin: 20px 0 24px;">Точно този отчет, <span class="gradient-text">който Ви трябва</span></h2>
+                    <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.7;">Комбинирайте филтрите и системата съставя справката за секунди. Идеално за месечно приключване, проверка на конкретна линия или подготовка на данни за счетоводителя.</p>
+                    <ul class="split-list">
+                        <li><i class="fas fa-calendar-days"></i><div><strong>Период</strong><span>Месечен или дневен отчет – цял месец, всички месеци или конкретна дата.</span></div></li>
+                        <li><i class="fas fa-money-bill-wave"></i><div><strong>Начин на плащане</strong><span>В брой, с карта, банка или смесено (банка + кеш) – с автоматична разбивка.</span></div></li>
+                        <li><i class="fas fa-id-card"></i><div><strong>Вид карта</strong><span>Нормална, ученическа, пенсионерска, учителска, инвалидна, служебна.</span></div></li>
+                        <li><i class="fas fa-route"></i><div><strong>Маршрут, община и разстояние</strong><span>Филтър по конкретна линия, община или до/над 10 км.</span></div></li>
+                    </ul>
+                </div>
+                <div class="split-visual reveal">
+                    <div class="report-mock">
+                        <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 800; margin-bottom: 16px;">Филтри на отчета</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom: 20px;">
+                            <span class="filter-chip"><i class="fas fa-calendar-days"></i> Месечен · Юли 2026</span>
+                            <span class="filter-chip"><i class="fas fa-money-bill-wave"></i> В брой</span>
+                            <span class="filter-chip"><i class="fas fa-id-card"></i> Ученическа</span>
+                            <span class="filter-chip"><i class="fas fa-route"></i> София – Самоков</span>
+                            <span class="filter-chip"><i class="fas fa-building-columns"></i> Областен съвет</span>
+                        </div>
+                        <table class="rep-table">
+                            <thead><tr><th>№</th><th>Име</th><th>Карта</th><th>Сума</th></tr></thead>
+                            <tbody>
+                                <tr><td>1</td><td>Иван Петров</td><td>#4471</td><td>25.50 €</td></tr>
+                                <tr><td>2</td><td>Мария Георгиева</td><td>#4472</td><td>25.50 €</td></tr>
+                                <tr><td>3</td><td>Стоян Илиев</td><td>#4488</td><td>25.50 €</td></tr>
+                            </tbody>
+                        </table>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.08);">
+                            <span style="color:var(--text-muted); font-size:0.85rem;">Общо записи: 214</span>
+                            <span style="font-weight:900; color:#4ade80; font-size:1.2rem;">Общо: 5 457.00 €</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Payment breakdown -->
+    <section style="background: rgba(255,255,255,0.02);">
+        <div class="container">
+            <div class="section-head">
+                <span class="eyebrow reveal">Разбивка на приходите</span>
+                <h2 class="reveal">Знаете точно <span class="gradient-text">откъде влизат парите</span></h2>
+            </div>
+            <div class="module-grid">
+                <div class="glass reveal" style="padding:36px; border-radius:20px; text-align:center;">
+                    <i class="fas fa-coins" style="color:var(--primary); font-size:2rem; margin-bottom:14px;"></i>
+                    <h3 style="margin-bottom:8px;">В брой</h3>
+                    <p style="color:var(--text-muted);">Кешовите плащания при шофьора и на гишето – отделно осчетоводени.</p>
+                </div>
+                <div class="glass reveal" style="padding:36px; border-radius:20px; text-align:center;">
+                    <i class="fas fa-credit-card" style="color:var(--primary); font-size:2rem; margin-bottom:14px;"></i>
+                    <h3 style="margin-bottom:8px;">С карта</h3>
+                    <p style="color:var(--text-muted);">Банкови карти и мобилни портфейли през myPOS терминала.</p>
+                </div>
+                <div class="glass reveal" style="padding:36px; border-radius:20px; text-align:center;">
+                    <i class="fas fa-building-columns" style="color:var(--primary); font-size:2rem; margin-bottom:14px;"></i>
+                    <h3 style="margin-bottom:8px;">Банка</h3>
+                    <p style="color:var(--text-muted);">Плащания по банков път – проследими и обвързани с клиента.</p>
+                </div>
+                <div class="glass reveal" style="padding:36px; border-radius:20px; text-align:center;">
+                    <i class="fas fa-code-branch" style="color:var(--primary); font-size:2rem; margin-bottom:14px;"></i>
+                    <h3 style="margin-bottom:8px;">Смесено</h3>
+                    <p style="color:var(--text-muted);">Част банка, част кеш – системата разделя сумата автоматично.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Subsidy registers -->
+    <section>
+        <div class="container">
+            <div class="split-row" style="margin-bottom: 0;">
+                <div class="split-visual reveal">
+                    <div class="glass" style="padding: 16px; border-radius: 24px;">
+                        <img src="assets/financial_analysis_visual_1775307844974.png" alt="Регистри за субсидии към общини" style="width: 100%; border-radius: 14px; display: block;">
+                    </div>
+                </div>
+                <div class="reveal">
+                    <span class="eyebrow">Регистри за субсидии</span>
+                    <h2 style="margin: 20px 0 24px;">Готови справки за <span class="gradient-text">общини и субсидии</span></h2>
+                    <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.7;">Превозвачите на преференциални категории отчитат пред общините. TransitFlow генерира готов „Регистър на издадените карти" за ученици, пенсионери, учители и хора с увреждания – с име, община, училище/адрес и номер на карта.</p>
+                    <ul class="split-list">
+                        <li><i class="fas fa-graduation-cap"></i><div><strong>Ученически регистър</strong><span>С училище и община – директно за отчет към финансиращия орган.</span></div></li>
+                        <li><i class="fas fa-user-group"></i><div><strong>Пенсионери и инвалиди</strong><span>С адрес и категория за доказване на правото на намаление.</span></div></li>
+                        <li><i class="fas fa-file-invoice"></i><div><strong>Готов за подпис и печат</strong><span>Форматиран документ, който предавате без допълнителна обработка.</span></div></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Export -->
+    <section style="background: rgba(255,255,255,0.02);">
+        <div class="container">
+            <div class="section-head">
+                <span class="eyebrow reveal">Експорт и печат</span>
+                <h2 class="reveal">От екрана – <span class="gradient-text">директно на хартия</span></h2>
+                <p class="reveal">Всеки отчет се превръща в чист, професионално разбит на страници документ – с един бутон.</p>
+            </div>
+            <div class="module-grid">
+                <div class="glass reveal" style="padding:40px; border-radius:20px;">
+                    <div class="mod-icon" style="margin-bottom:18px;"><i class="fas fa-print"></i></div>
+                    <h3 style="margin-bottom:12px;">Печат в A4 (PDF)</h3>
+                    <p style="color:var(--text-muted);">Автоматично разбиване на страници с фирмено заглавие, период и обобщение – готов за архив или подпис.</p>
+                </div>
+                <div class="glass reveal" style="padding:40px; border-radius:20px;">
+                    <div class="mod-icon" style="margin-bottom:18px;"><i class="fas fa-share-nodes"></i></div>
+                    <h3 style="margin-bottom:12px;">Споделяне с един клик</h3>
+                    <p style="color:var(--text-muted);">Изпратете обобщения отчет на счетоводителя или управителя директно от устройството.</p>
+                </div>
+                <div class="glass reveal" style="padding:40px; border-radius:20px;">
+                    <div class="mod-icon" style="margin-bottom:18px;"><i class="fas fa-shield-halved"></i></div>
+                    <h3 style="margin-bottom:12px;">100% точност</h3>
+                    <p style="color:var(--text-muted);">Числата идват директно от заверките – невъзможно е да се разминат с касата.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section>
+        <div class="container">
+            <div class="glass reveal" style="padding: 70px 40px; text-align: center; border-color: rgba(34,211,238,0.4);">
+                <h2 style="margin-bottom: 20px;">Вижте месечния си отчет за 5 секунди</h2>
+                <p style="color: var(--text-muted); font-size: 1.2rem; max-width: 700px; margin: 0 auto 40px;">Ще Ви покажем на живо как изглежда справката с реални данни от Вашите линии – и колко време ще Ви спести всеки месец.</p>
+                <a href="index.html#contact" class="btn btn-primary">Заявете демонстрация <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container footer-content">
+            <div class="footer-logo">
+                <a href="index.html" class="logo" style="margin-bottom: 20px;"><i class="fas fa-bus-simple"></i> Transit<span>Flow</span></a>
+                <p data-i18n="foot-p">Лидер в дигиталната трансформация на градския и крайградския транспорт.</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-column">
+                    <h4 data-i18n="foot-prod">Продукт</h4>
+                    <ul>
+                        <li><a href="features.html" data-i18n="nav-features">Функции</a></li>
+                        <li><a href="passenger-app.html">Приложение за пътници</a></li>
+                        <li><a href="inspections.html">Контрол и Сигурност</a></li>
+                        <li><a href="reports.html">Отчети и Анализ</a></li>
+                        <li><a href="fleet.html">Наемане на автобуси</a></li>
+                        <li><a href="hardware.html" data-i18n="foot-hw">Хардуер</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4 data-i18n="foot-comp">Компания</h4>
+                    <ul>
+                        <li><a href="about.html" data-i18n="foot-about">За Нас</a></li>
+                        <li><a href="faq.html" data-i18n="foot-faq">Въпроси и Отговори</a></li>
+                        <li><a href="index.html#contact" data-i18n="nav-contact">Контакти</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4 data-i18n="foot-legal">Правно</h4>
+                    <ul>
+                        <li><a href="terms.html" data-i18n="foot-terms">Условия</a></li>
+                        <li><a href="privacy.html" data-i18n="foot-priv">Поверителност</a></li>
+                        <li><a href="cookies.html" data-i18n="foot-cookies">Бисквитки</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="container footer-bottom">
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <p>&copy; 2026 TransitFlow. <span data-i18n="foot-rights">Всички права запазени.</span></p>
+                <p style="font-size: 0.8rem; opacity: 0.6; color: var(--text-muted);"><strong>"ДАВИДА БГ" ЕООД</strong> | <span data-i18n="about-uic">ЕИК 204356138</span></p>
+            </div>
+            <div style="display: flex; gap: 20px;">
+                <a href="#"><i class="fab fa-linkedin-in"></i></a>
+                <a href="#"><i class="fab fa-facebook-f"></i></a>
+                <a href="#"><i class="fab fa-twitter"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+</body>
+</html>

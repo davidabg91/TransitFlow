@@ -10,7 +10,8 @@ window.translations = {
         "nav-home": "Начало",
 
         // Hero Section
-        "hero-h1": "Трансформирайте Вашия Транспортен Бизнес<br>с <span class=\"gradient-text\">TransitFlow</span>",
+        "hero-badge": "Транспортна Иновация",
+        "hero-h1": "Трансформирайте <span class=\"weight-bold\">транспортния си бизнес</span> с<br><span class=\"hero-logo-wrapper\"><img src=\"assets/transitflow_hero_logo.png\" alt=\"TransitFlow\" class=\"hero-logo-img\"></span>",
         "hero-p": "Професионална платформа за дигитализация на автобусни системи. Постигнете пълен контрол чрез транспортен софтуер от ново поколение, интелигентни NFC карти и автоматизирана отчетност.",
         "hero-start": "Започнете Сега",
         "hero-learn": "Научете Повече",
@@ -19,7 +20,9 @@ window.translations = {
         "how-h2": "Как работи <span class=\"gradient-text\">TransitFlow</span>?",
         "how-p": "Три лесни стъпки към пълна дигитализация на Вашия транспортен бизнес.",
         "step-1-h3": "Създаване на профил на клиента",
-        "step-1-p": "Персоналът сканира празна карта с телефон или четец. Системата моментално отвежда към менюто за нов клиент. Процесът отнема под 1 минута.",
+        "step-1-p": "Служителят регистрира клиента през нашата настолна програма за Windows със свързан NFC четец. Личните данни и снимката се въвеждат, а картата се кодира на място – готов профил за под минута.",
+        "step-4-h3": "Наблюдение от Администратора",
+        "step-4-p": "Всяка заверка и плащане се стичат в реално време към централния административен панел. Управителят следи приходите, активността и всяко устройство от едно място – пълна видимост и контрол.",
         "step-2-h3": "Бърза Заверка",
         "step-2-p": "Клиентът поставя картата си върху четеца или смарт устройството при шофьора. Системата извършва мигновена проверка на статуса.",
         "step-3-h3": "Контрол от Шофьора",
@@ -203,7 +206,7 @@ window.translations = {
         "faq-q8": "Може ли да се плаща с банкова карта или телефон?",
         "faq-a8": "Разбира се! Системата поддържа безконтактни плащания с Visa, Mastercard, Apple Pay и Google Pay. Това е огромно улеснение за туристи и случайни пътници, които нямат абонаментна карта.",
         "about-corp-info": "Корпоративна Информация",
-        "about-addr": "Седалище: гр. Плевен (5802), жк. \"Сторгозия\", ул. „Цар Самуил“ - паркинга срещу бл. 34А",
+        "about-addr": "Седалище: България",
         "about-manager": "Управител: Дейвид Василев Димитров",
         "about-uic": "ЕИК/ПИК: 204356138",
         "about-vat": "Регистрация по ЗДДС: Не",
@@ -211,7 +214,7 @@ window.translations = {
 
         // Legal Pages Titles
         "legal-terms-h1": "Общи Условия",
-        "legal-terms-p": "Настоящият уебсайт се управлява от <strong>\"ДАВИДА БГ\" ЕООД</strong>, ЕИК: 204356138, със седалище гр. Плевен, ул. „Цар Самуил“. Тези Общи условия уреждат ползването на платформата TransitFlow.",
+        "legal-terms-p": "Настоящият уебсайт се управлява от <strong>\"ДАВИДА БГ\" ЕООД</strong>, ЕИК: 204356138, със седалище в България. Тези Общи условия уреждат ползването на платформата TransitFlow.",
         "legal-priv-h1": "Политика за Поверителност",
         "legal-priv-p": "Администратор на лични данни е <strong>\"ДАВИДА БГ\" ЕООД</strong>. Ние обработваме Вашите данни съгласно изискванията на GDPR и местното законодателство.",
         "legal-cookies-h1": "Политика за Бисквитките",
@@ -225,7 +228,20 @@ window.translations = {
         "legal-sup-kzp-p": "Адрес: 1000 гр. София, пл. „Славейков“ №4А, ет.3, 4 и 6, гореща линия: 0700 111 22, уебсайт: www.kzp.bg",
 
         // Common
-        "back-home": "Начало"
+        "back-home": "Начало",
+
+        // Bento stats
+        "bento-eyebrow": "Реална експлоатация",
+        "bento-title": "Изградена и доказана в реална експлоатация",
+        "bento-desc": "TransitFlow обслужва градския и междуградския транспорт на един от най-големите оператори в страната с десетки линии, поддържани под сурови реални натоварвания.",
+        "bento-stat1-val": "39+",
+        "bento-stat1-lbl": "активни линии",
+        "bento-stat2-val": "<1s",
+        "bento-stat2-lbl": "NFC валидиране",
+        "bento-stat3-val": "100%",
+        "bento-stat3-lbl": "точност",
+        "bento-stat4-val": "24/7",
+        "bento-stat4-lbl": "облак и поддръжка"
     },
     en: {
         // Navigation
@@ -238,7 +254,8 @@ window.translations = {
         "nav-home": "Home",
 
         // Hero Section
-        "hero-h1": "Transform Your Transport Business<br>with <span class=\"gradient-text\">TransitFlow</span>",
+        "hero-badge": "Transport Innovation",
+        "hero-h1": "Transform <span class=\"weight-bold\">your transport business</span> with<br><span class=\"hero-logo-wrapper\"><img src=\"assets/transitflow_hero_logo.png\" alt=\"TransitFlow\" class=\"hero-logo-img\"></span>",
         "hero-p": "Specialized platform for digitalization of bus companies. Achieve full control through smart subscription cards, real-time schedules, and automated reporting.",
         "hero-start": "Start Now",
         "hero-learn": "Learn More",
@@ -247,7 +264,9 @@ window.translations = {
         "how-h2": "How does <span class=\"gradient-text\">TransitFlow</span> work?",
         "how-p": "Three easy steps towards full digitalization of your transport business.",
         "step-1-h3": "Customer Profile Creation",
-        "step-1-p": "Staff scans an empty card with a phone or reader. The system instantly takes you to the new customer menu. Process takes under 1 minute.",
+        "step-1-p": "A staff member registers the customer through our Windows desktop app with a connected NFC reader. Personal details and photo are entered and the card is encoded on the spot — a ready profile in under a minute.",
+        "step-4-h3": "Admin Oversight",
+        "step-4-p": "Every validation and payment flows in real time to the central admin panel. The manager tracks revenue, activity and every device from one place — full visibility and control.",
         "step-2-h3": "Fast Validation",
         "step-2-p": "The customer places their card on the reader or smart device at the driver. The system performs an instant status check.",
         "step-3-h3": "Driver Control",
@@ -429,7 +448,7 @@ window.translations = {
         "faq-q8": "Can payments be made with a bank card or phone?",
         "faq-a8": "Of course! The system supports contactless payments with Visa, Mastercard, Apple Pay, and Google Pay. This is a great convenience for tourists and occasional passengers without a subscription card.",
         "about-corp-info": "Corporate Information",
-        "about-addr": "Headquarters: Pleven (5802), Storgosia, Tsar Samuil St. - parking opposite bl. 34A",
+        "about-addr": "Headquarters: Bulgaria",
         "about-manager": "Manager: Deivid Vasilev Dimitrov",
         "about-uic": "UIC/PIK: 204356138",
         "about-vat": "VAT Registered: No",
@@ -437,7 +456,7 @@ window.translations = {
 
         // Legal Pages Titles
         "legal-terms-h1": "Terms of Service",
-        "legal-terms-p": "This website is operated by <strong>\"DAVIDA BG\" Ltd.</strong>, EIK: 204356138, based in Pleven. These Terms govern the use of the TransitFlow platform.",
+        "legal-terms-p": "This website is operated by <strong>\"DAVIDA BG\" Ltd.</strong>, EIK: 204356138, based in Bulgaria. These Terms govern the use of the TransitFlow platform.",
         "legal-priv-h1": "Privacy Policy",
         "legal-priv-p": "The data controller is <strong>\"DAVIDA BG\" Ltd.</strong> We process your data in accordance with GDPR and local legislation.",
         "legal-cookies-h1": "Cookies Policy",
@@ -451,6 +470,19 @@ window.translations = {
         "legal-sup-kzp-p": "Address: 1000 Sofia, 4A Slaveykov Sq., floor 3, 4 and 6, Hotline: 0700 111 22, Website: www.kzp.bg",
 
         // Common
-        "back-home": "Home"
+        "back-home": "Home",
+
+        // Bento stats
+        "bento-eyebrow": "Real Operations",
+        "bento-title": "Built and proven in real operations",
+        "bento-desc": "TransitFlow serves the urban and intercity transport of one of the largest operators in the country with dozens of lines, maintained under harsh real-world loads.",
+        "bento-stat1-val": "39+",
+        "bento-stat1-lbl": "active lines",
+        "bento-stat2-val": "<1s",
+        "bento-stat2-lbl": "NFC validation",
+        "bento-stat3-val": "100%",
+        "bento-stat3-lbl": "accuracy",
+        "bento-stat4-val": "24/7",
+        "bento-stat4-lbl": "cloud & support"
     }
 };

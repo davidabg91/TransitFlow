@@ -7,6 +7,54 @@
       <priority>1.0</priority>
    </url>
    <url>
+      <loc>https://transitflow.org/features.html</loc>
+      <lastmod>2026-07-07</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.9</priority>
+   </url>
+   <url>
+      <loc>https://transitflow.org/nfc-cards.html</loc>
+      <lastmod>2026-07-07</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.9</priority>
+   </url>
+   <url>
+      <loc>https://transitflow.org/passenger-app.html</loc>
+      <lastmod>2026-07-07</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.9</priority>
+   </url>
+   <url>
+      <loc>https://transitflow.org/inspections.html</loc>
+      <lastmod>2026-07-07</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.9</priority>
+   </url>
+   <url>
+      <loc>https://transitflow.org/fleet.html</loc>
+      <lastmod>2026-07-07</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.8</priority>
+   </url>
+   <url>
+      <loc>https://transitflow.org/reports.html</loc>
+      <lastmod>2026-07-07</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.9</priority>
+   </url>
+   <url>
+      <loc>https://transitflow.org/hardware.html</loc>
+      <lastmod>2026-07-07</lastmod>
+      <changefreq>monthly</changefreq>
+      <priority>0.8</priority>
+   </url>
+   <url>
+      <loc>https://transitflow.org/faq.html</loc>
+      <lastmod>2026-07-07</lastmod>
+      <changefreq>monthly</changefreq>
+      <priority>0.7</priority>
+   </url>
+   <url>
       <loc>https://transitflow.org/about.html</loc>
       <lastmod>2026-04-05</lastmod>
       <priority>0.8</priority>

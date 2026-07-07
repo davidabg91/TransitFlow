@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Контрол и Сигурност | TransitFlow - Ревизия на билети и защита от измами</title>
+    <meta name="description" content="Мобилен контрол на билети с GPS локация, кръстосана проверка при качване, защита срещу клониране на карти и пълен одит журнал. Спрете загубите на приходи с TransitFlow.">
+    <link rel="canonical" href="https://transitflow.org/inspections.html">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="translations.js"></script>
+</head>
+<body>
+    <div class="bg-glow"></div>
+    <div class="grid-overlay"></div>
+
+    <nav id="navbar" class="scrolled">
+        <div class="container nav-content">
+            <a href="index.html" class="logo"><i class="fas fa-bus-simple"></i> Transit<span>Flow</span></a>
+            <ul class="nav-links">
+                <li class="has-dropdown">
+                    <a href="#" class="active">Продукт <i class="fas fa-chevron-down"></i></a>
+                    <div class="nav-dropdown">
+                        <a href="features.html"><i class="fas fa-layer-group dd-icon"></i><span class="dd-text"><strong>Функции</strong><span>Пълен каталог възможности</span></span></a>
+                        <a href="nfc-cards.html"><i class="fas fa-id-card dd-icon"></i><span class="dd-text"><strong>NFC Карти и Валидиране</strong><span>Безконтактни карти и заверка</span></span></a>
+                        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button dd-icon"></i><span class="dd-text"><strong>Приложение за пътници</strong><span>Разписания и известия в реално време</span></span></a>
+                        <a href="inspections.html"><i class="fas fa-user-shield dd-icon"></i><span class="dd-text"><strong>Контрол и Сигурност</strong><span>Ревизори, GPS и защита от измами</span></span></a>
+                        <a href="fleet.html"><i class="fas fa-bus dd-icon"></i><span class="dd-text"><strong>Наемане на автобуси</strong><span>Допълнителен приход за автопарка</span></span></a>
+                        <a href="reports.html"><i class="fas fa-chart-column dd-icon"></i><span class="dd-text"><strong>Отчети и Анализ</strong><span>Приходи, справки и експорт</span></span></a>
+                        <a href="hardware.html"><i class="fas fa-microchip dd-icon"></i><span class="dd-text"><strong>Хардуер</strong><span>myPOS Ultra и NFC устройства</span></span></a>
+                    </div>
+                </li>
+                <li><a href="index.html#pricing" data-i18n="nav-pricing">Цени</a></li>
+                <li><a href="faq.html" data-i18n="nav-faq">Въпроси</a></li>
+                <li><a href="about.html" data-i18n="foot-about">За нас</a></li>
+                <li><a href="#" class="lang-switch">BG | EN</a></li>
+            </ul>
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <a href="index.html#contact" class="btn btn-outline" style="padding: 10px 24px;"><span data-i18n="nav-demo">Демо</span><i class="fas fa-arrow-right"></i></a>
+                <button class="nav-toggle" aria-label="Меню"><i class="fas fa-bars"></i></button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="mobile-menu" id="mobile-menu">
+        <span class="mm-label">Продукт</span>
+        <a href="features.html"><i class="fas fa-layer-group"></i> Функции</a>
+        <a href="nfc-cards.html"><i class="fas fa-id-card"></i> NFC Карти и Валидиране</a>
+        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button"></i> Приложение за пътници</a>
+        <a href="inspections.html"><i class="fas fa-user-shield"></i> Контрол и Сигурност</a>
+        <a href="fleet.html"><i class="fas fa-bus"></i> Наемане на автобуси</a>
+        <a href="reports.html"><i class="fas fa-chart-column"></i> Отчети и Анализ</a>
+        <a href="hardware.html"><i class="fas fa-microchip"></i> Хардуер</a>
+        <span class="mm-label">Компания</span>
+        <a href="index.html#pricing"><i class="fas fa-tag"></i> Цени</a>
+        <a href="faq.html"><i class="fas fa-circle-question"></i> Въпроси</a>
+        <a href="about.html"><i class="fas fa-building"></i> За нас</a>
+        <a href="index.html#contact"><i class="fas fa-envelope"></i> Контакти</a>
+    </div>
+
+    <!-- Hero -->
+    <header style="padding: 170px 0 60px;">
+        <div class="container">
+            <div class="split-row" style="margin-bottom: 0;">
+                <div class="reveal active">
+                    <span class="eyebrow">Контрол и Сигурност</span>
+                    <h1 style="font-size: clamp(2.2rem, 5.5vw, 3.8rem); margin: 20px 0 24px;">Всеки лев приход – <span class="gradient-text">под контрол</span></h1>
+                    <p style="color: var(--text-muted); font-size: 1.2rem; line-height: 1.7; margin-bottom: 32px;">
+                        Загубите от неплатени пътувания, споделени и клонирани карти изяждат до 10% от оборота. TransitFlow затваря всяка вратичка – от снимката на профила до полевата ревизия с GPS.
+                    </p>
+                    <div class="btn-group">
+                        <a href="index.html#contact" class="btn btn-primary">Спрете загубите</a>
+                        <a href="#how" class="btn btn-outline">Как работи</a>
+                    </div>
+                </div>
+                <div class="split-visual reveal active">
+                    <div class="glass" style="padding: 18px; border-radius: 24px; box-shadow: 0 30px 60px rgba(0,0,0,0.5);">
+                        <img src="assets/ticket_inspection.png" alt="Мобилна ревизия на билети и карти" style="width: 100%; border-radius: 14px; display: block;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile inspector -->
+    <section id="how">
+        <div class="container">
+            <div class="section-head">
+                <span class="eyebrow reveal">Полеви контрол</span>
+                <h2 class="reveal">Мобилен ревизор с <span class="gradient-text">неоспорими доказателства</span></h2>
+                <p class="reveal">Вашите инспектори проверяват пътниците на място с телефон. Всяка проверка се записва с време, локация и резултат.</p>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card glass reveal" style="min-height:auto;">
+                    <div class="feature-card-content">
+                        <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-id-card-clip"></i></div>
+                        <h3>Проверка на място</h3>
+                        <p>Ревизорът сканира картата на пътника и вижда моментално дали абонаментът е валиден, кой е клиентът и неговата снимка.</p>
+                    </div>
+                </div>
+                <div class="feature-card glass reveal" style="min-height:auto;">
+                    <div class="feature-card-content">
+                        <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-location-dot"></i></div>
+                        <h3>GPS локация и адрес</h3>
+                        <p>Всяка ревизия записва точната географска локация и адрес, нанесени на карта – доказателство къде и кога е извършена.</p>
+                    </div>
+                </div>
+                <div class="feature-card glass reveal" style="min-height:auto;">
+                    <div class="feature-card-content">
+                        <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-arrows-left-right"></i></div>
+                        <h3>Кръстосана проверка при качване</h3>
+                        <p>Системата сравнява дали картата е била заверена при качване. Ако не – пътникът се качил без валидиране и се маркира автоматично.</p>
+                    </div>
+                </div>
+                <div class="feature-card glass reveal" style="min-height:auto;">
+                    <div class="feature-card-content">
+                        <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-file-lines"></i></div>
+                        <h3>Доклади от ревизия</h3>
+                        <p>Инспекторът въвежда шофьор, автобус, дестинация, брой проверени и евентуален проблем – структуриран отчет за ръководството.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Anti-fraud -->
+    <section style="background: rgba(255,255,255,0.02);">
+        <div class="container">
+            <div class="split-row" style="margin-bottom: 0;">
+                <div class="reveal">
+                    <span class="eyebrow">Защита от измами</span>
+                    <h2 style="margin: 20px 0 24px;">Клонирането на карти – <span class="gradient-text">невъзможно</span></h2>
+                    <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.7;">TransitFlow следи поведението на всяка карта. Когато една и съща карта се появи на две места едновременно или показва подозрителна активност, системата вдига аларма и я блокира.</p>
+                    <ul class="split-list">
+                        <li><i class="fas fa-clone"></i><div><strong>Аларми за клонинг</strong><span>Автоматично засичане на дублирана карта с моментално известие към администратора.</span></div></li>
+                        <li><i class="fas fa-user-check"></i><div><strong>Задължителна снимка на профила</strong><span>Всеки клиент има снимка – споделянето на карта се вижда веднага.</span></div></li>
+                        <li><i class="fas fa-lock"></i><div><strong>Моментално блокиране</strong><span>Съмнителна или загубена карта се блокира от разстояние с един клик.</span></div></li>
+                        <li><i class="fas fa-clipboard-list"></i><div><strong>Пълен одит журнал</strong><span>История на всяко действие и заверка – проследимо и защитено.</span></div></li>
+                    </ul>
+                </div>
+                <div class="split-visual reveal">
+                    <div class="glass" style="padding: 40px; border-radius: 24px; display:flex; flex-direction:column; gap: 18px;">
+                        <div style="display:flex; align-items:center; gap:14px; padding:16px; background:rgba(255,82,82,0.08); border:1px solid rgba(255,82,82,0.25); border-radius:14px;">
+                            <i class="fas fa-triangle-exclamation" style="color:#ff5252; font-size:1.4rem;"></i>
+                            <div><strong style="display:block;">Аларма: дублирана карта</strong><span style="color:var(--text-muted); font-size:0.85rem;">Карта #4471 засечена на 2 устройства</span></div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:14px; padding:16px; background:rgba(34,211,238,0.06); border:1px solid var(--glass-border); border-radius:14px;">
+                            <i class="fas fa-shield-halved" style="color:var(--primary); font-size:1.4rem;"></i>
+                            <div><strong style="display:block;">Автоматично блокирана</strong><span style="color:var(--text-muted); font-size:0.85rem;">Балансът е защитен, издадена нова карта</span></div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:14px; padding:16px; background:rgba(74,222,128,0.06); border:1px solid rgba(74,222,128,0.2); border-radius:14px;">
+                            <i class="fas fa-circle-check" style="color:#4ade80; font-size:1.4rem;"></i>
+                            <div><strong style="display:block;">Записано в журнала</strong><span style="color:var(--text-muted); font-size:0.85rem;">Време, устройство и оператор</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Roles -->
+    <section>
+        <div class="container">
+            <div class="section-head">
+                <span class="eyebrow reveal">Роли и достъп</span>
+                <h2 class="reveal">Всеки вижда точно <span class="gradient-text">каквото трябва</span></h2>
+            </div>
+            <div class="module-grid">
+                <div class="glass reveal" style="padding:36px; border-radius:20px;">
+                    <div class="mod-icon" style="margin-bottom:18px;"><i class="fas fa-user-gear"></i></div>
+                    <h3 style="margin-bottom:12px;">Администратор</h3>
+                    <p style="color:var(--text-muted);">Пълен достъп до клиенти, финанси, известия, ревизии и настройки на системата.</p>
+                </div>
+                <div class="glass reveal" style="padding:36px; border-radius:20px;">
+                    <div class="mod-icon" style="margin-bottom:18px;"><i class="fas fa-headset"></i></div>
+                    <h3 style="margin-bottom:12px;">Персонал / Гише</h3>
+                    <p style="color:var(--text-muted);">Издаване и подновяване на карти, регистрация на клиенти и приемане на плащания.</p>
+                </div>
+                <div class="glass reveal" style="padding:36px; border-radius:20px;">
+                    <div class="mod-icon" style="margin-bottom:18px;"><i class="fas fa-user-shield"></i></div>
+                    <h3 style="margin-bottom:12px;">Ревизор</h3>
+                    <p style="color:var(--text-muted);">Мобилна проверка на пътници с GPS и доклади – без достъп до финансови данни.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section>
+        <div class="container">
+            <div class="glass reveal" style="padding: 70px 40px; text-align: center; border-color: rgba(34,211,238,0.4);">
+                <h2 style="margin-bottom: 20px;">Спрете да губите приходи още този месец</h2>
+                <p style="color: var(--text-muted); font-size: 1.2rem; max-width: 700px; margin: 0 auto 40px;">Ще Ви покажем колко пари се губят без контрол – и как TransitFlow ги връща обратно в касата.</p>
+                <a href="index.html#contact" class="btn btn-primary">Заявете демонстрация <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container footer-content">
+            <div class="footer-logo">
+                <a href="index.html" class="logo" style="margin-bottom: 20px;"><i class="fas fa-bus-simple"></i> Transit<span>Flow</span></a>
+                <p data-i18n="foot-p">Лидер в дигиталната трансформация на градския и крайградския транспорт.</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-column">
+                    <h4 data-i18n="foot-prod">Продукт</h4>
+                    <ul>
+                        <li><a href="features.html" data-i18n="nav-features">Функции</a></li>
+                        <li><a href="passenger-app.html">Приложение за пътници</a></li>
+                        <li><a href="inspections.html">Контрол и Сигурност</a></li>
+                        <li><a href="fleet.html">Наемане на автобуси</a></li>
+                        <li><a href="hardware.html" data-i18n="foot-hw">Хардуер</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4 data-i18n="foot-comp">Компания</h4>
+                    <ul>
+                        <li><a href="about.html" data-i18n="foot-about">За Нас</a></li>
+                        <li><a href="faq.html" data-i18n="foot-faq">Въпроси и Отговори</a></li>
+                        <li><a href="index.html#contact" data-i18n="nav-contact">Контакти</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4 data-i18n="foot-legal">Правно</h4>
+                    <ul>
+                        <li><a href="terms.html" data-i18n="foot-terms">Условия</a></li>
+                        <li><a href="privacy.html" data-i18n="foot-priv">Поверителност</a></li>
+                        <li><a href="cookies.html" data-i18n="foot-cookies">Бисквитки</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="container footer-bottom">
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <p>&copy; 2026 TransitFlow. <span data-i18n="foot-rights">Всички права запазени.</span></p>
+                <p style="font-size: 0.8rem; opacity: 0.6; color: var(--text-muted);"><strong>"ДАВИДА БГ" ЕООД</strong> | <span data-i18n="about-uic">ЕИК 204356138</span></p>
+            </div>
+            <div style="display: flex; gap: 20px;">
+                <a href="#"><i class="fab fa-linkedin-in"></i></a>
+                <a href="#"><i class="fab fa-facebook-f"></i></a>
+                <a href="#"><i class="fab fa-twitter"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+</body>
+</html>
