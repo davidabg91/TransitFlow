@@ -115,6 +115,20 @@ window.translations = {
         "mypos-b5-p": "Заплащате минимална такса (1.4%) само при транзакции с банкова карта. Проверките са безплатни.",
         "mypos-fee": "ФИКСИРАНА ТАКСА",
 
+        // Reference / Case Study
+        "ref-eyebrow": "Реален пример",
+        "ref-h2": "Не обещание, а <span class=\"gradient-text\">работеща система</span>",
+        "ref-p": "TransitFlow е изградена върху доказан модел, който вече обслужва пътническия транспорт на един от най-големите оператори в страната – десетки междуградски линии, хиляди пътници и ежедневни разплащания. Всяка функция, която Ви предлагаме, е тествана в реални, тежки условия на работа – не в презентация.",
+        "ref-f1": "<i class=\"fas fa-check-circle\"></i><div><strong>Пасажери с приложение</strong><span>Реални разписания, брояч за следващ курс и известия за всяка линия.</span></div>",
+        "ref-f2": "<i class=\"fas fa-check-circle\"></i><div><strong>Ежедневни отчети</strong><span>Приходите от билети и карти се засичат автоматично, без ръчно броене.</span></div>",
+        "ref-f3": "<i class=\"fas fa-check-circle\"></i><div><strong>Полеви контрол</strong><span>Ревизори проверяват валидността на място чрез мобилно устройство.</span></div>",
+        "ref-btn": "Искам същото за моята фирма",
+        "ref-widget-live": "СИСТЕМАТА НА ЖИВО (LIVE)",
+        "ref-widget-operator": "Дари Комерс",
+        "ref-widget-val": "Валидации днес",
+        "ref-widget-lines": "Активни линии",
+        "ref-widget-feed": "Едновременни транзакции в реално време:",
+
         // Pricing
         "price-p": "Прозрачни цени за всякакъв брой превозни средства.",
         "price-trial": "* 60-дневен тестов период: Можете да върнете хардуера и да се откажете от услугата без никакви такси, ако не сте напълно доволни.",
@@ -356,6 +370,20 @@ window.translations = {
         "mypos-b5-h": "Pay Only per Transaction",
         "mypos-b5-p": "Pay a minimal fee (1.4%) only on bank card transactions. Inspections are free of charge.",
         "mypos-fee": "FIXED FEE",
+
+        // Reference / Case Study
+        "ref-eyebrow": "Real Example",
+        "ref-h2": "Not a promise, but a <span class=\"gradient-text\">working system</span>",
+        "ref-p": "TransitFlow is built on a proven model that already serves passenger transport for one of the largest operators in the country – dozens of intercity lines, thousands of passengers, and daily payments. Every feature we offer has been tested in real, demanding operating conditions – not in a presentation.",
+        "ref-f1": "<i class=\"fas fa-check-circle\"></i><div><strong>Passengers with App</strong><span>Real schedules, next bus counter, and notifications for each line.</span></div>",
+        "ref-f2": "<i class=\"fas fa-check-circle\"></i><div><strong>Daily Reports</strong><span>Revenues from tickets and cards are auto-tracked, no manual counting.</span></div>",
+        "ref-f3": "<i class=\"fas fa-check-circle\"></i><div><strong>Field Inspections</strong><span>Inspectors verify validity on-site using a mobile device.</span></div>",
+        "ref-btn": "I want the same for my company",
+        "ref-widget-live": "LIVE SYSTEM STATUS",
+        "ref-widget-operator": "Dary Commerce",
+        "ref-widget-val": "Validations today",
+        "ref-widget-lines": "Active lines",
+        "ref-widget-feed": "Concurrent real-time transactions:",
 
         // Pricing
         "price-p": "Transparent pricing for any number of vehicles.",

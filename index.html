@@ -388,21 +388,71 @@
         <div class="container">
             <div class="split-row" style="margin-bottom: 0;">
                 <div class="reveal">
-                    <span class="eyebrow">Реален пример</span>
-                    <h2 style="margin: 20px 0 24px;">Не обещание, а <span class="gradient-text">работеща система</span></h2>
-                    <p style="color: var(--text-muted); font-size: 1.15rem; line-height: 1.7; margin-bottom: 30px;">
+                    <span class="eyebrow" data-i18n="ref-eyebrow">Реален пример</span>
+                    <h2 style="margin: 20px 0 24px;" data-i18n="ref-h2">Не обещание, а <span class="gradient-text">работеща система</span></h2>
+                    <p style="color: var(--text-muted); font-size: 1.15rem; line-height: 1.7; margin-bottom: 30px;" data-i18n="ref-p">
                         TransitFlow е изградена върху доказан модел, който вече обслужва пътническия транспорт на един от най-големите оператори в страната – десетки междуградски линии, хиляди пътници и ежедневни разплащания. Всяка функция, която Ви предлагаме, е тествана в реални, тежки условия на работа – не в презентация.
                     </p>
                     <ul class="split-list">
-                        <li><i class="fas fa-check-circle"></i><div><strong>Пасажери с приложение</strong><span>Реални разписания, брояч за следващ курс и известия за всяка линия.</span></div></li>
-                        <li><i class="fas fa-check-circle"></i><div><strong>Ежедневни отчети</strong><span>Приходите от билети и карти се засичат автоматично, без ръчно броене.</span></div></li>
-                        <li><i class="fas fa-check-circle"></i><div><strong>Полеви контрол</strong><span>Ревизори проверяват валидността на място чрез мобилно устройство.</span></div></li>
+                        <li data-i18n="ref-f1"><i class="fas fa-check-circle"></i><div><strong>Пасажери с приложение</strong><span>Реални разписания, брояч за следващ курс и известия за всяка линия.</span></div></li>
+                        <li data-i18n="ref-f2"><i class="fas fa-check-circle"></i><div><strong>Ежедневни отчети</strong><span>Приходите от билети и карти се засичат автоматично, без ръчно броене.</span></div></li>
+                        <li data-i18n="ref-f3"><i class="fas fa-check-circle"></i><div><strong>Полеви контрол</strong><span>Ревизори проверяват валидността на място чрез мобилно устройство.</span></div></li>
                     </ul>
-                    <a href="#contact" class="btn btn-primary" style="margin-top: 36px;">Искам същото за моята фирма</a>
+                    <a href="#contact" class="btn btn-primary" style="margin-top: 36px;" data-i18n="ref-btn">Искам същото за моята фирма</a>
                 </div>
                 <div class="split-visual reveal">
-                    <div class="glass" style="padding: 18px; border-radius: 28px; box-shadow: 0 30px 60px rgba(0,0,0,0.5);">
-                        <img src="assets/dary_commerce_hero_mockup_1775307478362.png" alt="Реална експлоатация на системата при голям транспортен оператор" style="width: 100%; border-radius: 18px; display: block;">
+                    <div class="reference-widget glass">
+                        <!-- Widget Header -->
+                        <div class="widget-header">
+                            <div class="widget-status">
+                                <span class="pulse-dot"></span>
+                                <span class="status-text" data-i18n="ref-widget-live">СИСТЕМАТА НА ЖИВО (LIVE)</span>
+                            </div>
+                            <div class="widget-operator" data-i18n="ref-widget-operator">Дари Комерс</div>
+                        </div>
+                        
+                        <!-- Widget Stats Grid -->
+                        <div class="widget-stats">
+                            <div class="stat-box">
+                                <span class="stat-val" id="ref-validations">42,851</span>
+                                <span class="stat-lbl" data-i18n="ref-widget-val">Валидации днес</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-val">39</span>
+                                <span class="stat-lbl" data-i18n="ref-widget-lines">Активни линии</span>
+                            </div>
+                        </div>
+
+                        <!-- Live Feed Title -->
+                        <div class="feed-title" data-i18n="ref-widget-feed">Едновременни транзакции в реално време:</div>
+                        
+                        <!-- Live Validation Feed -->
+                        <div class="validation-feed" id="ref-feed">
+                            <div class="feed-item">
+                                <div class="feed-icon success"><i class="fas fa-check-circle"></i></div>
+                                <div class="feed-info">
+                                    <strong>Карта #8491 - Валидирана</strong>
+                                    <span>Линия: София – Самоков | Време: 0.7s</span>
+                                </div>
+                                <div class="feed-time">сега</div>
+                            </div>
+                            <div class="feed-item">
+                                <div class="feed-icon success"><i class="fas fa-check-circle"></i></div>
+                                <div class="feed-info">
+                                    <strong>Карта #3018 - Валидирана</strong>
+                                    <span>Линия: Пловдив – Асеновград | Време: 0.6s</span>
+                                </div>
+                                <div class="feed-time">преди 3с</div>
+                            </div>
+                            <div class="feed-item">
+                                <div class="feed-icon success"><i class="fas fa-check-circle"></i></div>
+                                <div class="feed-info">
+                                    <strong>Билет #9482 - Валидиран</strong>
+                                    <span>Линия: София – Дупница | Време: 0.8s</span>
+                                </div>
+                                <div class="feed-time">преди 7с</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

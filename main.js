@@ -215,4 +215,84 @@ document.addEventListener('DOMContentLoaded', () => {
         createRoutes();
         setInterval(spawnSpark, 800);
     }
+
+    // Live Reference Widget Simulation
+    const refValidations = document.getElementById('ref-validations');
+    const refFeed = document.getElementById('ref-feed');
+    if (refValidations && refFeed) {
+        let count = 42851;
+        const linesBg = [
+            'София – Самоков',
+            'Пловдив – Асеновград',
+            'София – Дупница',
+            'София – Боровец',
+            'Хасково – Димитровград',
+            'Варна – Добрич'
+        ];
+        const linesEn = [
+            'Sofia – Samokov',
+            'Plovdiv – Asenovgrad',
+            'Sofia – Dupnitsa',
+            'Sofia – Borovets',
+            'Haskovo – Dimitrovgrad',
+            'Varna – Dobrich'
+        ];
+        
+        const updateFeed = () => {
+            const isBg = document.documentElement.lang === 'bg';
+            const lines = isBg ? linesBg : linesEn;
+            
+            // Increment counter
+            const increment = Math.floor(Math.random() * 2) + 1;
+            count += increment;
+            refValidations.textContent = count.toLocaleString(isBg ? 'bg-BG' : 'en-US');
+            
+            // Generate random validation
+            const isCard = Math.random() > 0.3;
+            const type = isCard ? (isBg ? 'Карта' : 'Card') : (isBg ? 'Билет' : 'Ticket');
+            const status = isBg ? 'Валидирана' : 'Validated';
+            const statusTicket = isBg ? 'Валидиран' : 'Validated';
+            const lineText = isBg ? 'Линия' : 'Line';
+            const timeText = isBg ? 'Време' : 'Time';
+            const nowText = isBg ? 'сега' : 'now';
+            
+            const num = Math.floor(Math.random() * 9000) + 1000;
+            const line = lines[Math.floor(Math.random() * lines.length)];
+            const time = (0.5 + Math.random() * 0.4).toFixed(1); // 0.5s to 0.9s
+            
+            // Create item element
+            const item = document.createElement('div');
+            item.className = 'feed-item';
+            item.innerHTML = `
+                <div class="feed-icon success"><i class="fas fa-check-circle"></i></div>
+                <div class="feed-info">
+                    <strong>${type} #${num} - ${isCard ? status : statusTicket}</strong>
+                    <span>${lineText}: ${line} | ${timeText}: ${time}s</span>
+                </div>
+                <div class="feed-time">${nowText}</div>
+            `;
+            
+            // Update timestamps of existing items
+            const items = refFeed.querySelectorAll('.feed-item');
+            if (items.length > 0) {
+                items[0].querySelector('.feed-time').textContent = isBg ? 'преди 3с' : '3s ago';
+            }
+            if (items.length > 1) {
+                items[1].querySelector('.feed-time').textContent = isBg ? 'преди 7с' : '7s ago';
+            }
+            if (items.length > 2) {
+                items[2].querySelector('.feed-time').textContent = isBg ? 'преди 15с' : '15s ago';
+            }
+            
+            // Prepend new item
+            refFeed.insertBefore(item, refFeed.firstChild);
+            
+            // Remove last item if too many
+            if (items.length >= 3) {
+                refFeed.removeChild(items[items.length - 1]);
+            }
+        };
+        
+        setInterval(updateFeed, 3000);
+    }
 });
