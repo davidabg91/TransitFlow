@@ -128,6 +128,9 @@ window.translations = {
         "ref-widget-val": "Валидации днес",
         "ref-widget-lines": "Активни линии",
         "ref-widget-feed": "Едновременни транзакции в реално време:",
+        "ref-widget-label-nfc": "NFC СКАНИРАНЕ...",
+        "ref-widget-label-chart": "ОБНОВЯВАНЕ НА ПРИХОДИТЕ...",
+        "ref-widget-label-shield": "КОНТРОЛ И СИГУРНОСТ...",
 
         // Pricing
         "price-p": "Прозрачни цени за всякакъв брой превозни средства.",
@@ -384,6 +387,9 @@ window.translations = {
         "ref-widget-val": "Validations today",
         "ref-widget-lines": "Active lines",
         "ref-widget-feed": "Concurrent real-time transactions:",
+        "ref-widget-label-nfc": "NFC SCANNING...",
+        "ref-widget-label-chart": "UPDATING REVENUE...",
+        "ref-widget-label-shield": "SECURITY AUDIT...",
 
         // Pricing
         "price-p": "Transparent pricing for any number of vehicles.",

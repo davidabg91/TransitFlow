@@ -423,6 +423,39 @@
                             </div>
                         </div>
 
+                        <!-- Simulated Live Screen -->
+                        <div class="widget-screen glass">
+                            <!-- State 0: NFC Pulse Screen -->
+                            <div class="screen-state active" id="screen-state-nfc">
+                                <div class="nfc-scanner">
+                                    <div class="scanner-circle"></div>
+                                    <i class="fas fa-wifi"></i>
+                                </div>
+                                <div class="screen-label" data-i18n="ref-widget-label-nfc">NFC СКАНИРАНЕ...</div>
+                            </div>
+                            
+                            <!-- State 1: Reports Chart Screen -->
+                            <div class="screen-state" id="screen-state-chart">
+                                <div class="mini-chart">
+                                    <div class="chart-bar" style="height: 40%;"></div>
+                                    <div class="chart-bar" style="height: 65%;"></div>
+                                    <div class="chart-bar" style="height: 50%;"></div>
+                                    <div class="chart-bar" style="height: 85%;"></div>
+                                    <div class="chart-bar" style="height: 75%;"></div>
+                                </div>
+                                <div class="screen-label" data-i18n="ref-widget-label-chart">ОБНОВЯВАНЕ НА ПРИХОДИТЕ...</div>
+                            </div>
+                            
+                            <!-- State 2: Inspector Shield Screen -->
+                            <div class="screen-state" id="screen-state-shield">
+                                <div class="shield-scanner">
+                                    <i class="fas fa-user-shield"></i>
+                                    <div class="scanner-line"></div>
+                                </div>
+                                <div class="screen-label" data-i18n="ref-widget-label-shield">КОНТРОЛ И СИГУРНОСТ...</div>
+                            </div>
+                        </div>
+
                         <!-- Live Feed Title -->
                         <div class="feed-title" data-i18n="ref-widget-feed">Едновременни транзакции в реално време:</div>
                         

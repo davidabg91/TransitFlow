@@ -269,6 +269,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (eventType === 1) featReports.classList.add('active');
                 if (eventType === 2) featControl.classList.add('active');
             }
+
+            // Sync simulated live screen state mockup inside the widget
+            const screenNfc = document.getElementById('screen-state-nfc');
+            const screenChart = document.getElementById('screen-state-chart');
+            const screenShield = document.getElementById('screen-state-shield');
+            
+            if (screenNfc && screenChart && screenShield) {
+                screenNfc.classList.remove('active');
+                screenChart.classList.remove('active');
+                screenShield.classList.remove('active');
+                
+                if (eventType === 0) screenNfc.classList.add('active');
+                if (eventType === 1) {
+                    screenChart.classList.add('active');
+                    // Randomly animate the heights of the mini chart bars to show live data updates
+                    const bars = screenChart.querySelectorAll('.chart-bar');
+                    bars.forEach(bar => {
+                        bar.style.height = `${Math.floor(Math.random() * 60) + 30}%`;
+                    });
+                }
+                if (eventType === 2) screenShield.classList.add('active');
+            }
             
             // Increment counter
             const increment = Math.floor(Math.random() * 2) + 1;
