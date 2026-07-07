@@ -116,7 +116,7 @@ window.translations = {
         "mypos-fee": "ФИКСИРАНА ТАКСА",
 
         // Reference / Case Study
-        "ref-eyebrow": "Реален пример",
+        "ref-eyebrow": "<span class=\"live-dot\"></span>Реален пример",
         "ref-h2": "Не обещание, а <span class=\"gradient-text\">работеща система</span>",
         "ref-p": "TransitFlow е изградена върху доказан модел, който вече обслужва пътническия транспорт на един от най-големите оператори в страната – десетки междуградски линии, хиляди пътници и ежедневни разплащания. Всяка функция, която Ви предлагаме, е тествана в реални, тежки условия на работа – не в презентация.",
         "ref-f1": "<i class=\"fas fa-check-circle\"></i><div><strong>Пасажери с приложение</strong><span>Реални разписания, брояч за следващ курс и известия за всяка линия.</span></div>",
@@ -372,7 +372,7 @@ window.translations = {
         "mypos-fee": "FIXED FEE",
 
         // Reference / Case Study
-        "ref-eyebrow": "Real Example",
+        "ref-eyebrow": "<span class=\"live-dot\"></span>Real Example",
         "ref-h2": "Not a promise, but a <span class=\"gradient-text\">working system</span>",
         "ref-p": "TransitFlow is built on a proven model that already serves passenger transport for one of the largest operators in the country – dozens of intercity lines, thousands of passengers, and daily payments. Every feature we offer has been tested in real, demanding operating conditions – not in a presentation.",
         "ref-f1": "<i class=\"fas fa-check-circle\"></i><div><strong>Passengers with App</strong><span>Real schedules, next bus counter, and notifications for each line.</span></div>",

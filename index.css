@@ -1279,12 +1279,14 @@ select.form-input option {
     .nav-toggle { display: block; }
 }
 
-/* --- Section intro helper --- */
-.section-head { text-align: center; margin-bottom: 70px; }
-.section-head .eyebrow {
-    display: inline-block;
+/* --- Global Eyebrow Tag --- */
+.eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     padding: 6px 16px;
     background: var(--gradient-glow);
+    border: 1px solid rgba(34, 211, 238, 0.18);
     color: var(--primary);
     border-radius: 50px;
     font-weight: 800;
@@ -1292,6 +1294,32 @@ select.form-input option {
     letter-spacing: 2px;
     text-transform: uppercase;
     margin-bottom: 20px;
+    font-family: 'Unbounded', sans-serif;
+    box-shadow: 0 0 15px rgba(34, 211, 238, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.eyebrow .live-dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--primary);
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 8px var(--primary);
+    animation: eyebrowPulse 1.8s infinite;
+}
+
+@keyframes eyebrowPulse {
+    0% { transform: scale(0.9); opacity: 0.6; }
+    50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 12px var(--primary); }
+    100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+/* --- Section intro helper --- */
+.section-head { text-align: center; margin-bottom: 70px; }
+.section-head .eyebrow {
+    /* Inherits all global .eyebrow styles */
 }
 .section-head p { color: var(--text-muted); font-size: 1.2rem; max-width: 720px; margin: 15px auto 0; }
 
