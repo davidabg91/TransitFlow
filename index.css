@@ -1834,7 +1834,7 @@ select.form-input option {
     background: rgba(255, 255, 255, 0.02);
     padding: 15px 18px;
     display: grid;
-    grid-template-columns: 46px 1fr auto;
+    grid-template-columns: 46px minmax(0, 1fr) auto;
     grid-template-areas: "icon label num" "icon latest spark";
     column-gap: 15px; row-gap: 2px;
     align-items: center;
@@ -2292,6 +2292,58 @@ select.form-input option {
     }
     .feed-info span {
         font-size: 0.7rem !important;
+    }
+
+    /* Admin Command Center mobile adjustments */
+    .admin-cc {
+        padding: 20px 14px !important;
+        border-radius: 20px !important;
+        gap: 20px !important;
+    }
+    .cc-eye {
+        width: 50px !important;
+        height: 50px !important;
+        font-size: 1.2rem !important;
+        margin-bottom: 14px !important;
+    }
+    .cc-left h3 {
+        font-size: 1.35rem !important;
+    }
+    .cc-left p {
+        font-size: 0.85rem !important;
+        margin-bottom: 16px !important;
+    }
+    .cc-note {
+        padding: 10px 12px !important;
+        font-size: 0.75rem !important;
+    }
+    .cc-ch {
+        padding: 10px 12px !important;
+        grid-template-columns: 36px minmax(0, 1fr) auto !important;
+        column-gap: 10px !important;
+    }
+    .cc-ch .ch-icon {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 0.95rem !important;
+        border-radius: 10px !important;
+    }
+    .cc-ch .ch-label {
+        font-size: 0.8rem !important;
+    }
+    .cc-ch .ch-num {
+        font-size: 1.15rem !important;
+    }
+    .cc-ch .ch-latest {
+        font-size: 0.68rem !important;
+    }
+    .cc-ch .ch-spark {
+        display: none !important; /* Hide sparklines to save horizontal space on mobile */
+    }
+    .cc-statusbar {
+        justify-content: center !important;
+        gap: 12px !important;
+        font-size: 0.68rem !important;
     }
 }
 
