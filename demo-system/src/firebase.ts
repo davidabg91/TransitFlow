@@ -750,3 +750,24 @@ export const createUserWithEmailAndPassword = async (_authInstance: any, email: 
 // Messaging / Analytics placeholders
 export const analytics = null;
 export const messaging = null;
+
+// Cross-tab real-time sync for localStorage mock database
+if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (e) => {
+        if (!e.key) return;
+        
+        let collectionName: string | null = null;
+        if (e.key === STORAGE_KEYS.CLIENTS) collectionName = 'clients';
+        else if (e.key === STORAGE_KEYS.SIGNALS) collectionName = 'signals';
+        else if (e.key === STORAGE_KEYS.RENTALS) collectionName = 'rentals';
+        else if (e.key === STORAGE_KEYS.LOGS) collectionName = 'activity_logs';
+        else if (e.key === STORAGE_KEYS.NOTIFICATIONS) collectionName = 'push_notifications';
+        else if (e.key === STORAGE_KEYS.SUBSCRIPTIONS) collectionName = 'push_subscriptions';
+        else if (e.key === STORAGE_KEYS.USERS) collectionName = 'users';
+        else if (e.key === 'transitflow_col_admin_actions') collectionName = 'admin_actions';
+
+        if (collectionName) {
+            triggerListeners(collectionName);
+        }
+    });
+}

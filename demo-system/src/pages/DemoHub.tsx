@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
     Bus, Users, Clock, ShieldAlert, Compass,
     ArrowRight, Settings, Database, RefreshCw,
-    UserCheck, Eye, Calendar
+    UserCheck, Eye, Calendar, Shield
 } from 'lucide-react';
 import { initializeMockDatabase, signInWithEmailAndPassword, auth } from '../firebase';
 
@@ -110,7 +110,7 @@ const DemoHub: React.FC = () => {
                             <Clock size={28} />
                         </div>
                         <div>
-                            <div style={{ ...metricValueStyle, color: '#00e676' }}>99.8%</div>
+                            <div style={{ ...metricValueStyle, color: '#00e676' }}>100%</div>
                             <div style={metricLabelStyle}>Точност на Графиците</div>
                             <p style={metricDescStyle}>GPS контрол на превозните средства и автоматично засичане на разписанията.</p>
                         </div>
@@ -193,6 +193,20 @@ const DemoHub: React.FC = () => {
                         </p>
                         <div style={moduleLinkStyle('#a020f0')}>
                             Разгледай Разписания <ArrowRight size={16} />
+                        </div>
+                    </div>
+
+                    {/* System Admin Panel Card */}
+                    <div style={moduleCardStyle} onClick={() => handleRoleAccess('admin', '/system-admin')}>
+                        <div style={moduleIconContainerStyle('#ff5252')}>
+                            <Shield size={32} />
+                        </div>
+                        <h3 style={moduleTitleStyle}>5. Системен Административен Панел</h3>
+                        <p style={moduleDescStyle}>
+                            Контролен панел за глобални администратори. Преглед на системното табло, управление на потребителски акаунти/роли и преглед на Глобалния одит лог.
+                        </p>
+                        <div style={moduleLinkStyle('#ff5252')}>
+                            Влез в Системен Панел <ArrowRight size={16} />
                         </div>
                     </div>
                 </div>

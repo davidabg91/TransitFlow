@@ -154,12 +154,12 @@ const getDefaultExpiryMonth = () => {
 };
 
 interface TabButtonProps {
-    id: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications';
+    id: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'checks';
     icon: React.ElementType;
     badgeColor?: string;
     label: string;
-    activeTab: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications';
-    setActiveTab: (id: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications') => void;
+    activeTab: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'checks';
+    setActiveTab: (id: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'checks') => void;
     activeColor?: string;
     badge?: number;
     isMobile?: boolean;
@@ -232,10 +232,23 @@ const AdminPanel: React.FC = () => {
     const { currentUser } = useAuth();
     const location = useLocation();
     const isAdmin = currentUser?.role === 'admin';
-    const [activeTab, setActiveTab] = useState<'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications'>(
+    const [activeTab, setActiveTab] = useState<'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'checks'>(
         'clients'
     );
     const [clients, setClients] = useState<Client[]>([]);
+    const [globalLogs, setGlobalLogs] = useState<any[]>([]);
+
+    useEffect(() => {
+        const q = query(collection(db, 'activity_logs'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const logs: any[] = [];
+            snapshot.forEach(docSnap => {
+                logs.push({ id: docSnap.id, ...docSnap.data() });
+            });
+            setGlobalLogs(logs.sort((a, b) => b.timestamp.localeCompare(a.timestamp)));
+        });
+        return () => unsubscribe();
+    }, []);
     const [signals, setSignals] = useState<Signal[]>([]);
     const [rentals, setRentals] = useState<Rental[]>([]);
     const [notifications, setNotifications] = useState<PushNotification[]>([]);
@@ -856,6 +869,7 @@ const AdminPanel: React.FC = () => {
                 }}>
                     <TabButton id="register" icon={PlusCircle} label={isMobile ? "ДОБАВИ КАРТА" : "ДОБАВИ КАРТИ"} activeColor="#00c853" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                     <TabButton id="clients" icon={Users} label="КЛИЕНТИ" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
+                    <TabButton id="checks" icon={ShieldCheck} label="ПРОВЕРКИ" activeColor="#ffab00" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                     <TabButton id="finances" icon={PiggyBank} label="ФИНАНСИ" activeColor="#ff9800" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                     <TabButton id="rentals" icon={Bus} label="НАЕМИ" activeColor="#0091ea" activeTab={activeTab} setActiveTab={setActiveTab} badge={unreadRentalsCount} isMobile={isMobile} />
                     <TabButton id="signals" icon={AlertCircle} label="СИГНАЛИ" activeColor="#ff5252" activeTab={activeTab} setActiveTab={setActiveTab} badge={unreadSignalsCount} isMobile={isMobile} />
@@ -1125,6 +1139,83 @@ const AdminPanel: React.FC = () => {
                                     Все още няма регистрирани абонати по нито една линия.
                                 </div>
                             )}
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            {activeTab === 'checks' && (
+                <div style={{ animation: 'fadeIn 0.4s ease', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                        <h2 style={{ fontSize: '1.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#ffab00', margin: 0 }}>
+                            <ShieldCheck size={28} /> Регистър на Проверките (Контрол)
+                        </h2>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                            Общо проверки: <b>{globalLogs.filter(l => l.action === 'Валидиране на карта').length}</b>
+                        </div>
+                    </div>
+
+                    <Card style={{ padding: '1.5rem', borderLeft: '4px solid #ffab00' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#ffab00', boxShadow: '0 0 10px #ffab00', animation: 'pulse 2s infinite' }}></div>
+                                <span style={{ fontWeight: 600, fontSize: '1rem' }}>Симулация на проверка в реално време:</span>
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '500px' }}>
+                                Отворете <b>Дигиталния Пътнически Профил</b> в нов таб и опреснете страницата (или сканирайте). Проверката ще се отрази тук веднага!
+                            </div>
+                        </div>
+                    </Card>
+
+                    <Card style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--surface-border)' }}>
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+                                <thead style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--surface-border)' }}>
+                                    <tr>
+                                        <th style={{ padding: '1.25rem' }}>Време на проверка</th>
+                                        <th style={{ padding: '1.25rem' }}>Пътник</th>
+                                        <th style={{ padding: '1.25rem' }}>Карта ID</th>
+                                        <th style={{ padding: '1.25rem' }}>Контролиращ орган</th>
+                                        <th style={{ padding: '1.25rem' }}>Действие</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {globalLogs.filter(l => l.action === 'Валидиране на карта').length > 0 ? (
+                                        globalLogs.filter(l => l.action === 'Валидиране на карта').map(log => {
+                                            const time = new Date(log.timestamp).toLocaleString('bg-BG', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                            const cardId = log.details.split('карта ')[1] || '---';
+                                            return (
+                                                <tr key={log.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s' }}>
+                                                    <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{time}</td>
+                                                    <td style={{ padding: '1.25rem', fontWeight: 600 }}>{log.targetName}</td>
+                                                    <td style={{ padding: '1.25rem', fontFamily: 'monospace', fontWeight: 700 }}>{cardId}</td>
+                                                    <td style={{ padding: '1.25rem' }}>
+                                                        <span style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', fontSize: '0.85rem' }}>
+                                                            {log.performedBy || 'Ревизор'}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '1.25rem' }}>
+                                                        <span style={{
+                                                            padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.75rem',
+                                                            background: 'rgba(0, 200, 83, 0.1)',
+                                                            color: '#00c853',
+                                                            fontWeight: 700
+                                                        }}>
+                                                            Успешна проверка
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                                                Няма записани проверки на пътници в лога. Опитайте да сканирате карта.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </Card>
                 </div>
