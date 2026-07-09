@@ -250,7 +250,7 @@ const Layout: React.FC = () => {
                 boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
                 width: '100%',
             }}>
-                <Link to="/" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', gap: '10px', userSelect: 'none' }}>
+                <a href="https://transitflow.org/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', gap: '10px', userSelect: 'none' }}>
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -292,7 +292,7 @@ const Layout: React.FC = () => {
                             color: 'var(--text-secondary)',
                         }}>СИСТЕМА</span>
                     </div>
-                </Link>
+                </a>
 
                 {/* Desktop Nav */}
                 <nav className="desktop-nav" style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
