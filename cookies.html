@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="index.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="translations.js"></script>
+    <script src="cookie-consent.js" defer></script>
 </head>
 <body>
     <div class="bg-glow"></div>
@@ -34,17 +35,125 @@
         </div>
     </nav>
 
-    <section style="padding-top: 180px;">
+    <section style="padding-top: 180px; padding-bottom: 80px;">
         <div class="container">
-            <div class="glass reveal active" style="padding: 60px; max-width: 900px; margin: 0 auto; color: var(--text-muted);">
-                <h1 class="gradient-text" style="margin-bottom: 40px; text-align: center;" data-i18n="legal-cookies-h1">Политика за Бисквитките</h1>
-                
-                <div style="line-height: 1.6; font-size: 1rem;">
-                    <p data-i18n="legal-cookies-p">Бисквитките ни помагат да подобрим Вашето преживяване и да разберем как се използва сайтът. Можете да ги контролирате и/или изтривате по всяко време през настройките на Вашия браузър.</p>
+            <div class="glass reveal active" style="padding: 60px; max-width: 900px; margin: 0 auto;">
+
+                <h1 class="gradient-text" style="margin-bottom: 12px; text-align: center; font-size: clamp(1.8rem, 4vw, 2.6rem);">Политика за Бисквитките</h1>
+                <p style="text-align: center; color: var(--text-muted); font-size: 0.88rem; margin-bottom: 48px;">Последна актуализация: Юли 2026 &nbsp;·&nbsp; <a href="privacy.html" style="color: var(--primary);">Политика за поверителност</a></p>
+
+                <!-- Reset consent button -->
+                <div style="display: flex; align-items: center; gap: 14px; background: rgba(34,211,238,0.06); border: 1px solid rgba(34,211,238,0.18); border-radius: 14px; padding: 18px 24px; margin-bottom: 40px;">
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(34,211,238,0.12); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="fas fa-sliders" style="color: #22d3ee;"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; color: #f1f5f9; font-size: 0.95rem; margin-bottom: 2px;">Управлявайте предпочитанията си</div>
+                        <div style="font-size: 0.82rem; color: var(--text-muted);">Можете да промените или оттеглите своето съгласие по всяко време.</div>
+                    </div>
+                    <button onclick="window.TFConsent && window.TFConsent.reset()" style="background: linear-gradient(135deg, #22d3ee, #0891b2); color: #020617; font-weight: 700; font-size: 0.85rem; border: none; border-radius: 9px; padding: 10px 20px; cursor: pointer; white-space: nowrap; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">
+                        Промени настройките
+                    </button>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 36px; color: var(--text-muted); line-height: 1.75; font-size: 0.95rem;">
+
+                    <!-- 1 -->
+                    <div>
+                        <h2 style="color: #f1f5f9; font-size: 1.1rem; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="width: 28px; height: 28px; border-radius: 8px; background: rgba(34,211,238,0.12); display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #22d3ee; font-weight: 900;">1</span>
+                            Какво са бисквитките?
+                        </h2>
+                        <p>Бисквитките (cookies) са малки текстови файлове, които се съхраняват на Вашето устройство, когато посещавате уебсайт. Те позволяват на сайта да запомни Вашите действия и предпочитания за определен период от време.</p>
+                    </div>
+
+                    <!-- 2 -->
+                    <div>
+                        <h2 style="color: #f1f5f9; font-size: 1.1rem; font-weight: 800; margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+                            <span style="width: 28px; height: 28px; border-radius: 8px; background: rgba(34,211,238,0.12); display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #22d3ee; font-weight: 900;">2</span>
+                            Видове бисквитки, които използваме
+                        </h2>
+
+                        <!-- Category table -->
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+
+                            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 20px 22px;">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                    <span style="background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.25); color: #22d3ee; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; border-radius: 50px; padding: 3px 10px;">Необходими</span>
+                                    <span style="font-size: 0.78rem; color: #475569;">Винаги активни · Срок: сесия</span>
+                                </div>
+                                <p style="margin: 0; font-size: 0.88rem;">Основни бисквитки, необходими за функционирането на сайта — навигация, сигурност и запазване на настройките за съгласие. <strong style="color: #f1f5f9;">Не могат да бъдат изключени.</strong></p>
+                            </div>
+
+                            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 20px 22px;">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                    <span style="background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.25); color: #a855f7; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; border-radius: 50px; padding: 3px 10px;">Аналитични</span>
+                                    <span style="font-size: 0.78rem; color: #475569;">По избор · Срок: до 13 месеца</span>
+                                </div>
+                                <p style="margin: 0; font-size: 0.88rem;">Събират анонимна информация за посещаемостта (брой посетители, прегледани страници, действия на потребителите) чрез инструменти като Google Analytics. Помагат ни да подобряваме сайта.</p>
+                            </div>
+
+                            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 20px 22px;">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                    <span style="background: rgba(251,146,60,0.1); border: 1px solid rgba(251,146,60,0.25); color: #fb923c; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; border-radius: 50px; padding: 3px 10px;">Маркетингови</span>
+                                    <span style="font-size: 0.78rem; color: #475569;">По избор · Срок: до 24 месеца</span>
+                                </div>
+                                <p style="margin: 0; font-size: 0.88rem;">Използват се за показване на персонализирани реклами и измерване на ефективността на маркетинговите кампании (Facebook Pixel, Google Ads и др.).</p>
+                            </div>
+
+                            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 20px 22px;">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                    <span style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); color: #22c55e; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; border-radius: 50px; padding: 3px 10px;">Предпочитания</span>
+                                    <span style="font-size: 0.78rem; color: #475569;">По избор · Срок: 1 година</span>
+                                </div>
+                                <p style="margin: 0; font-size: 0.88rem;">Съхраняват Вашите предпочитания като избран език (BG / EN) и настройки на интерфейса, за да не се налага да ги задавате при всяко посещение.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3 -->
+                    <div>
+                        <h2 style="color: #f1f5f9; font-size: 1.1rem; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="width: 28px; height: 28px; border-radius: 8px; background: rgba(34,211,238,0.12); display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #22d3ee; font-weight: 900;">3</span>
+                            Правна основа
+                        </h2>
+                        <p>Обработката на лични данни чрез бисквитки се извършва в съответствие с <strong style="color: #f1f5f9;">Регламент (ЕС) 2016/679 (GDPR)</strong>, Директива 2002/58/ЕО (ePrivacy) и Закона за електронните съобщения на Република България. Необходимите бисквитки се поставят на основание <em>легитимен интерес</em>, а останалите — единствено с Ваше изрично <em>съгласие</em>.</p>
+                    </div>
+
+                    <!-- 4 -->
+                    <div>
+                        <h2 style="color: #f1f5f9; font-size: 1.1rem; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="width: 28px; height: 28px; border-radius: 8px; background: rgba(34,211,238,0.12); display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #22d3ee; font-weight: 900;">4</span>
+                            Вашите права
+                        </h2>
+                        <p>Имате право да <strong style="color: #f1f5f9;">оттеглите съгласието си</strong> по всяко време, без да засяга законосъобразността на обработването преди оттеглянето. Освен това разполагате с право на достъп, коригиране, изтриване и преносимост на данните. За въпроси се свържете с нас на <a href="mailto:info@transitflow.org" style="color: #22d3ee;">info@transitflow.org</a>.</p>
+                    </div>
+
+                    <!-- 5 -->
+                    <div>
+                        <h2 style="color: #f1f5f9; font-size: 1.1rem; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="width: 28px; height: 28px; border-radius: 8px; background: rgba(34,211,238,0.12); display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #22d3ee; font-weight: 900;">5</span>
+                            Управление чрез браузъра
+                        </h2>
+                        <p>Независимо от нашата система за съгласие, можете да управлявате или изтривате бисквитки директно от настройките на Вашия браузър: <a href="https://support.google.com/chrome/answer/95647" target="_blank" rel="noopener" style="color: #22d3ee;">Chrome</a>, <a href="https://support.mozilla.org/en-US/kb/cookies-information-websites-store-on-your-computer" target="_blank" rel="noopener" style="color: #22d3ee;">Firefox</a>, <a href="https://support.apple.com/guide/safari/manage-cookies-sfri11471/mac" target="_blank" rel="noopener" style="color: #22d3ee;">Safari</a>, <a href="https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09" target="_blank" rel="noopener" style="color: #22d3ee;">Edge</a>.</p>
+                    </div>
+
+                    <!-- 6 -->
+                    <div>
+                        <h2 style="color: #f1f5f9; font-size: 1.1rem; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="width: 28px; height: 28px; border-radius: 8px; background: rgba(34,211,238,0.12); display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #22d3ee; font-weight: 900;">6</span>
+                            Контакт
+                        </h2>
+                        <p>За всякакви въпроси, свързани с поверителността и бисквитките:<br>
+                        <strong style="color: #f1f5f9;">„ДАВИДА БГ" ЕООД</strong> · ЕИК 204356138<br>
+                        <a href="mailto:info@transitflow.org" style="color: #22d3ee;">info@transitflow.org</a> · <a href="tel:+359876141826" style="color: #22d3ee;">+359 876 141 826</a></p>
+                    </div>
+
                 </div>
             </div>
         </div>
     </section>
+
 
     <footer style="margin-top: 100px;">
         <div class="container footer-bottom">
