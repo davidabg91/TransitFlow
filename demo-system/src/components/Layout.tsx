@@ -57,6 +57,22 @@ const Layout: React.FC = () => {
 
     const navLinks = (
         <>
+            <a
+                href="https://transitflow.org/"
+                style={{
+                    color: '#fff',
+                    fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
+                    paddingBottom: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    borderBottom: '2px solid transparent',
+                    marginRight: '1rem'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.color = '#ff5252'}
+                onMouseOut={(e) => e.currentTarget.style.color = '#fff'}
+            >
+                Основен Сайт
+            </a>
             <Link
                 to="/"
                 onClick={closeMenu}
@@ -196,6 +212,7 @@ const Layout: React.FC = () => {
 
     const mobileNavLinks = (
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <a href="https://transitflow.org/" className="mobile-nav-link">Основен Сайт</a>
             <Link to="/" onClick={closeMenu} className="mobile-nav-link">Начало</Link>
             {(!currentUser || currentUser.role === 'admin') && (
                 <>

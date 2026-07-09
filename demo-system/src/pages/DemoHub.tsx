@@ -68,9 +68,36 @@ const DemoHub: React.FC = () => {
                     <h1 style={{ fontSize: 'clamp(2.2rem, 6vw, 3.8rem)', fontWeight: 950, letterSpacing: '-1.5px', marginBottom: '1rem', lineHeight: 1.1 }}>
                         Интерактивна Демо Система
                     </h1>
-                    <p style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.35rem)', color: 'var(--text-secondary)', maxWidth: '750px', margin: '0 auto', lineHeight: 1.6 }}>
+                    <p style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.35rem)', color: 'var(--text-secondary)', maxWidth: '750px', margin: '0 auto 2rem', lineHeight: 1.6 }}>
                         Разгледайте пълния потенциал на софтуерната платформа за дигитализация, таксуване и контрол на пътническия транспорт.
                     </p>
+                    <a 
+                        href="https://transitflow.org/"
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.75rem 1.5rem',
+                            borderRadius: '12px',
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            color: '#fff',
+                            fontWeight: 700,
+                            textDecoration: 'none',
+                            transition: 'all 0.3s ease',
+                            fontSize: '0.9rem'
+                        }}
+                        onMouseOver={(e) => {
+                            e.currentTarget.style.background = 'rgba(0, 173, 181, 0.15)';
+                            e.currentTarget.style.borderColor = 'var(--primary-color)';
+                        }}
+                        onMouseOut={(e) => {
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                        }}
+                    >
+                        ← Към Основния Сайт
+                    </a>
                 </div>
 
                 {/* Key Metrics Dashboard */}
