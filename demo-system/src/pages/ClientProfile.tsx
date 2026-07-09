@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 const AdSlideshow = React.lazy(() => import('../components/AdSlideshow'));
 const BusSchedule = React.lazy(() => import('../components/BusSchedule'));
 import { db } from '../firebase';
-import { doc, onSnapshot, setDoc, updateDoc, increment, arrayUnion, getDoc, addDoc, collection } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, updateDoc, increment, arrayUnion, getDoc, addDoc, collection } from '../firebase';
 import LoadingScreen from '../components/LoadingScreen';
 
 interface Client {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot } from 'firebase/firestore';
+import { collection, query, onSnapshot } from '../firebase';
 import { db } from '../firebase';
 import { History as HistoryIcon, Clock, Search } from 'lucide-react';
 

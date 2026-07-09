@@ -19,7 +19,7 @@ import {
     updateDoc,
     deleteDoc,
     query
-} from 'firebase/firestore';
+} from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { ROUTE_METADATA } from '../data/routeMetadata';
 

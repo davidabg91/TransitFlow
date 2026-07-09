@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc } from '../firebase';
 import { 
     Bus, Users, Send, 
     CheckCircle, ShieldCheck, Clock, Star, 

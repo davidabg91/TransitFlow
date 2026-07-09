@@ -2,6 +2,22 @@
 const app = {};
 export default app;
 
+export interface MockSnapshot {
+    id: string;
+    exists(): boolean;
+    data(): any;
+    empty: boolean;
+    docs: MockSnapshot[];
+    size: number;
+    forEach(callback: (doc: MockSnapshot) => void): void;
+}
+
+export type User = any;
+
+export const getToken = async (_messaging?: any, _options?: any) => {
+    return 'mock-fcm-token-12345';
+};
+
 // --- Mock Database Core & Initial Data ---
 const STORAGE_KEYS = {
     USERS: 'transitflow_demo_users',
@@ -366,7 +382,7 @@ export const initializeMockDatabase = (force = false) => {
 initializeMockDatabase(false);
 
 // --- Reactive Snapshots & Callbacks ---
-type ListenerCallback = (snapshot: any) => void;
+type ListenerCallback = (snapshot: MockSnapshot) => void;
 const listeners: Record<string, { query: any; callback: ListenerCallback }[]> = {};
 
 const registerListener = (collectionName: string, queryObj: any, callback: ListenerCallback) => {
@@ -396,17 +412,24 @@ const triggerListeners = (collectionName: string) => {
         const docs = data.map((item: any) => ({
             id: item.id || '',
             data: () => item,
-            exists: () => true
+            exists: () => true,
+            empty: false,
+            docs: [],
+            size: 0,
+            forEach: () => {}
         }));
         
         const querySnapshot = {
+            id: '',
+            exists: () => false,
+            data: () => null,
             empty: docs.length === 0,
-            docs,
+            docs: docs as any[],
             forEach: (cb: (doc: any) => void) => docs.forEach(cb),
             size: docs.length
         };
         
-        listener.callback(querySnapshot);
+        listener.callback(querySnapshot as any);
     });
 };
 
@@ -547,7 +570,7 @@ export const deleteDoc = async (docRef: any) => {
     }
 };
 
-export const getDoc = async (docRef: any) => {
+export const getDoc = async (docRef: any): Promise<MockSnapshot> => {
     const key = getStorageKeyForCollection(docRef.path);
     const list = getStorageItem(key, []);
     const item = list.find((i: any) => i.id === docRef.id);
@@ -555,11 +578,15 @@ export const getDoc = async (docRef: any) => {
     return {
         id: docRef.id,
         exists: () => !!item,
-        data: () => item
-    };
+        data: () => item,
+        empty: !item,
+        docs: [],
+        size: item ? 1 : 0,
+        forEach: (cb: any) => { if (item) cb({ id: docRef.id, exists: () => true, data: () => item }); }
+    } as any;
 };
 
-export const getDocs = async (queryRef: any) => {
+export const getDocs = async (queryRef: any): Promise<MockSnapshot> => {
     const key = getStorageKeyForCollection(queryRef.path);
     let list = getStorageItem(key, []);
     
@@ -580,18 +607,25 @@ export const getDocs = async (queryRef: any) => {
     const docs = list.map((item: any) => ({
         id: item.id || '',
         data: () => item,
-        exists: () => true
+        exists: () => true,
+        empty: false,
+        docs: [],
+        size: 0,
+        forEach: () => {}
     }));
     
     return {
+        id: '',
+        exists: () => false,
+        data: () => null,
         empty: docs.length === 0,
-        docs,
-        forEach: (cb: (doc: any) => void) => docs.forEach(cb),
+        docs: docs as any[],
+        forEach: (cb: (doc: MockSnapshot) => void) => docs.forEach(cb as any),
         size: docs.length
-    };
+    } as any;
 };
 
-export const onSnapshot = (queryRef: any, callback: ListenerCallback) => {
+export const onSnapshot = (queryRef: any, callback: ListenerCallback, _onError?: (err: any) => void) => {
     const path = queryRef.path;
     registerListener(path, queryRef, callback);
     return () => {

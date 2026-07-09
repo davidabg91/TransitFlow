@@ -5,7 +5,7 @@ import {
     RefreshCw, Search, Clock, Shield,
     UserPlus, Trash2
 } from 'lucide-react';
-import { collection, query, onSnapshot, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, updateDoc, doc } from '../firebase';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/Card';

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, messaging } from '../firebase';
-import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import { getToken } from 'firebase/messaging';
+import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from '../firebase';
+import { getToken } from '../firebase';
 import { Bell, BellOff, Loader2, CheckCircle2 } from 'lucide-react';
 
 interface PushSubscriptionProps {

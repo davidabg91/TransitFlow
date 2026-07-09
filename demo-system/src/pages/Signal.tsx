@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc } from '../firebase';
 import { AlertCircle, CheckCircle, Send, MessageSquare, Phone, Mail, User } from 'lucide-react';
 
 const Signal: React.FC = () => {

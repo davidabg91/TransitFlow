@@ -6,7 +6,7 @@ import {
     signOut, 
     createUserWithEmailAndPassword,
     type User as FirebaseUser
-} from 'firebase/auth';
+} from '../firebase';
 import { 
     doc, 
     getDoc, 
@@ -16,7 +16,7 @@ import {
     updateDoc,
     deleteDoc,
     query
-} from 'firebase/firestore';
+} from '../firebase';
 import { auth, db } from '../firebase';
 import type { AppUser, UserRole } from '../types/auth';
 
