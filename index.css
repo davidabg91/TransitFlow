@@ -1336,6 +1336,12 @@ select.form-input option {
     color: white;
 }
 
+@media (max-width: 960px) {
+    .contact-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
 @media (max-width: 768px) {
     #contact .container {
         grid-template-columns: 1fr;
@@ -1345,7 +1351,26 @@ select.form-input option {
     .form-input-row {
         grid-template-columns: 1fr !important;
     }
+
+    #contact-form {
+        padding: 28px 20px !important;
+    }
 }
+
+/* Contact form labels */
+#contact-form label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+}
+
+/* Form input – no margin when inside labelled groups */
+#contact-form .form-input {
+    margin: 0;
+}
+
 
 /* ============================================
    EXPANDED SITE — nav dropdown, mobile menu,
