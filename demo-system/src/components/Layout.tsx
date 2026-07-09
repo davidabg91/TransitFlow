@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, ShieldCheck, Shield, Menu, X, Bus } from 'lucide-react';
+import { LogOut, ShieldCheck, Shield, Menu, X, Bus, Globe } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from '../firebase';
 
@@ -57,22 +57,6 @@ const Layout: React.FC = () => {
 
     const navLinks = (
         <>
-            <a
-                href="https://transitflow.org/"
-                style={{
-                    color: '#fff',
-                    fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
-                    paddingBottom: '2px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    borderBottom: '2px solid transparent',
-                    marginRight: '1rem'
-                }}
-                onMouseOver={(e) => e.currentTarget.style.color = '#ff5252'}
-                onMouseOut={(e) => e.currentTarget.style.color = '#fff'}
-            >
-                Основен Сайт
-            </a>
             <Link
                 to="/"
                 onClick={closeMenu}
@@ -212,7 +196,6 @@ const Layout: React.FC = () => {
 
     const mobileNavLinks = (
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <a href="https://transitflow.org/" className="mobile-nav-link">Основен Сайт</a>
             <Link to="/" onClick={closeMenu} className="mobile-nav-link">Начало</Link>
             {(!currentUser || currentUser.role === 'admin') && (
                 <>
@@ -462,6 +445,44 @@ const Layout: React.FC = () => {
                     <p style={{ opacity: 0.6 }}>Интелигентни системи за градски транспорт и логистика</p>
                 </footer>
             )}
+
+            {/* Modern Floating back to main website button */}
+            <a
+                href="https://transitflow.org/"
+                title="Обратно към основния сайт на TransitFlow"
+                style={{
+                    position: 'fixed',
+                    bottom: isMobile ? '1.25rem' : '2rem',
+                    right: isMobile ? '1.25rem' : '2rem',
+                    zIndex: 99999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: isMobile ? '0.6rem 1rem' : '0.85rem 1.4rem',
+                    borderRadius: '50px',
+                    background: 'linear-gradient(135deg, var(--primary-color) 0%, #00d2c4 100%)',
+                    color: '#0f172a',
+                    fontWeight: 800,
+                    textDecoration: 'none',
+                    boxShadow: '0 8px 30px rgba(0, 173, 181, 0.4), inset 0 2px 4px rgba(255,255,255,0.4)',
+                    transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    cursor: 'pointer',
+                    fontSize: isMobile ? '0.8rem' : '0.9rem',
+                    letterSpacing: '-0.2px'
+                }}
+                onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px) scale(1.05)';
+                    e.currentTarget.style.boxShadow = '0 12px 35px rgba(0, 173, 181, 0.6), inset 0 2px 4px rgba(255,255,255,0.4)';
+                }}
+                onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                    e.currentTarget.style.boxShadow = '0 8px 30px rgba(0, 173, 181, 0.4), inset 0 2px 4px rgba(255,255,255,0.4)';
+                }}
+            >
+                <Globe size={isMobile ? 16 : 18} strokeWidth={2.5} />
+                <span>Основен сайт</span>
+            </a>
         </div>
     );
 };
