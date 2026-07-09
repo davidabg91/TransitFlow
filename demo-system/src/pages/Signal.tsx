@@ -57,7 +57,7 @@ const Signal: React.FC = () => {
                     </div>
                     <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', marginBottom: '1rem' }}>Успешно подаден сигнал</h2>
                     <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, marginBottom: '2rem' }}>
-                        Вашето съобщение беше изпратено успешно до екипа на DARY. Благодарим ви за обратната връзка!
+                        Вашето съобщение беше изпратено успешно до екипа на TransitFlow. Благодарим ви за обратната връзка!
                     </p>
                     <button 
                         onClick={() => setStatus('idle')}

@@ -100,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const login = async (email: string, password: string) => {
-        const emailToLogin = email.includes('@') ? email : `${email}@dary.com`;
+        const emailToLogin = email.includes('@') ? email : `${email}@transitflow.org`;
         await signInWithEmailAndPassword(auth, emailToLogin, password);
     };
 
@@ -111,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const addUser = async (username: string, password: string, role: UserRole) => {
         // In Firebase, we usually create users via Auth. 
         // For a simple management system, we create them with a dummy email if only username is provided
-        const email = username.includes('@') ? username : `${username}@dary.com`;
+        const email = username.includes('@') ? username : `${username}@transitflow.org`;
         
         // Note: This creates the user and SIGNS IN as them. 
         // In a real admin panel, you'd use Firebase Admin SDK or a cloud function.

@@ -133,7 +133,7 @@ const StaffPortal: React.FC = () => {
                         <span className="gradient-text" style={{ 
                             padding: '0 10px',
                             filter: 'drop-shadow(0 0 30px rgba(0, 173, 181, 0.4))' 
-                        }}>на DARY COMMERCE</span>
+                        }}>на TransitFlow</span>
                     </h1>
 
                     <p style={{
@@ -216,7 +216,7 @@ const StaffPortal: React.FC = () => {
                 letterSpacing: '1px',
                 textTransform: 'uppercase'
             }}>
-                &copy; {new Date().getFullYear()} DARY COMMERCE &bull; SMART TRANSIT INTERFACE &bull; ПЛЕВЕН
+                &copy; {new Date().getFullYear()} TransitFlow &bull; SMART TRANSIT INTERFACE &bull; ПЛЕВЕН
             </footer>
         </div>
     );

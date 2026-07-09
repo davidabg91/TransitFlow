@@ -1332,7 +1332,7 @@ const AdminPanel: React.FC = () => {
                             const totalReportRevenue = filteredReportClients.reduce((sum, c) => sum + (reportMonth === 'all' ? (c.amountPaid || 0) : getMonthPayment(c, reportMonth)), 0);
                             
                             const handleShareReport = async () => {
-                                const header = `Финансов Отчет DARY COMMERCE\nМесец: ${reportMonth === 'all' ? 'Всички' : reportMonth} | Вид: ${reportCardType === 'all' ? 'Всички' : reportCardType} | Маршрут: ${reportRoute === 'all' ? 'Всички' : reportRoute} | Дистанция: ${reportDistanceFilter === 'all' ? 'Всички' : (reportDistanceFilter === 'under10' ? 'До 10 км' : 'Над 10 км')}\n---\n`;
+                                const header = `Финансов Отчет TransitFlow\nМесец: ${reportMonth === 'all' ? 'Всички' : reportMonth} | Вид: ${reportCardType === 'all' ? 'Всички' : reportCardType} | Маршрут: ${reportRoute === 'all' ? 'Всички' : reportRoute} | Дистанция: ${reportDistanceFilter === 'all' ? 'Всички' : (reportDistanceFilter === 'under10' ? 'До 10 км' : 'Над 10 км')}\n---\n`;
                                 const rows = filteredReportClients.map(c => {
                                     const isShort = ["Ясен", "Опанец", "Ясен-Дисевица"].includes(c.route);
                                     const distStr = isShort ? "До 10 км" : "Над 10 км";
@@ -1347,7 +1347,7 @@ const AdminPanel: React.FC = () => {
                                 if (navigator.share) {
                                     try {
                                         await navigator.share({
-                                            title: 'Финансов Отчет DARY COMMERCE',
+                                            title: 'Финансов Отчет TransitFlow',
                                             text: shareText
                                         });
                                     } catch (err) {
@@ -1419,7 +1419,7 @@ const AdminPanel: React.FC = () => {
 
                                     <>
                                         <div style={{ display: 'none' }} className="print-only-header">
-                                            <h2 style={{ marginBottom: '1rem', color: 'black' }}>Финансов Отчет DARY COMMERCE</h2>
+                                            <h2 style={{ marginBottom: '1rem', color: 'black' }}>Финансов Отчет TransitFlow</h2>
                                             <p style={{ marginBottom: '1.5rem', fontSize: '14px', color: '#555' }}>
                                                 <strong>Месец:</strong> {reportMonth === 'all' ? 'Всички' : reportMonth} | 
                                                 <strong>Вид Карта:</strong> {reportCardType === 'all' ? 'Всички' : reportCardType} | 

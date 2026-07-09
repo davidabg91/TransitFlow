@@ -45,7 +45,7 @@ const LoginPage: React.FC = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                         <img src={logo} alt="Logo" style={{ height: '160px', width: 'auto', objectFit: 'contain', marginBottom: '-10px' }} />
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.4rem', fontWeight: 900, letterSpacing: '-0.02em', color: '#ff5252' }}>DARY CARD</div>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 900, letterSpacing: '-0.02em', color: '#ff5252' }}>TRANSITFLOW CARD</div>
                             <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>SYSTEM</div>
                         </div>
                     </div>
@@ -142,7 +142,7 @@ const LoginPage: React.FC = () => {
                     </button>
                     
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>
-                        Система за сигурност Dary Commerce © 2026
+                        Система за сигурност TransitFlow © 2026
                     </p>
                 </form>
             </div>

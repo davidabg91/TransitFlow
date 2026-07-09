@@ -449,7 +449,7 @@ const Landing: React.FC = () => {
                         lineHeight: 1.1
                     }}>
                         Вашите Пътувания, <br/>
-                        По-Умни с <span style={{ color: '#ff5252' }}>DARY Commerce</span>
+                        По-Умни с <span style={{ color: '#ff5252' }}>TransitFlow</span>
                     </h1>
                     <p style={{ 
                         fontSize: 'clamp(1.1rem, 4vw, 1.4rem)', 
@@ -1055,7 +1055,7 @@ const Landing: React.FC = () => {
                                         <div style={{ fontWeight: 800, color: 'var(--primary-color)', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                                             Автогара Плевен <ExternalLink size={12} />
                                         </div>
-                                        <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)' }}>Гише DARY COMMERCE</div>
+                                        <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)' }}>Гише TransitFlow</div>
                                     </div>
                                 </a>
                                  <div className="info-list-item" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -1104,7 +1104,7 @@ const Landing: React.FC = () => {
                 <div className="footer-content" style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 'clamp(2rem, 5vw, 4rem)', justifyContent: 'space-between' }}>
                     <div className="footer-brand" style={{ maxWidth: '300px' }}>
                         <div style={{ marginBottom: '1.2rem' }}>
-                             <h3 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#ff5252', letterSpacing: '0.05em' }}>DARY COMMERCE</h3>
+                             <h3 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#ff5252', letterSpacing: '0.05em' }}>TransitFlow</h3>
                         </div>
                         <p style={{ color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }}>
                             Вашият доверен партньор в пътническия транспорт в област Плевен. Сигурност, точност и комфорт.
@@ -1125,7 +1125,7 @@ const Landing: React.FC = () => {
                             minWidth: '220px'
                         }}>
                             <h5 style={{ marginBottom: '0.8rem', fontWeight: 900, fontSize: '0.75rem', letterSpacing: '1px', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase' }}>ПАРТНЬОРИ</h5>
-                            <a href="https://darytravel.com/" target="_blank" rel="noopener noreferrer" style={{ display: 'block', transition: 'transform 0.2s', marginBottom: '0.5rem' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                            <a href="https://transitflow.org/" target="_blank" rel="noopener noreferrer" style={{ display: 'block', transition: 'transform 0.2s', marginBottom: '0.5rem' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
                                 <img src={logoTravel} alt="TransitFlow Operator" style={{ height: '90px', width: 'auto' }} />
                             </a>
                             <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', margin: 0 }}>
@@ -1150,7 +1150,7 @@ const Landing: React.FC = () => {
                                     <Phone size={14} /> 0898481433
                                 </a>
                                 <div className="contact-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <MessageCircle size={14} /> dary.commerce@gmail.com
+                                    <MessageCircle size={14} /> info@transitflow.org
                                 </div>
                                 <Link 
                                     to="/signal" 

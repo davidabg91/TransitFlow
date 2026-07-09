@@ -41,7 +41,7 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'Dary Commerce - Системен Панел',
+        name: 'TransitFlow - Системен Панел',
         short_name: 'TransitFlow',
         description: 'Система за управление на карти за градски транспорт Плевен',
         theme_color: '#1a1a1a',
