@@ -103,7 +103,7 @@ const BusRental: React.FC = () => {
             }}>
                 <div style={{
                     position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                    background: 'url(/bus_rental_hero_magazine.png) center/cover no-repeat',
+                    background: 'url(bus_rental_hero_magazine.png) center/cover no-repeat',
                     filter: 'brightness(0.7)'
                 }} />
                 <div style={{
