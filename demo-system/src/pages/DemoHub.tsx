@@ -244,6 +244,23 @@ const DemoHub: React.FC = () => {
                     </button>
                 </div>
 
+                {/* Footer inside DemoHub */}
+                <footer style={{
+                    marginTop: '5rem',
+                    paddingTop: '2rem',
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                    textAlign: 'center',
+                    color: 'rgba(255,255,255,0.4)',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                }}>
+                    <p>© {new Date().getFullYear()} TransitFlow. Всички права запазени.</p>
+                    <p style={{ opacity: 0.7 }}>Интерактивна демонстрационна среда за управление на транспортни системи</p>
+                </footer>
+
             </div>
         </div>
     );

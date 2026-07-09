@@ -11,7 +11,8 @@ const Layout: React.FC = () => {
     const isClientProfilePath = location.pathname.startsWith('/client/');
     const isRentPath = location.pathname === '/rent';
     const isAdminPath = location.pathname === '/admin' || location.pathname === '/system-admin';
-    const isFullScreen = isClientProfilePath || isRentPath || isAdminPath;
+    const isHubPath = location.pathname === '/';
+    const isFullScreen = isClientProfilePath || isRentPath || isAdminPath || isHubPath;
     const { currentUser, logout } = useAuth();
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -358,90 +359,92 @@ const Layout: React.FC = () => {
                 <Outlet />
             </main>
 
-            <footer style={{
-                padding: '2rem',
-                textAlign: 'center',
-                color: 'rgba(255,255,255,0.5)',
-                borderTop: '1px solid var(--surface-border)',
-                fontSize: '0.875rem',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '0.75rem',
-            }}>
-                <a 
-                    href="http://davidax.org/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ 
-                        textDecoration: 'none', 
-                        color: 'inherit', 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        gap: '0.75rem',
-                        padding: '0.6rem 1.25rem',
-                        borderRadius: '12px',
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        backdropFilter: 'blur(10px)',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    }}
-                    onMouseOver={(e) => {
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                        e.currentTarget.style.borderColor = 'rgba(255,82,82,0.3)';
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(229,57,53,0.15)';
-                    }}
-                    onMouseOut={(e) => {
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-                    }}
-                >
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '8px',
-                        background: 'linear-gradient(135deg, #e53935 0%, #ff5252 100%)',
-                        color: '#fff',
-                        boxShadow: '0 0 15px rgba(229,57,53,0.3)',
-                    }}>
-                        <ShieldCheck size={18} strokeWidth={2.5} />
-                    </div>
-                    <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ 
-                            fontSize: '0.6rem', 
-                            opacity: 0.5, 
-                            textTransform: 'uppercase', 
-                            letterSpacing: '0.15em',
-                            fontWeight: 700,
-                            marginBottom: '-2px'
-                        }}>Developed by</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ 
-                                fontWeight: 900, 
-                                fontSize: '1.1rem', 
-                                letterSpacing: '0.02em', 
-                                color: 'var(--text-primary)',
-                                textShadow: '0 0 20px rgba(255,255,255,0.1)'
-                            }}>DavidaX</span>
-                            <span style={{ 
-                                fontSize: '0.7rem', 
-                                color: '#ff5252',
-                                fontWeight: 800,
-                                opacity: 0.9
-                            }}>&lt;/&gt;</span>
+            {!isHubPath && (
+                <footer style={{
+                    padding: '2rem',
+                    textAlign: 'center',
+                    color: 'rgba(255,255,255,0.5)',
+                    borderTop: '1px solid var(--surface-border)',
+                    fontSize: '0.875rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                }}>
+                    <a 
+                        href="http://davidax.org/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ 
+                            textDecoration: 'none', 
+                            color: 'inherit', 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            padding: '0.6rem 1.25rem',
+                            borderRadius: '12px',
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            backdropFilter: 'blur(10px)',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        }}
+                        onMouseOver={(e) => {
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                            e.currentTarget.style.borderColor = 'rgba(0, 173, 181, 0.3)';
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 173, 181, 0.15)';
+                        }}
+                        onMouseOut={(e) => {
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                        }}
+                    >
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: 'linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%)',
+                            color: '#fff',
+                            boxShadow: '0 0 15px rgba(0, 173, 181, 0.3)',
+                        }}>
+                            <ShieldCheck size={18} strokeWidth={2.5} />
                         </div>
-                    </div>
-                </a>
-                <p>© {new Date().getFullYear()} Dary Commerce. Всички права запазени.</p>
-                <p style={{ opacity: 0.6 }}>Обществен транспорт за град Плевен и региона</p>
-            </footer>
+                        <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ 
+                                fontSize: '0.6rem', 
+                                opacity: 0.5, 
+                                textTransform: 'uppercase', 
+                                letterSpacing: '0.15em',
+                                fontWeight: 700,
+                                marginBottom: '-2px'
+                            }}>Developed by</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span style={{ 
+                                    fontWeight: 900, 
+                                    fontSize: '1.1rem', 
+                                    letterSpacing: '0.02em', 
+                                    color: 'var(--text-primary)',
+                                    textShadow: '0 0 20px rgba(255,255,255,0.1)'
+                                }}>DavidaX</span>
+                                <span style={{ 
+                                    fontSize: '0.7rem', 
+                                    color: 'var(--primary-color)',
+                                    fontWeight: 800,
+                                    opacity: 0.9
+                                }}>&lt;/&gt;</span>
+                            </div>
+                        </div>
+                    </a>
+                    <p>© {new Date().getFullYear()} TransitFlow. Всички права запазени.</p>
+                    <p style={{ opacity: 0.6 }}>Интелигентни системи за градски транспорт и логистика</p>
+                </footer>
+            )}
         </div>
     );
 };
