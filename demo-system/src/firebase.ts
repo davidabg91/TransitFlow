@@ -408,28 +408,45 @@ const triggerListeners = (collectionName: string) => {
     const data = getStorageItem(storageKey, []);
     
     listeners[collectionName].forEach(listener => {
-        // Create mock snapshots
-        const docs = data.map((item: any) => ({
-            id: item.id || '',
-            data: () => item,
-            exists: () => true,
-            empty: false,
-            docs: [],
-            size: 0,
-            forEach: () => {}
-        }));
+        const queryRef = listener.query;
         
-        const querySnapshot = {
-            id: '',
-            exists: () => false,
-            data: () => null,
-            empty: docs.length === 0,
-            docs: docs as any[],
-            forEach: (cb: (doc: any) => void) => docs.forEach(cb),
-            size: docs.length
-        };
-        
-        listener.callback(querySnapshot as any);
+        if (queryRef && queryRef.type === 'doc') {
+            // Document listener (e.g. doc(db, 'clients', id))
+            const item = data.find((x: any) => x.id === queryRef.id);
+            const docSnapshot = {
+                id: queryRef.id,
+                exists: () => !!item,
+                data: () => item,
+                empty: !item,
+                docs: [],
+                size: item ? 1 : 0,
+                forEach: (cb: any) => { if (item) cb({ id: queryRef.id, exists: () => true, data: () => item }); }
+            };
+            listener.callback(docSnapshot as any);
+        } else {
+            // Collection / Query listener
+            const docs = data.map((item: any) => ({
+                id: item.id || '',
+                data: () => item,
+                exists: () => true,
+                empty: false,
+                docs: [],
+                size: 0,
+                forEach: () => {}
+            }));
+            
+            const querySnapshot = {
+                id: '',
+                exists: () => false,
+                data: () => null,
+                empty: docs.length === 0,
+                docs: docs as any[],
+                forEach: (cb: (doc: any) => void) => docs.forEach(cb),
+                size: docs.length
+            };
+            
+            listener.callback(querySnapshot as any);
+        }
     });
 };
 
