@@ -732,33 +732,33 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                         <div style="display: flex; flex-direction: column; gap: 6px;">
                             <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted);" data-i18n="form-name-label">Вашето Име *</label>
-                            <input type="text" class="form-input" required data-i18n-ph="form-name" placeholder="Иван Иванов" style="margin: 0;">
+                            <input type="text" name="name" class="form-input" required data-i18n-ph="form-name" placeholder="Иван Иванов" style="margin: 0;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 6px;">
                             <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted);" data-i18n="form-company-label">Компания</label>
-                            <input type="text" class="form-input" data-i18n-ph="form-company" placeholder="ЕООД / АД" style="margin: 0;">
+                            <input type="text" name="company" class="form-input" data-i18n-ph="form-company" placeholder="ЕООД / АД" style="margin: 0;">
                         </div>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                         <div style="display: flex; flex-direction: column; gap: 6px;">
                             <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted);" data-i18n="form-email-label">Имейл *</label>
-                            <input type="email" class="form-input" required data-i18n-ph="form-email" placeholder="name@company.com" style="margin: 0;">
+                            <input type="email" name="email" class="form-input" required data-i18n-ph="form-email" placeholder="name@company.com" style="margin: 0;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 6px;">
                             <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted);" data-i18n="form-phone-label">Телефон *</label>
-                            <input type="tel" class="form-input" required data-i18n-ph="form-phone" placeholder="+359 8XX XXX XXX" style="margin: 0;">
+                            <input type="tel" name="phone" class="form-input" required data-i18n-ph="form-phone" placeholder="+359 8XX XXX XXX" style="margin: 0;">
                         </div>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                         <div style="display: flex; flex-direction: column; gap: 6px;">
                             <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted);" data-i18n="form-city-label">Град</label>
-                            <input type="text" class="form-input" data-i18n-ph="form-city" placeholder="София" style="margin: 0;">
+                            <input type="text" name="city" class="form-input" data-i18n-ph="form-city" placeholder="София" style="margin: 0;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 6px;">
                             <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted);" data-i18n="form-plan-label">Интерес</label>
-                            <select id="plan-select" class="form-input" style="appearance: auto; margin: 0;">
+                            <select id="plan-select" name="plan" class="form-input" style="appearance: auto; margin: 0;">
                                 <option value="" data-i18n="form-plan-select">Изберете план</option>
                                 <option value="start" data-i18n="form-plan-start">Старт</option>
                                 <option value="pro" data-i18n="form-plan-pro">Професионален</option>
@@ -769,7 +769,7 @@
 
                     <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 28px;">
                         <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted);" data-i18n="form-msg-label">Съобщение</label>
-                        <textarea class="form-input" rows="4" data-i18n-ph="form-msg" placeholder="Разкажете ни повече за вашия проект..." style="margin: 0; resize: vertical;"></textarea>
+                        <textarea name="message" class="form-input" rows="4" data-i18n-ph="form-msg" placeholder="Разкажете ни повече за вашия проект..." style="margin: 0; resize: vertical;"></textarea>
                     </div>
 
                     <button type="submit" class="btn btn-primary" style="width: 100%; padding: 16px; font-size: 1rem; font-weight: 800; border-radius: 12px; letter-spacing: 0.02em; position: relative; overflow: hidden;">
@@ -844,20 +844,50 @@
     <script>
     function handleContactSubmit(e) {
         e.preventDefault();
-        const btn = e.target.querySelector('button[type="submit"]');
+        const form = e.target;
+        const btn = form.querySelector('button[type="submit"]');
         const originalHTML = btn.innerHTML;
 
         // Loading state
         btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> <span>Изпращане...</span>';
         btn.disabled = true;
 
-        // Simulate async send (replace with real fetch to your backend)
-        setTimeout(() => {
+        // Build request payload
+        const formData = new FormData(form);
+        const data = {};
+        formData.forEach((value, key) => {
+            data[key] = value;
+        });
+
+        // Add email subject configuration for FormSubmit
+        data['_subject'] = 'Ново запитване от TransitFlow!';
+
+        fetch("https://formsubmit.co/ajax/daivda1991@gmail.com", {
+            method: "POST",
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            }
+            throw new Error('Network response was not ok');
+        })
+        .then(result => {
             btn.innerHTML = originalHTML;
             btn.disabled = false;
-            e.target.reset();
-            showToast('✅ Запитването е изпратено! Ще се свържем с вас до 24 часа.', 'success');
-        }, 1800);
+            form.reset();
+            showToast('✅ Запитването е изпратено успешно! Моля, проверете пощата си за потвърждение (FormSubmit).', 'success');
+        })
+        .catch(error => {
+            console.error('Contact submission error:', error);
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+            showToast('❌ Възникна грешка. Моля, опитайте отново или ни пишете директно.', 'error');
+        });
     }
 
     function showToast(message, type) {
