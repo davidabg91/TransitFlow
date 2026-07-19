@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n-title="m-signage-title">Рекламни Екрани и Дигитална Медия | TransitFlow Signage SaaS</title>
+    <meta name="description" content="SaaS платформа за управление на рекламни екрани в транспорта. Списъци по график, автоматично прекодиране, офлайн-първо Android приложение и одит журнал." data-i18n-content="m-signage-desc">
+    <link rel="canonical" href="https://transitflow.org/signage.html">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="translations.js"></script>
+    <script src="cookie-consent.js" defer></script>
+    <!-- Google Analytics - Consent Mode v2 -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('consent', 'default', {
+        'analytics_storage': 'denied',
+        'ad_storage': 'denied',
+        'ad_user_data': 'denied',
+        'ad_personalization': 'denied',
+        'wait_for_update': 500
+      });
+    </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-R9P46Z4YNV"></script>
+    <script>
+      gtag('js', new Date());
+      gtag('config', 'G-R9P46Z4YNV', {'send_page_view': true});
+    </script>
+</head>
+<body>
+    <div class="bg-glow"></div>
+    <div class="grid-overlay"></div>
+
+    <nav id="navbar" class="scrolled">
+        <div class="container nav-content">
+            <a href="index.html" class="logo"><i class="fas fa-bus-simple"></i> Transit<span>Flow</span></a>
+            <ul class="nav-links">
+                <li class="has-dropdown">
+                    <a href="#" class="active"><span data-i18n="nav-product">Продукт</span> <i class="fas fa-chevron-down"></i></a>
+                    <div class="nav-dropdown">
+                        <a href="features.html"><i class="fas fa-layer-group dd-icon"></i><span class="dd-text"><strong data-i18n="nav-features">Функции</strong><span data-i18n="dd-features-d">Пълен каталог възможности</span></span></a>
+                        <a href="nfc-cards.html"><i class="fas fa-id-card dd-icon"></i><span class="dd-text"><strong data-i18n="dd-nfc-t">NFC Карти и Валидиране</strong><span data-i18n="dd-nfc-d">Безконтактни карти и заверка</span></span></a>
+                        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button dd-icon"></i><span class="dd-text"><strong data-i18n="dd-app-t">Приложение за пътници</strong><span data-i18n="dd-app-d">Разписания и известия в реално време</span></span></a>
+                        <a href="inspections.html"><i class="fas fa-user-shield dd-icon"></i><span class="dd-text"><strong data-i18n="dd-insp-t">Контрол и Сигурност</strong><span data-i18n="dd-insp-d">Ревизори, GPS и защита от измами</span></span></a>
+                        <a href="fleet.html"><i class="fas fa-bus dd-icon"></i><span class="dd-text"><strong data-i18n="dd-fleet-t">Наемане на автобуси</strong><span data-i18n="dd-fleet-d">Допълнителен приход за автопарка</span></span></a>
+                        <a href="reports.html"><i class="fas fa-chart-column dd-icon"></i><span class="dd-text"><strong data-i18n="dd-rep-t">Отчети и Анализ</strong><span data-i18n="dd-rep-d">Приходи, справки и експорт</span></span></a>
+                        <a href="hardware.html"><i class="fas fa-microchip dd-icon"></i><span class="dd-text"><strong data-i18n="nav-hardware">Хардуер</strong><span data-i18n="dd-hw-d">myPOS Ultra и NFC устройства</span></span></a>
+                        <a href="signage.html"><i class="fas fa-tv dd-icon"></i><span class="dd-text"><strong data-i18n="dd-signage-t">Рекламни Екрани</strong><span data-i18n="dd-signage-d">Дигитална медийна мрежа (SaaS)</span></span></a>
+                        <a href="zakon.html"><i class="fas fa-scale-balanced dd-icon"></i><span class="dd-text"><strong data-i18n="nav-law">ЗОТ Съответствие 2026</strong><span data-i18n="dd-law-d">Изисквания, интеграция и закони</span></span></a>
+                    </div>
+                </li>
+                <li><a href="index.html#pricing" data-i18n="nav-pricing">Цени</a></li>
+                <li><a href="faq.html" data-i18n="nav-faq">Въпроси</a></li>
+                <li><a href="about.html" data-i18n="foot-about">За нас</a></li>
+                <li><a href="index.html#contact" data-i18n="nav-contact">Контакти</a></li>
+                <li><a href="#" class="lang-switch">BG | EN</a></li>
+            </ul>
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <a href="index.html#contact" class="btn btn-outline" style="padding: 10px 24px;"><span data-i18n="nav-demo">Демо</span><i class="fas fa-arrow-right"></i></a>
+                <button class="nav-toggle" aria-label="Меню" data-i18n-attr="aria-label:nav-menu"><i class="fas fa-bars"></i></button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="mobile-menu" id="mobile-menu">
+        <span class="mm-label" data-i18n="nav-product">Продукт</span>
+        <a href="features.html"><i class="fas fa-layer-group"></i> <span data-i18n="nav-features">Функции</span></a>
+        <a href="nfc-cards.html"><i class="fas fa-id-card"></i> <span data-i18n="dd-nfc-t">NFC Карти и Валидиране</span></a>
+        <a href="passenger-app.html"><i class="fas fa-mobile-screen-button"></i> <span data-i18n="dd-app-t">Приложение за пътници</span></a>
+        <a href="inspections.html"><i class="fas fa-user-shield"></i> <span data-i18n="dd-insp-t">Контрол и Сигурност</span></a>
+        <a href="fleet.html"><i class="fas fa-bus"></i> <span data-i18n="dd-fleet-t">Наемане на автобуси</span></a>
+        <a href="reports.html"><i class="fas fa-chart-column"></i> <span data-i18n="dd-rep-t">Отчети и Анализ</span></a>
+        <a href="hardware.html"><i class="fas fa-microchip"></i> <span data-i18n="nav-hardware">Хардуер</span></a>
+        <a href="signage.html"><i class="fas fa-tv"></i> <span data-i18n="dd-signage-t">Рекламни Екрани</span></a>
+        <a href="zakon.html"><i class="fas fa-scale-balanced"></i> <span data-i18n="nav-law">ЗОТ Съответствие 2026</span></a>
+        <span class="mm-label" data-i18n="nav-company">Компания</span>
+        <a href="index.html#pricing"><i class="fas fa-tag"></i> <span data-i18n="nav-pricing">Цени</span></a>
+        <a href="faq.html"><i class="fas fa-circle-question"></i> <span data-i18n="nav-faq">Въпроси</span></a>
+        <a href="about.html"><i class="fas fa-building"></i> <span data-i18n="foot-about">За нас</span></a>
+        <a href="index.html#contact"><i class="fas fa-envelope"></i> <span data-i18n="nav-contact">Контакти</span></a>
+    </div>
+
+    <!-- Hero with media screen visual -->
+    <header style="padding: 170px 0 80px;">
+        <div class="container">
+            <div class="split-row" style="margin-bottom: 0;">
+                <div class="reveal active">
+                    <span class="eyebrow" data-i18n="dd-signage-t">Рекламни Екрани</span>
+                    <h1 style="font-size: clamp(2.2rem, 5.5vw, 3.8rem); margin: 20px 0 24px;"><span data-i18n="sg-h1a">Управлявайте дигиталната реклама</span> <span class="gradient-text" data-i18n="sg-h1b">във вашия автопарк</span></h1>
+                    <p style="color: var(--text-muted); font-size: 1.2rem; line-height: 1.7; margin-bottom: 32px;" data-i18n="sg-hero-p">
+                        Превърнете вашите превозни средства в печеливша медийна мрежа. Нашата дигитална Signage SaaS платформа позволява лесно качване на съдържание, съставяне на плейлисти по график и автоматично синхронизиране на Android TV екраните в автобусите.
+                    </p>
+                    <div class="btn-group">
+                        <a href="index.html#contact" class="btn btn-primary" data-i18n="sg-want">Искам рекламни екрани за автопарка</a>
+                        <a href="#capabilities" class="btn btn-outline" data-i18n="sg-whatincl">Функционалности</a>
+                    </div>
+                </div>
+                <div class="split-visual reveal active">
+                    <div class="phone-frame" style="width: 100%; max-width: 480px; aspect-ratio: 16/10; border-radius: 20px; overflow: hidden; background: #000; display: flex; flex-direction: column;">
+                        <div class="app-header" style="background: rgba(34, 211, 238, 0.1); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 12px 20px;">
+                            <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size: 0.85rem;"><i class="fas fa-tv" style="color: var(--primary);"></i> <span data-i18n="sg-mediaplayer">Медия Плеър</span></div>
+                            <span class="app-badge-live" style="background: rgba(0, 200, 83, 0.15); color: #00c853;"><i class="fas fa-circle" style="font-size:0.5rem;"></i> <span data-i18n="sg-live">ОФЛАЙН-ПЪРВИ</span></span>
+                        </div>
+                        <div style="flex: 1; position: relative;">
+                            <img src="assets/signage_bus_screen.png" alt="Digital Signage Bus Screen Mockup" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                            <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%); padding: 15px 20px; display: flex; flex-direction: column; gap: 4px;">
+                                <div style="font-weight: 800; font-size: 0.85rem; color: #fff;" data-i18n="sg-playlist1">Реклама: Туристическа агенция</div>
+                                <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+                                    <span data-i18n="sg-playtime">Плейлист: Общ | Статус: Изтеглен</span>
+                                    <span data-i18n="sg-playstatus">Синхронизирано: Преди 2 мин</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Capabilities -->
+    <section id="capabilities" style="background: rgba(255,255,255,0.02);">
+        <div class="container">
+            <div class="section-head">
+                <span class="eyebrow reveal" data-i18n="sg-cap-eyebrow">Възможности на платформата</span>
+                <h2 class="reveal"><span data-i18n="sg-cap-h2a">Професионално управление на</span> <span class="gradient-text" data-i18n="sg-cap-h2b">всеки екран</span></h2>
+                <p class="reveal" data-i18n="sg-cap-p">Платформата съчетава лесен уеб интерфейс за Вас с изключително стабилно Android приложение за екраните в превозните средства.</p>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card glass reveal" style="min-height:auto;">
+                    <div class="feature-card-content">
+                        <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-video"></i></div>
+                        <h3 data-i18n="sg-f1-h">Видео Транскодиране</h3>
+                        <p data-i18n="sg-f1-p">Качете видео във всеки формат. Системата автоматично го конвертира в оптимална резолюция (1366x768) за транспортни екрани.</p>
+                    </div>
+                </div>
+                <div class="feature-card glass reveal" style="min-height:auto;">
+                    <div class="feature-card-content">
+                        <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-calendar-days"></i></div>
+                        <h3 data-i18n="sg-f2-h">Гъвкави Графици</h3>
+                        <p data-i18n="sg-f2-p">Настройте кога да се пуска всеки плейлист – по определени часове, дни от седмицата или конкретен период.</p>
+                    </div>
+                </div>
+                <div class="feature-card glass reveal" style="min-height:auto;">
+                    <div class="feature-card-content">
+                        <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-database"></i></div>
+                        <h3 data-i18n="sg-f3-h">Офлайн-Първо Възпроизвеждане</h3>
+                        <p data-i18n="sg-f3-p">Android TV приложението изтегля клиповете на устройството и проверява техния MD5 хеш. Без стрийминг, без накъсване и без нужда от постоянен интернет.</p>
+                    </div>
+                </div>
+                <div class="feature-card glass reveal" style="min-height:auto;">
+                    <div class="feature-card-content">
+                        <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-bolt"></i></div>
+                        <h3 data-i18n="sg-f4-h">Незабавен Пуш</h3>
+                        <p data-i18n="sg-f4-p">Променили сте плейлиста? Натиснете 'Публикувай сега' и устройствата ще започнат изтегляне веднага чрез WebSocket сигнал.</p>
+                    </div>
+                </div>
+                <div class="feature-card glass reveal" style="min-height:auto;">
+                    <div class="feature-card-content">
+                        <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-heartbeat"></i></div>
+                        <h3 data-i18n="sg-f5-h">Мониторинг на автопарка</h3>
+                        <p data-i18n="sg-f5-p">Следете в реално време кое устройство кога е изпратило последен сигнал (heartbeat), какво възпроизвежда и статус на паметта.</p>
+                    </div>
+                </div>
+                <div class="feature-card glass reveal" style="min-height:auto;">
+                    <div class="feature-card-content">
+                        <div class="mod-icon" style="margin-bottom:20px;"><i class="fas fa-qrcode"></i></div>
+                        <h3 data-i18n="sg-f6-h">Лесно Сдвояване</h3>
+                        <p data-i18n="sg-f6-p">Свързването на нов екран към панела става за секунди с въвеждането на кратък 6-значен код от екрана.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CMS Overview -->
+    <section>
+        <div class="container">
+            <div class="split-row" style="margin-bottom: 0;">
+                <div class="split-visual reveal">
+                    <div class="glass" style="padding: 18px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.08);">
+                        <img src="assets/signage_cms_dashboard.png" alt="CMS Управление на Рекламни Екрани" style="width: 100%; border-radius: 14px; display: block;">
+                    </div>
+                </div>
+                <div class="reveal">
+                    <span class="eyebrow" data-i18n="sg-comm-eyebrow">Уеб Контролен Панел</span>
+                    <h2 style="margin: 20px 0 24px;"><span data-i18n="sg-comm-h2a">Всички кампании под</span> <span class="gradient-text" data-i18n="sg-comm-h2b">Ваш контрол</span></h2>
+                    <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.7;" data-i18n="sg-comm-p">Забравете за флашките и ръчното качване. От уеб браузъра управлявате плейлисти за цялата си транспортна мрежа – разделени по линии или градове.</p>
+                    <ul class="split-list">
+                        <li><i class="fas fa-network-wired"></i><div><strong data-i18n="sg-c1-h">Групиране на устройства</strong><span data-i18n="sg-c1-p">Разпределяйте екраните по превозни средства, маршрути или категории (напр. само градски автобуси).</span></div></li>
+                        <li><i class="fas fa-file-invoice-dollar"></i><div><strong data-i18n="sg-c2-h">Автоматични отчети за показвания</strong><span data-i18n="sg-c2-p">Детайлна статистика за броя излъчвания на всеки рекламен клип за отчет пред Вашите рекламодатели.</span></div></li>
+                        <li><i class="fas fa-columns"></i><div><strong data-i18n="sg-c3-h">Поддръжка на разделен екран</strong><span data-i18n="sg-c3-p">Възможност за показване на реклама успоредно с информация за пътуването (следваща спирка, време, карта).</span></div></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Business value -->
+    <section style="background: rgba(255,255,255,0.01); border-top: 1px solid rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.03);">
+        <div class="container">
+            <div class="section-head" style="margin-bottom: 50px;">
+                <span class="eyebrow" data-i18n="sg-val-eyebrow">Бизнес ползи</span>
+                <h2 data-i18n="sg-val-h2">Защо превозвачите внедряват рекламни екрани</h2>
+            </div>
+            <div class="value-grid">
+                <div class="value-card glass reveal">
+                    <div class="value-icon bg-cyan"><i class="fas fa-coins"></i></div>
+                    <h3 data-i18n="sg-val-c1-title">Нов източник на приходи</h3>
+                    <p data-i18n="sg-val-c1-desc">Продавайте рекламно време на местни бизнеси и брандове, което напълно изплаща инвестицията в хардуера.</p>
+                </div>
+                <div class="value-card glass reveal" style="transition-delay: 0.1s;">
+                    <div class="value-icon bg-green"><i class="fas fa-circle-info"></i></div>
+                    <h3 data-i18n="sg-val-c2-title">Информирани пътници</h3>
+                    <p data-i18n="sg-val-c2-desc">Показвайте интересна информация, новини, времето и съобщения от общината успоредно с видео съдържанието.</p>
+                </div>
+                <div class="value-card glass reveal" style="transition-delay: 0.2s;">
+                    <div class="value-icon bg-yellow"><i class="fas fa-shield-halved"></i></div>
+                    <h3 data-i18n="sg-val-c3-title">100% Автономност</h3>
+                    <p data-i18n="sg-val-c3-desc">Системата работи стабилно дори в тунели и региони без интернет покритие, без да прекъсва видеото.</p>
+                </div>
+                <div class="value-card glass reveal" style="transition-delay: 0.3s;">
+                    <div class="value-icon bg-purple"><i class="fas fa-star"></i></div>
+                    <h3 data-i18n="sg-val-c4-title">Повишено доверие</h3>
+                    <p data-i18n="sg-val-c4-desc">Модерно оборудваните автобуси повишават имиджа на Вашата компания пред общини и партньори.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section>
+        <div class="container">
+            <div class="glass reveal" style="padding: 70px 40px; text-align: center; border-color: rgba(34,211,238,0.4);">
+                <h2 style="margin-bottom: 20px;" data-i18n="sg-cta-h">Превърнете автобусите си в печеливша медия още днес</h2>
+                <p style="color: var(--text-muted); font-size: 1.2rem; max-width: 700px; margin: 0 auto 40px;" data-i18n="sg-cta-p">Signage модулът се предлага като част от нашия Корпоративен план или като самостоятелно софтуерно решение.</p>
+                <a href="index.html#contact" class="btn btn-primary"><span data-i18n="req-demo">Заявете демонстрация</span> <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container footer-content">
+            <div class="footer-logo">
+                <a href="index.html" class="logo" style="margin-bottom: 20px;"><i class="fas fa-bus-simple"></i> Transit<span>Flow</span></a>
+                <p data-i18n="foot-p">Лидер в дигиталната трансформация на градския и крайградския транспорт.</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-column">
+                    <h4 data-i18n="foot-prod">Продукт</h4>
+                    <ul>
+                        <li><a href="features.html" data-i18n="nav-features">Функции</a></li>
+                        <li><a href="passenger-app.html" data-i18n="dd-app-t">Приложение за пътници</a></li>
+                        <li><a href="inspections.html" data-i18n="dd-insp-t">Контрол и Сигурност</a></li>
+                        <li><a href="fleet.html" data-i18n="dd-fleet-t">Наемане на автобуси</a></li>
+                        <li><a href="hardware.html" data-i18n="foot-hw">Хардуер</a></li>
+                        <li><a href="signage.html" data-i18n="dd-signage-t">Рекламни Екрани</a></li>
+                        <li><a href="zakon.html" data-i18n="nav-law">ЗОТ Съответствие 2026</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4 data-i18n="foot-comp">Компания</h4>
+                    <ul>
+                        <li><a href="about.html" data-i18n="foot-about">За Нас</a></li>
+                        <li><a href="faq.html" data-i18n="foot-faq">Въпроси и Отговори</a></li>
+                        <li><a href="index.html#contact" data-i18n="nav-contact">Контакти</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4 data-i18n="foot-legal">Правно</h4>
+                    <ul>
+                        <li><a href="terms.html" data-i18n="foot-terms">Условия</a></li>
+                        <li><a href="privacy.html" data-i18n="foot-priv">Поверителност</a></li>
+                        <li><a href="cookies.html" data-i18n="foot-cookies">Бисквитки</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="container footer-bottom">
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <p>&copy; 2026 TransitFlow. <span data-i18n="foot-rights">Всички права запазени.</span></p>
+                <p style="font-size: 0.8rem; opacity: 0.6; color: var(--text-muted);"><strong>"ДАВИДА БГ" ЕООД</strong> | <span data-i18n="about-uic">ЕИК 204356138</span></p>
+            </div>
+            <div style="display: flex; gap: 20px;">
+                <a href="#"><i class="fab fa-linkedin-in"></i></a>
+                <a href="#"><i class="fab fa-facebook-f"></i></a>
+                <a href="#"><i class="fab fa-twitter"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+</body>
+</html>
