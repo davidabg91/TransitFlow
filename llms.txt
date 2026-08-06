@@ -30,5 +30,5 @@ TransitFlow е цялостна система за управление на а
 
 ## Контакт
 
-- Имейл: davida1991@gmail.com
 - Уебсайт: https://transitflow.org
+- Форма за контакт: https://transitflow.org/#contact
