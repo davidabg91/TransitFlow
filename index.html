@@ -797,8 +797,8 @@
                             <input type="text" name="city" class="form-input" data-i18n-ph="form-city" placeholder="София" style="margin: 0;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 6px;">
-                            <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted);" data-i18n="form-plan-label">Интерес</label>
-                            <select id="plan-select" name="plan" class="form-input" style="appearance: auto; margin: 0;">
+                            <label for="plan-select" style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted);" data-i18n="form-plan-label">Интерес</label>
+                            <select id="plan-select" name="plan" class="form-input" aria-label="Изберете план" style="appearance: auto; margin: 0;">
                                 <option value="" data-i18n="form-plan-select">Изберете план</option>
                                 <option value="start" data-i18n="form-plan-start">Старт</option>
                                 <option value="pro" data-i18n="form-plan-pro">Професионален</option>
@@ -874,9 +874,9 @@
                 </p>
             </div>
             <div style="display: flex; gap: 20px;">
-                <a href="#"><i class="fab fa-linkedin-in"></i></a>
-                <a href="#"><i class="fab fa-facebook-f"></i></a>
-                <a href="#"><i class="fab fa-twitter"></i></a>
+                <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in" aria-hidden="true"></i></a>
+                <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f" aria-hidden="true"></i></a>
+                <a href="#" aria-label="Twitter / X"><i class="fab fa-twitter" aria-hidden="true"></i></a>
             </div>
         </div>
     </footer>
