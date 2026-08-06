@@ -50,8 +50,8 @@
     </script>
 
     <link rel="stylesheet" href="index.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="translations.js"></script>
+    <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+    <script src="translations.js" defer></script>
     <script src="cookie-consent.js" defer></script>
     <!-- Google Analytics - Consent Mode v2 (GDPR compliant) -->
     <script>
@@ -246,7 +246,7 @@
                 </div>
                 <div class="split-visual reveal">
                     <div class="glass" style="padding: 16px; border-radius: 24px; box-shadow: 0 30px 60px rgba(0,0,0,0.5);">
-                        <img src="assets/mypos_nfc_validation.png" alt="NFC Валидация в TransitFlow" style="width: 100%; border-radius: 14px; display: block;">
+                        <img src="assets/mypos_nfc_validation.webp" alt="NFC Валидация в TransitFlow" style="width: 100%; border-radius: 14px; display: block;">
                     </div>
                 </div>
             </div>
@@ -254,7 +254,7 @@
             <div class="split-row" style="margin-top: 100px;">
                 <div class="split-visual reveal">
                     <div class="glass" style="padding: 16px; border-radius: 24px; box-shadow: 0 30px 60px rgba(0,0,0,0.5);">
-                        <img src="assets/dashboard_finance_screenshot_1775309930724.png" alt="Справки и отчети за субсидии в TransitFlow" style="width: 100%; border-radius: 14px; display: block;">
+                        <img src="assets/dashboard_finance_screenshot_1775309930724.webp" alt="Справки и отчети за субсидии в TransitFlow" style="width: 100%; border-radius: 14px; display: block;">
                     </div>
                 </div>
                 <div class="reveal">
@@ -400,6 +400,6 @@
         </div>
     </footer>
 
-    <script src="main.js"></script>
+    <script src="main.js" defer></script>
 </body>
 </html>

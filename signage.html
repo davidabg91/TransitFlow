@@ -10,7 +10,7 @@
     <!-- Social Media Sharing (Open Graph) -->
     <meta property="og:title" content="Рекламни Екрани и Дигитална Медия | TransitFlow Signage SaaS" data-i18n-content="m-signage-title">
     <meta property="og:description" content="SaaS платформа за управление на рекламни екрани в транспорта. Списъци по график, автоматично прекодиране, офлайн-първо Android приложение и одит журнал." data-i18n-content="m-signage-desc">
-    <meta property="og:image" content="https://transitflow.org/assets/signage_cms_dashboard.png">
+    <meta property="og:image" content="https://transitflow.org/assets/signage_cms_dashboard.webp">
     <meta property="og:url" content="https://transitflow.org/signage.html">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="TransitFlow">
@@ -19,7 +19,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Рекламни Екрани и Дигитална Медия | TransitFlow Signage SaaS" data-i18n-content="m-signage-title">
     <meta name="twitter:description" content="SaaS платформа за управление на рекламни екрани в транспорта. Списъци по график, автоматично прекодиране, офлайн-първо Android приложение и одит журнал." data-i18n-content="m-signage-desc">
-    <meta name="twitter:image" content="https://transitflow.org/assets/signage_cms_dashboard.png">
+    <meta name="twitter:image" content="https://transitflow.org/assets/signage_cms_dashboard.webp">
     
     <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json">
@@ -37,7 +37,7 @@
         "availability": "https://schema.org/InStock"
       },
       "description": "SaaS модул за управление на рекламни екрани в градския и междуградски транспорт. Позволява качване на медийни файлове, съставяне на плейлисти, автоматично транскодиране и офлайн-първо излъчване на екраните в автобусите.",
-      "screenshot": "https://transitflow.org/assets/signage_cms_dashboard.png",
+      "screenshot": "https://transitflow.org/assets/signage_cms_dashboard.webp",
       "author": {
         "@type": "Organization",
         "name": "ДАВИДА БГ ЕООД",
@@ -48,8 +48,8 @@
     
     <link rel="icon" type="image/png" href="assets/favicon.png">
     <link rel="stylesheet" href="index.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="translations.js"></script>
+    <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+    <script src="translations.js" defer></script>
     <script src="cookie-consent.js" defer></script>
     <!-- Google Analytics - Consent Mode v2 -->
     <script>
@@ -144,7 +144,7 @@
                             <span class="app-badge-live" style="background: rgba(0, 200, 83, 0.15); color: #00c853;"><i class="fas fa-circle" style="font-size:0.5rem;"></i> <span data-i18n="sg-live">ОФЛАЙН-ПЪРВИ</span></span>
                         </div>
                         <div style="flex: 1; position: relative;">
-                            <img src="assets/signage_bus_screen.png" alt="Digital Signage Bus Screen Mockup" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                            <img src="assets/signage_bus_screen.webp" alt="Digital Signage Bus Screen Mockup" style="width: 100%; height: 100%; object-fit: cover; display: block;">
                             <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%); padding: 15px 20px; display: flex; flex-direction: column; gap: 4px;">
                                 <div style="font-weight: 800; font-size: 0.85rem; color: #fff;" data-i18n="sg-playlist1">Реклама: Туристическа агенция</div>
                                 <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; justify-content: space-between;">
@@ -220,7 +220,7 @@
             <div class="split-row" style="margin-bottom: 0;">
                 <div class="split-visual reveal">
                     <div class="glass" style="padding: 18px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.08);">
-                        <img src="assets/signage_cms_dashboard.png" alt="CMS Управление на Рекламни Екрани" style="width: 100%; border-radius: 14px; display: block;">
+                        <img src="assets/signage_cms_dashboard.webp" alt="CMS Управление на Рекламни Екрани" style="width: 100%; border-radius: 14px; display: block;">
                     </div>
                 </div>
                 <div class="reveal">
@@ -330,6 +330,6 @@
         </div>
     </footer>
 
-    <script src="main.js"></script>
+    <script src="main.js" defer></script>
 </body>
 </html>
