@@ -14,7 +14,10 @@ const Layout: React.FC = () => {
     const isClientProfilePath = location.pathname.startsWith('/client/');
     const isRentPath = location.pathname === '/rent';
     const isAdminPath = location.pathname === '/admin' || location.pathname === '/system-admin' || location.pathname === '/inspections';
-    const isFullScreen = isClientProfilePath || isRentPath || isAdminPath;
+    // The demo hub paints its own full-bleed background, so it must not sit
+    // inside the centred, max-width content column.
+    const isDemoHubPath = location.pathname === '/';
+    const isFullScreen = isClientProfilePath || isRentPath || isAdminPath || isDemoHubPath;
     const { currentUser, logout } = useAuth();
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -194,17 +197,21 @@ const Layout: React.FC = () => {
                         }}
                     >Помощ</Link>
 
-                    <div style={{
+                    <div title={currentUser.username} style={{
                         display: 'flex', alignItems: 'center', gap: '0.5rem',
                         padding: '0.4rem 0.8rem', borderRadius: '50px',
                         background: 'rgba(255,255,255,0.06)',
                         border: '1px solid var(--surface-border)',
                         fontSize: '0.85rem',
+                        minWidth: 0,
                     }}>
                         {currentUser.role === 'admin'
-                            ? <ShieldCheck size={16} color="#ff5252" />
-                            : <Shield size={16} color="var(--primary-color)" />}
-                        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{currentUser.username}</span>
+                            ? <ShieldCheck size={16} color="#ff5252" style={{ flexShrink: 0 }} />
+                            : <Shield size={16} color="var(--primary-color)" style={{ flexShrink: 0 }} />}
+                        <span style={{
+                            color: 'var(--text-primary)', fontWeight: 600,
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>{currentUser.username}</span>
                     </div>
 
                     <button
@@ -302,18 +309,22 @@ const Layout: React.FC = () => {
                 boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
                 width: '100%',
             }}>
-                <Link to="/" onClick={(e) => handleGuardedNavigation(e, '/')} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', gap: '0', userSelect: 'none' }}>
+                <Link to="/" onClick={(e) => handleGuardedNavigation(e, '/')} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', gap: '0', userSelect: 'none', flexShrink: 0 }}>
                     <div style={{
                         padding: '0',
                         display: 'flex',
                         alignItems: 'center',
+                        flexShrink: 0,
                     }}>
                         <img
                             src={logo}
                             alt="TransitFlow"
                             style={{
-                                height: isMobile ? '40px' : '55px',
+                                height: isMobile ? '34px' : '46px',
                                 width: 'auto',
+                                // The wordmark is wide; without this the header's
+                                // flex layout squeezes it instead of the nav.
+                                flexShrink: 0,
                                 objectFit: 'contain',
                                 display: 'block'
                             }}
@@ -349,7 +360,7 @@ const Layout: React.FC = () => {
                 </Link>
 
                 {/* Desktop Nav */}
-                <nav className="desktop-nav" style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                <nav className="desktop-nav" style={{ display: 'flex', gap: '1.15rem', alignItems: 'center', minWidth: 0, flexShrink: 1, justifyContent: 'flex-end' }}>
                     {navLinks}
                 </nav>
 

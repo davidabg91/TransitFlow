@@ -46,6 +46,7 @@ const PREFIX = 'transitflow_demo:';
 const PATH_INDEX_KEY = `${PREFIX}__paths__`;
 const CURRENT_USER_KEY = `${PREFIX}__session__`;
 const SEED_VERSION_KEY = `${PREFIX}__seed_version__`;
+const SIGNED_OUT_KEY = `${PREFIX}__signed_out__`;
 
 /** Bump to force a re-seed for returning visitors after the demo data changes. */
 const SEED_VERSION = '2026.08.18.1';
@@ -507,6 +508,21 @@ export const writeBatch = (_dbInstance: any) => {
 
 const readSession = () => readJson(CURRENT_USER_KEY, null);
 
+/**
+ * The demo opens already signed in as the administrator, so every panel is
+ * reachable without a login step. If a visitor deliberately signs out we honour
+ * that and leave them on the login screen; resetting the demo data restores the
+ * default session.
+ */
+const ensureDemoSession = () => {
+    if (localStorage.getItem(SIGNED_OUT_KEY)) return;
+    if (readSession()) return;
+    const admin = readCollection('users').find((u: any) => u.role === 'admin');
+    if (admin) writeJson(CURRENT_USER_KEY, admin);
+};
+
+ensureDemoSession();
+
 export const auth: any = {
     get currentUser() {
         const u = readSession();
@@ -563,6 +579,7 @@ export const signInWithEmailAndPassword = async (_authInstance: any, email: stri
         ?? (matched ? String(matched.username).split('@')[0] : undefined);
 
     if (matched && password === expected) {
+        localStorage.removeItem(SIGNED_OUT_KEY);
         writeJson(CURRENT_USER_KEY, matched);
         writeUpdate('users', matched.id, { lastSeen: new Date().toISOString() });
         notify('users');
@@ -579,6 +596,7 @@ export const signInWithEmailAndPassword = async (_authInstance: any, email: stri
 
 export const signOut = async (_authInstance: any) => {
     localStorage.removeItem(CURRENT_USER_KEY);
+    localStorage.setItem(SIGNED_OUT_KEY, '1');
     broadcastAuth();
 };
 

@@ -298,8 +298,9 @@ const DemoHub: React.FC = () => {
                         <KeyRound size={16} /> Демо акаунти
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: 1.6, marginTop: 0, marginBottom: '1.5rem' }}>
-                        Модулите по-горе влизат автоматично. Ако искате да тествате самия екран за вход и различните нива на достъп,
-                        използвайте някой от тези акаунти на <span style={{ color: '#fff', fontWeight: 700 }}>/login</span>:
+                        Демото ви вписва автоматично като <span style={{ color: '#fff', fontWeight: 700 }}>администратор</span>, за да са достъпни
+                        всички панели веднага. Ако искате да видите самия екран за вход и различните нива на достъп, натиснете
+                        „Изход“ горе вдясно и влезте с някой от тези акаунти:
                     </p>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
                         {[

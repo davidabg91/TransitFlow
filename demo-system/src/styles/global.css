@@ -128,6 +128,14 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
+/* Header nav: labels keep their full width; only the account badge (which sets
+   its own min-width: 0) gives way when the header runs out of room. */
+.desktop-nav > a,
+.desktop-nav > button {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
 @media (max-width: 900px) {
     .desktop-nav {
         display: none !important;

@@ -66,7 +66,7 @@ const LoginPage: React.FC = () => {
             <div style={{ width: '100%', maxWidth: '400px', textAlign: 'center' }}>
                 <div style={{ marginBottom: '1.5rem' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                        <img src={logo} alt="Logo" style={{ height: '160px', width: 'auto', objectFit: 'contain', marginBottom: '-10px' }} />
+                        <img src={logo} alt="TransitFlow" style={{ height: '78px', width: 'auto', maxWidth: '100%', objectFit: 'contain', marginBottom: '0.5rem' }} />
                         <div style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: '1.4rem', fontWeight: 900, letterSpacing: '-0.02em', color: '#ff5252' }}>TRANSITFLOW CARD</div>
                             <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>SYSTEM</div>
