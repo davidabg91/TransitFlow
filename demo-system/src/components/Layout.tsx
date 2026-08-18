@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import logo from '../assets/logo_main.png';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, ShieldCheck, Shield, Menu, X, Bus, Globe } from 'lucide-react';
+import { LogOut, ShieldCheck, Shield, Menu, X } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from '../firebase';
+import InstallPWA from './InstallPWA';
+
 
 const Layout: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const isClientProfilePath = location.pathname.startsWith('/client/');
     const isRentPath = location.pathname === '/rent';
-    const isAdminPath = location.pathname === '/admin' || location.pathname === '/system-admin';
-    const isHubPath = location.pathname === '/';
-    const isFullScreen = isClientProfilePath || isRentPath || isAdminPath || isHubPath;
+    const isAdminPath = location.pathname === '/admin' || location.pathname === '/system-admin' || location.pathname === '/inspections';
+    const isFullScreen = isClientProfilePath || isRentPath || isAdminPath;
     const { currentUser, logout } = useAuth();
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -55,11 +57,28 @@ const Layout: React.FC = () => {
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
     const closeMenu = () => setIsMenuOpen(false);
 
+    const handleGuardedNavigation = (e: React.MouseEvent, targetPath: string) => {
+        const win = window as unknown as { 
+            __moderatorGuardActive?: boolean; 
+            __triggerModeratorGuard?: (onConfirmProceed?: () => void) => void; 
+        };
+        if (win.__moderatorGuardActive && typeof win.__triggerModeratorGuard === 'function') {
+            e.preventDefault();
+            e.stopPropagation();
+            closeMenu();
+            win.__triggerModeratorGuard(() => {
+                navigate(targetPath);
+            });
+            return;
+        }
+        closeMenu();
+    };
+
     const navLinks = (
         <>
             <Link
                 to="/"
-                onClick={closeMenu}
+                onClick={(e) => handleGuardedNavigation(e, '/')}
                 style={{
                     color: location.pathname === '/' ? '#ff5252' : '#fff',
                     fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
@@ -68,13 +87,25 @@ const Layout: React.FC = () => {
                     display: 'flex',
                     alignItems: 'center'
                 }}
-            >Начало</Link>
+            >Демо меню</Link>
+            <Link
+                to="/schedules"
+                onClick={(e) => handleGuardedNavigation(e, '/schedules')}
+                style={{
+                    color: location.pathname === '/schedules' ? '#ff5252' : '#fff',
+                    fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
+                    borderBottom: location.pathname === '/schedules' ? '2px solid #ff5252' : '2px solid transparent',
+                    paddingBottom: '2px',
+                    display: 'flex',
+                    alignItems: 'center'
+                }}
+            >Разписания</Link>
 
             {(!currentUser || currentUser.role === 'admin') && (
                 <>
                     <Link
                         to="/signal"
-                        onClick={closeMenu}
+                        onClick={(e) => handleGuardedNavigation(e, '/signal')}
                         style={{
                             color: location.pathname === '/signal' ? '#ff5252' : '#fff',
                             fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
@@ -86,7 +117,7 @@ const Layout: React.FC = () => {
                     >Сигнал</Link>
                     <Link
                         to="/rent"
-                        onClick={closeMenu}
+                        onClick={(e) => handleGuardedNavigation(e, '/rent')}
                         style={{
                             color: location.pathname === '/rent' ? '#ff5252' : '#fff',
                             fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
@@ -101,9 +132,10 @@ const Layout: React.FC = () => {
 
             {currentUser && (
                 <>
+                    {currentUser.role !== 'inspector' && (
                     <Link
                         to="/admin"
-                        onClick={closeMenu}
+                        onClick={(e) => handleGuardedNavigation(e, '/admin')}
                         style={{
                             color: isAdminPath && location.pathname === '/admin' ? '#ff5252' : '#fff',
                             fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
@@ -123,11 +155,25 @@ const Layout: React.FC = () => {
                             }}></span>
                         )}
                     </Link>
+                    )}
+
+                        {(currentUser.role === 'admin' || currentUser.role === 'inspector') && (
+                            <Link
+                                to="/inspections"
+                                onClick={(e) => handleGuardedNavigation(e, '/inspections')}
+                                style={{
+                                    color: location.pathname === '/inspections' ? '#ffab00' : '#fff',
+                                    fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
+                                    borderBottom: location.pathname === '/inspections' ? '2px solid #ffab00' : '2px solid transparent',
+                                    paddingBottom: '2px',
+                                }}
+                            >Проверки</Link>
+                        )}
 
                         {currentUser.role === 'admin' && (
                             <Link
                                 to="/system-admin"
-                                onClick={closeMenu}
+                                onClick={(e) => handleGuardedNavigation(e, '/system-admin')}
                                 style={{
                                     color: location.pathname === '/system-admin' ? '#ff5252' : '#fff',
                                     fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
@@ -139,7 +185,7 @@ const Layout: React.FC = () => {
 
                     <Link
                         to="/help"
-                        onClick={closeMenu}
+                        onClick={(e) => handleGuardedNavigation(e, '/help')}
                         style={{
                             color: location.pathname === '/help' ? '#ff5252' : '#fff',
                             fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
@@ -181,7 +227,7 @@ const Layout: React.FC = () => {
             {!currentUser && (
                 <Link
                     to="/login"
-                    onClick={closeMenu}
+                    onClick={(e) => handleGuardedNavigation(e, '/login')}
                     style={{
                         padding: '0.5rem 1.5rem', borderRadius: '10px',
                         background: '#e53935', color: '#fff',
@@ -196,16 +242,18 @@ const Layout: React.FC = () => {
 
     const mobileNavLinks = (
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <Link to="/" onClick={closeMenu} className="mobile-nav-link">Начало</Link>
+            <Link to="/" onClick={(e) => handleGuardedNavigation(e, '/')} className="mobile-nav-link">Демо меню</Link>
+            <Link to="/schedules" onClick={(e) => handleGuardedNavigation(e, '/schedules')} className="mobile-nav-link">Разписания</Link>
             {(!currentUser || currentUser.role === 'admin') && (
                 <>
-                    <Link to="/signal" onClick={closeMenu} className="mobile-nav-link">Сигнал</Link>
-                    <Link to="/rent" onClick={closeMenu} className="mobile-nav-link">Наеми автобус</Link>
+                    <Link to="/signal" onClick={(e) => handleGuardedNavigation(e, '/signal')} className="mobile-nav-link">Сигнал</Link>
+                    <Link to="/rent" onClick={(e) => handleGuardedNavigation(e, '/rent')} className="mobile-nav-link">Наеми автобус</Link>
                 </>
             )}
             {currentUser && (
                 <>
-                    <Link to="/admin" onClick={closeMenu} className="mobile-nav-link" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    {currentUser.role !== 'inspector' && (
+                    <Link to="/admin" onClick={(e) => handleGuardedNavigation(e, '/admin')} className="mobile-nav-link" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         Мениджър
                         {totalUnread > 0 && (
                             <span style={{
@@ -214,10 +262,14 @@ const Layout: React.FC = () => {
                             }}>{totalUnread}</span>
                         )}
                     </Link>
-                    {currentUser.role === 'admin' && (
-                        <Link to="/system-admin" onClick={closeMenu} className="mobile-nav-link">Админ Панел</Link>
                     )}
-                    <Link to="/help" onClick={closeMenu} className="mobile-nav-link">Помощ</Link>
+                    {(currentUser.role === 'admin' || currentUser.role === 'inspector') && (
+                        <Link to="/inspections" onClick={(e) => handleGuardedNavigation(e, '/inspections')} className="mobile-nav-link">Проверки</Link>
+                    )}
+                    {currentUser.role === 'admin' && (
+                        <Link to="/system-admin" onClick={(e) => handleGuardedNavigation(e, '/system-admin')} className="mobile-nav-link">Админ Панел</Link>
+                    )}
+                    <Link to="/help" onClick={(e) => handleGuardedNavigation(e, '/help')} className="mobile-nav-link">Помощ</Link>
                     <div style={{ padding: '0.8rem 1.2rem', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
                         {currentUser.role === 'admin' ? <ShieldCheck size={18} color="#ff5252" /> : <Shield size={18} color="var(--primary-color)" />}
                         <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{currentUser.username}</span>
@@ -228,7 +280,7 @@ const Layout: React.FC = () => {
                 </>
             )}
             {!currentUser && (
-                <Link to="/login" onClick={closeMenu} className="mobile-nav-link" style={{ background: '#e53935', color: '#fff', textAlign: 'center', marginTop: '1rem', border: 'none' }}>Вход</Link>
+                <Link to="/login" onClick={(e) => handleGuardedNavigation(e, '/login')} className="mobile-nav-link" style={{ background: '#e53935', color: '#fff', textAlign: 'center', marginTop: '1rem', border: 'none' }}>Вход</Link>
             )}
         </nav>
     );
@@ -250,49 +302,51 @@ const Layout: React.FC = () => {
                 boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
                 width: '100%',
             }}>
-                <a href="https://transitflow.org/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', gap: '10px', userSelect: 'none' }}>
+                <Link to="/" onClick={(e) => handleGuardedNavigation(e, '/')} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', gap: '0', userSelect: 'none' }}>
                     <div style={{
+                        padding: '0',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px',
-                        background: 'rgba(0, 173, 181, 0.1)',
-                        padding: '6px 12px',
-                        borderRadius: '50px',
-                        border: '1px solid rgba(0, 173, 181, 0.3)'
                     }}>
-                        <Bus size={22} color="var(--primary-color)" />
-                        <span style={{
-                            fontSize: '1.2rem',
-                            fontWeight: 900,
-                            color: '#fff',
-                            letterSpacing: '-0.5px'
-                        }}>
-                            Transit<span style={{ color: 'var(--primary-color)' }}>Flow</span>
-                        </span>
+                        <img
+                            src={logo}
+                            alt="TransitFlow"
+                            style={{
+                                height: isMobile ? '40px' : '55px',
+                                width: 'auto',
+                                objectFit: 'contain',
+                                display: 'block'
+                            }}
+                        />
                     </div>
                     <div style={{
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'flex-start',
+                        marginLeft: isMobile ? '8px' : '15px',
                         alignSelf: 'center',
-                        lineHeight: 1.1
+                        borderLeft: '2px solid #e53935',
+                        paddingLeft: isMobile ? '6px' : '8px',
+                        lineHeight: 1.1,
+                        marginTop: '-3px'
                     }}>
                         <span style={{
-                            fontSize: '0.85rem',
-                            fontWeight: 800,
+                            fontSize: isMobile ? '0.85rem' : '1.1rem',
+                            fontWeight: 900,
                             letterSpacing: '0.05em',
                             textTransform: 'uppercase',
-                            color: 'var(--primary-color)',
-                        }}>ДЕМО</span>
+                            color: location.pathname === '/' ? 'var(--primary-color)' : '#ff5252',
+                        }}>{location.pathname === '/' ? 'TRANSPORT' : 'CARD'}</span>
                         <span style={{
-                            fontSize: '0.6rem',
+                            fontSize: '0.55rem',
                             fontWeight: 700,
                             letterSpacing: '0.15em',
                             textTransform: 'uppercase',
-                            color: 'var(--text-secondary)',
-                        }}>СИСТЕМА</span>
+                            color: '#fff',
+                            opacity: 0.8
+                        }}>SYSTEM</span>
                     </div>
-                </a>
+                </Link>
 
                 {/* Desktop Nav */}
                 <nav className="desktop-nav" style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
@@ -359,20 +413,51 @@ const Layout: React.FC = () => {
                 <Outlet />
             </main>
 
-            {!isHubPath && (
-                <footer style={{
-                    padding: '2rem',
-                    textAlign: 'center',
-                    color: 'rgba(255,255,255,0.5)',
-                    borderTop: '1px solid var(--surface-border)',
-                    fontSize: '0.875rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
+            <footer style={{
+                padding: '0.75rem 1.5rem',
+                color: 'rgba(255,255,255,0.4)',
+                borderTop: isClientProfilePath ? '1px solid rgba(255,255,255,0.08)' : (location.pathname === '/' ? 'none' : '1px solid var(--surface-border)'),
+                fontSize: '0.8rem',
+                background: isClientProfilePath ? 'rgba(26, 26, 26, 0.85)' : 'transparent',
+                backdropFilter: isClientProfilePath ? 'blur(12px)' : 'none',
+                WebkitBackdropFilter: isClientProfilePath ? 'blur(12px)' : 'none',
+                boxShadow: isClientProfilePath ? '0 -4px 20px rgba(0,0,0,0.4)' : 'none',
+                width: '100%',
+                boxSizing: 'border-box',
+                display: 'flex',
+                flexDirection: isMobile ? 'column' : 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '1rem',
+            }}>
+                {/* Left Side: Copyright & Legal */}
+                <div style={{ 
+                    display: 'flex', 
+                    flexWrap: 'wrap', 
+                    alignItems: 'center', 
+                    justifyContent: isMobile ? 'center' : 'flex-start',
                     gap: '0.75rem',
+                    textAlign: 'center'
                 }}>
+                    <span>© {new Date().getFullYear()} TransitFlow</span>
+                    <span style={{ opacity: 0.3 }}>•</span>
+                    <Link to="/legal" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.color = '#fff'} onMouseOut={(e) => e.currentTarget.style.color = 'inherit'}>Правна информация</Link>
+                    <span style={{ opacity: 0.3 }}>•</span>
+                    <Link to="/legal" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.color = '#fff'} onMouseOut={(e) => e.currentTarget.style.color = 'inherit'}>Лични данни</Link>
+                </div>
+
+                {/* Right Side: Install PWA & Developer Credit */}
+                <div style={{ 
+                    display: 'flex', 
+                    flexWrap: 'wrap', 
+                    alignItems: 'center', 
+                    justifyContent: isMobile ? 'center' : 'flex-end',
+                    gap: '1rem' 
+                }}>
+                    <InstallPWA compact={true} />
+                    {(!isMobile || isClientProfilePath) && <span style={{ opacity: 0.3 }}>•</span>}
                     <a 
-                        href="http://davidax.org/" 
+                        href="https://transitflow.org/"
                         target="_blank" 
                         rel="noopener noreferrer"
                         style={{ 
@@ -380,109 +465,24 @@ const Layout: React.FC = () => {
                             color: 'inherit', 
                             display: 'flex', 
                             alignItems: 'center',
-                            gap: '0.75rem',
-                            padding: '0.6rem 1.25rem',
-                            borderRadius: '12px',
-                            background: 'rgba(255,255,255,0.03)',
-                            border: '1px solid rgba(255,255,255,0.08)',
-                            backdropFilter: 'blur(10px)',
-                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                            gap: '4px',
+                            transition: 'color 0.2s'
                         }}
-                        onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                            e.currentTarget.style.borderColor = 'rgba(0, 173, 181, 0.3)';
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 173, 181, 0.15)';
-                        }}
-                        onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-                        }}
+                        onMouseOver={(e) => e.currentTarget.style.color = '#ff5252'}
+                        onMouseOut={(e) => e.currentTarget.style.color = 'inherit'}
                     >
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '8px',
-                            background: 'linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%)',
-                            color: '#fff',
-                            boxShadow: '0 0 15px rgba(0, 173, 181, 0.3)',
-                        }}>
-                            <ShieldCheck size={18} strokeWidth={2.5} />
-                        </div>
-                        <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ 
-                                fontSize: '0.6rem', 
-                                opacity: 0.5, 
-                                textTransform: 'uppercase', 
-                                letterSpacing: '0.15em',
-                                fontWeight: 700,
-                                marginBottom: '-2px'
-                            }}>Developed by</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span style={{ 
-                                    fontWeight: 900, 
-                                    fontSize: '1.1rem', 
-                                    letterSpacing: '0.02em', 
-                                    color: 'var(--text-primary)',
-                                    textShadow: '0 0 20px rgba(255,255,255,0.1)'
-                                }}>DavidaX</span>
-                                <span style={{ 
-                                    fontSize: '0.7rem', 
-                                    color: 'var(--primary-color)',
-                                    fontWeight: 800,
-                                    opacity: 0.9
-                                }}>&lt;/&gt;</span>
-                            </div>
-                        </div>
+                        <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>Powered by</span>
+                        <span style={{
+                            fontWeight: 800,
+                            backgroundImage: 'linear-gradient(90deg, #7dd3fc 0%, #2563eb 100%)',
+                            WebkitBackgroundClip: 'text',
+                            backgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            color: 'transparent'
+                        }}>TransitFlow</span>
                     </a>
-                    <p>© {new Date().getFullYear()} TransitFlow. Всички права запазени.</p>
-                    <p style={{ opacity: 0.6 }}>Интелигентни системи за градски транспорт и логистика</p>
-                </footer>
-            )}
-
-            {/* Modern Floating back to main website button */}
-            <a
-                href="https://transitflow.org/"
-                title="Обратно към основния сайт на TransitFlow"
-                style={{
-                    position: 'fixed',
-                    bottom: isMobile ? '1.25rem' : '2rem',
-                    right: isMobile ? '1.25rem' : '2rem',
-                    zIndex: 99999,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: isMobile ? '0.6rem 1rem' : '0.85rem 1.4rem',
-                    borderRadius: '50px',
-                    background: 'linear-gradient(135deg, var(--primary-color) 0%, #00d2c4 100%)',
-                    color: '#0f172a',
-                    fontWeight: 800,
-                    textDecoration: 'none',
-                    boxShadow: '0 8px 30px rgba(0, 173, 181, 0.4), inset 0 2px 4px rgba(255,255,255,0.4)',
-                    transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    cursor: 'pointer',
-                    fontSize: isMobile ? '0.8rem' : '0.9rem',
-                    letterSpacing: '-0.2px'
-                }}
-                onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-4px) scale(1.05)';
-                    e.currentTarget.style.boxShadow = '0 12px 35px rgba(0, 173, 181, 0.6), inset 0 2px 4px rgba(255,255,255,0.4)';
-                }}
-                onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                    e.currentTarget.style.boxShadow = '0 8px 30px rgba(0, 173, 181, 0.4), inset 0 2px 4px rgba(255,255,255,0.4)';
-                }}
-            >
-                <Globe size={isMobile ? 16 : 18} strokeWidth={2.5} />
-                <span>Основен сайт</span>
-            </a>
+                </div>
+            </footer>
         </div>
     );
 };

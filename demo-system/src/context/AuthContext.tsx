@@ -1,23 +1,22 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-    onAuthStateChanged, 
-    signInWithEmailAndPassword, 
-    signOut, 
-    createUserWithEmailAndPassword,
+import {
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    signOut,
     type User as FirebaseUser
 } from '../firebase';
-import { 
-    doc, 
-    getDoc, 
-    setDoc, 
-    collection, 
+import {
+    doc,
+    getDoc,
+    collection,
     onSnapshot,
     updateDoc,
     deleteDoc,
     query
 } from '../firebase';
-import { auth, db } from '../firebase';
+import { getFunctions, httpsCallable } from '../firebase';
+import app, { auth, db } from '../firebase';
 import type { AppUser, UserRole } from '../types/auth';
 
 interface AuthContextType {
@@ -37,10 +36,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [users, setUsers] = useState<AppUser[]>([]);
     const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
     const [loading, setLoading] = useState(true);
+    const loadingRef = React.useRef(loading);
+    useEffect(() => {
+        loadingRef.current = loading;
+    }, [loading]);
 
     useEffect(() => {
+        // Safety timeout: stop loading after 10 seconds even if Firebase hasn't responded
+        const safetyTimeout = setTimeout(() => {
+            if (loadingRef.current) {
+                console.warn('Authentication check timed out. Firebase might be blocked by a proxy or network issue.');
+                setLoading(false);
+            }
+        }, 10000);
+
         // 1. Listen for Auth State
         const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
+            clearTimeout(safetyTimeout);
             setLoading(true);
             try {
                 if (fbUser) {
@@ -50,11 +62,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         const data = userDoc.data();
                         setCurrentUser({
                             id: fbUser.uid,
-                            username: fbUser.email || '',
+                            username: data.username || fbUser.email || '',
                             passwordHash: '', // Not needed for Firebase
                             role: data.role as UserRole,
-                            createdAt: data.createdAt || new Date().toISOString()
+                            createdAt: data.createdAt || new Date().toISOString(),
+                            lastSeen: data.lastSeen || ''
                         });
+                        // Best-effort "last seen" stamp on each app load / login.
+                        updateDoc(doc(db, 'users', fbUser.uid), { lastSeen: new Date().toISOString() })
+                            .catch(() => { /* rules or offline — ignore */ });
                     } else {
                         // User exists in Auth but not in Firestore - no default role anymore
                         // This prevents unauthorized sign-ups from gaining access
@@ -82,7 +98,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     username: data.username || '',
                     passwordHash: '',
                     role: data.role as UserRole,
-                    createdAt: data.createdAt || ''
+                    createdAt: data.createdAt || '',
+                    lastSeen: data.lastSeen || ''
                 });
             });
             setUsers(userList);
@@ -100,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const login = async (email: string, password: string) => {
-        const emailToLogin = email.includes('@') ? email : `${email}@transitflow.org`;
+        const emailToLogin = email.includes('@') ? email : `${email}@transitflow.bg`;
         await signInWithEmailAndPassword(auth, emailToLogin, password);
     };
 
@@ -109,24 +126,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const addUser = async (username: string, password: string, role: UserRole) => {
-        // In Firebase, we usually create users via Auth. 
-        // For a simple management system, we create them with a dummy email if only username is provided
-        const email = username.includes('@') ? username : `${username}@transitflow.org`;
-        
-        // Note: This creates the user and SIGNS IN as them. 
-        // In a real admin panel, you'd use Firebase Admin SDK or a cloud function.
-        // For this simple app, we'll just handle the Firestore part if the user is already created,
-        // or let the user handle signups.
-        
-        // However, for this project, let's assume we use createUserWithEmailAndPassword
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const fbUser = userCredential.user;
-        
-        await setDoc(doc(db, 'users', fbUser.uid), {
-            username: email,
-            role,
-            createdAt: new Date().toISOString()
-        });
+        // Created via the createStaffUser Cloud Function (Admin SDK). This keeps the
+        // current admin signed in (the client SDK's createUserWithEmailAndPassword
+        // would switch the active session to the new user) and lets Firestore rules
+        // keep `users` writes admin-only.
+        const email = username.includes('@') ? username : `${username}@transitflow.bg`;
+        const fns = getFunctions(app);
+        const createStaffUser = httpsCallable(fns, 'createStaffUser');
+        await createStaffUser({ email, password, role });
     };
 
     const updateUserRole = async (userId: string, role: UserRole) => {

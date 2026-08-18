@@ -2,87 +2,45 @@ import React, { useState, useEffect } from 'react';
 
 interface AdSlideshowProps {
     onClose: () => void;
+    clientName?: string;
+    clientPhoto?: string;
 }
 
+// Advertising shown on the validator between scans — a revenue stream the
+// operator controls from the panel. The demo ships four sample creatives.
 const AD_IMAGES = [
-    {
-        url: '/assets/ads/ad_alps.png',
-        title: 'Езерата на Алпите',
-        description: 'Незабравимо пътуване до Сейнт Мориц'
-    },
-    {
-        url: '/assets/ads/ad_riviera.png',
-        title: 'Перлите на Ривиерата',
-        description: 'Монако, Ница и Сен Тропе'
-    },
-    {
-        url: '/assets/ads/ad_paris.png',
-        title: 'Магията на Париж',
-        description: 'Градът на светлините'
-    },
-    {
-        url: '/assets/ads/ad_kitai.png',
-        title: 'Мистичният Китай',
-        description: 'Великата китайска стена и забраненият град'
-    }
+    { url: 'assets/ads/ad_alps.png', title: 'Езерата на Алпите' },
+    { url: 'assets/ads/ad_riviera.png', title: 'Перлите на Ривиерата' },
+    { url: 'assets/ads/ad_paris.png', title: 'Магията на Париж' },
+    { url: 'assets/ads/ad_kitai.png', title: 'Мистичният Китай' },
 ];
 
-const AdSlideshow: React.FC<AdSlideshowProps> = ({ onClose }) => {
+const AdSlideshow: React.FC<AdSlideshowProps> = ({ onClose, clientName, clientPhoto }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [imagesLoaded, setImagesLoaded] = useState(false);
 
     useEffect(() => {
-        // Preload all images
-        const preloadImages = async () => {
-            const promises = AD_IMAGES.map(ad => {
-                return new Promise((resolve, reject) => {
-                    const img = new Image();
-                    img.src = ad.url;
-                    img.onload = resolve;
-                    img.onerror = reject;
-                });
-            });
-            try {
-                await Promise.all(promises);
-                setImagesLoaded(true);
-            } catch (err) {
-                console.error("Failed to preload some images", err);
-                setImagesLoaded(true); // Proceed anyway after attempt
-            }
-        };
-        preloadImages();
-    }, []);
-
-    useEffect(() => {
-        if (!imagesLoaded) return;
-
         const interval = setInterval(() => {
             setCurrentIndex((prev) => (prev + 1) % AD_IMAGES.length);
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [imagesLoaded]);
-
-    if (!imagesLoaded) return null;
+    }, []);
 
     return (
         <div 
             style={{
                 position: 'fixed',
                 inset: 0,
-                zIndex: 9999,
+                zIndex: 99999,
                 background: '#000',
                 display: 'flex',
                 flexDirection: 'column',
-                animation: 'fadeIn 0.5s ease',
-                willChange: 'opacity'
+                animation: 'fadeIn 0.5s ease'
             }}
             onClick={onClose}
         >
             {/* Ad Content */}
-            <div 
-                style={{ position: 'relative', flex: 1, overflow: 'hidden', background: '#000' }}
-            >
+            <div style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
                 {AD_IMAGES.map((ad, index) => {
                     const isActive = index === currentIndex;
                     return (
@@ -92,63 +50,34 @@ const AdSlideshow: React.FC<AdSlideshowProps> = ({ onClose }) => {
                                 position: 'absolute',
                                 inset: 0,
                                 opacity: isActive ? 1 : 0,
-                                visibility: isActive ? 'visible' : 'hidden',
-                                transition: 'opacity 1s cubic-bezier(0.4, 0, 0.2, 1), visibility 1s',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                pointerEvents: isActive ? 'auto' : 'none',
-                                backfaceVisibility: 'hidden',
-                                WebkitBackfaceVisibility: 'hidden',
-                                transform: 'translate3d(0,0,0)',
-                                WebkitTransform: 'translate3d(0,0,0)'
+                                transition: 'opacity 1s ease-in-out',
+                                background: `url(${ad.url}) center center / contain no-repeat`,
+                                backgroundColor: '#000'
                             }}
-                        >
-                            {/* Blurred Background - Simplified for mobile performance */}
-                            <img 
-                                src={ad.url} 
-                                alt="" 
-                                style={{ 
-                                    position: 'absolute',
-                                    inset: 0,
-                                    width: '100%', 
-                                    height: '100%', 
-                                    objectFit: 'cover',
-                                    filter: 'blur(20px) brightness(0.2)',
-                                    transform: 'scale(1.05)',
-                                    opacity: 0.6
-                                }} 
-                            />
-                            
-                            {/* Main Ad Image */}
-                            <img 
-                                className="main-ad-image"
-                                src={ad.url} 
-                                alt={ad.title}
-                                style={{ 
-                                    position: 'relative',
-                                    width: '100%', 
-                                    height: '100%', 
-                                    zIndex: 1,
-                                    boxShadow: '0 0 80px rgba(0,0,0,0.8)',
-                                    transform: 'translate3d(0,0,0)',
-                                    WebkitTransform: 'translate3d(0,0,0)'
-                                }} 
-                            />
-                        </div>
+                        />
                     );
                 })}
             </div>
+
+            {/* Interaction Hint */}
+            <div style={{ position: 'absolute', bottom: '5vh', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)', padding: '12px 24px', borderRadius: '30px', color: '#fff', fontSize: '0.9rem', fontWeight: 900, border: '1px solid rgba(255,255,255,0.1)', zIndex: 100 }}>
+                ДОКОСНИ ЕКРАНА ЗА ВРЪЩАНЕ
+            </div>
+
+            {/* Version and Mini Profile */}
+            <div style={{ position: 'absolute', top: '10px', right: '15px', fontSize: '10px', opacity: 0.3, zIndex: 100, color: '#fff' }}>TransitFlow DEMO</div>
+            
+            {clientPhoto && (
+                <div style={{ position: 'absolute', top: '4vh', right: '4vh', display: 'flex', alignItems: 'center', gap: '15px', background: 'rgba(0,0,0,0.4)', padding: '10px 20px', borderRadius: '20px', backdropFilter: 'blur(10px)', zIndex: 100 }}>
+                     <img src={clientPhoto} style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid #00e676' }} alt="Mini Profile" />
+                     {clientName && <span style={{ fontWeight: 900, fontSize: '0.8rem', color: '#fff' }}>{clientName.split(' ')[0]}</span>}
+                </div>
+            )}
 
             <style>{`
                 @keyframes fadeIn {
                     from { opacity: 0; }
                     to { opacity: 1; }
-                }
-                .main-ad-image {
-                    object-fit: contain;
-                    max-width: 100%;
-                    max-height: 100%;
                 }
             `}</style>
         </div>
@@ -156,3 +85,4 @@ const AdSlideshow: React.FC<AdSlideshowProps> = ({ onClose }) => {
 };
 
 export default AdSlideshow;
+

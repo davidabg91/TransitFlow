@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getFunctions, httpsCallable } from '../firebase';
 import { useAuth } from '../context/AuthContext';
+import app from '../firebase';
 import logo from '../assets/logo_main.png';
+
+// Codes that represent a real failed sign-in attempt worth reporting.
+const REPORTABLE_AUTH_CODES = [
+    'auth/wrong-password',
+    'auth/user-not-found',
+    'auth/invalid-credential',
+    'auth/too-many-requests',
+];
 
 const LoginPage: React.FC = () => {
     const { login, currentUser } = useAuth();
@@ -13,7 +23,7 @@ const LoginPage: React.FC = () => {
 
     useEffect(() => {
         if (currentUser) {
-            navigate('/admin');
+            navigate(currentUser.role === 'inspector' ? '/inspections' : '/admin');
         }
     }, [currentUser, navigate]);
 
@@ -32,6 +42,19 @@ const LoginPage: React.FC = () => {
                 setError('Грешно потребителско име или парола.');
             } else {
                 setError('Възникна грешка при вход. Моля, опитайте пак.');
+            }
+
+            // Report the failed attempt (fire-and-forget). The server enriches it
+            // with IP/geolocation and alerts admins on repeated attempts.
+            if (error.code && REPORTABLE_AUTH_CODES.includes(error.code)) {
+                try {
+                    const reportFailedLogin = httpsCallable(getFunctions(app), 'reportFailedLogin');
+                    reportFailedLogin({
+                        email: username.trim(),
+                        errorCode: error.code,
+                        ua: navigator.userAgent,
+                    }).catch(() => { /* ignore reporting errors */ });
+                } catch { /* ignore */ }
             }
         } finally {
             setLoading(false);
@@ -141,6 +164,25 @@ const LoginPage: React.FC = () => {
                         « Назад към Начало
                     </button>
                     
+                    <div style={{
+                        marginTop: '1rem', padding: '0.9rem 1rem', borderRadius: '12px', textAlign: 'left',
+                        background: 'rgba(0,173,181,0.07)', border: '1px solid rgba(0,173,181,0.25)'
+                    }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--primary-color)', marginBottom: '0.5rem' }}>
+                            ДЕМО АКАУНТИ
+                        </div>
+                        {[
+                            ['admin', 'admin', 'администратор'],
+                            ['staff', 'staff', 'модератор'],
+                            ['inspector', 'inspector', 'контрольор'],
+                        ].map(([user, pass, role]) => (
+                            <div key={user} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.75)', padding: '2px 0' }}>
+                                <span style={{ fontFamily: 'monospace' }}>{user} / {pass}</span>
+                                <span style={{ color: 'var(--text-secondary)' }}>{role}</span>
+                            </div>
+                        ))}
+                    </div>
+
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>
                         Система за сигурност TransitFlow © 2026
                     </p>

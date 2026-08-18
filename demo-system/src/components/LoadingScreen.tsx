@@ -41,7 +41,7 @@ const LoadingScreen: React.FC = () => {
                         color: '#ff5252',
                         opacity: 0.9,
                         marginBottom: '4px'
-                    }}>TRANSITFLOW SYSTEM</div>
+                    }}>TRANSITFLOW</div>
                     <div style={{ 
                         fontSize: '0.65rem', 
                         fontWeight: 700, 

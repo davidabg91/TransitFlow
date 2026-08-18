@@ -1,69 +1,148 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { CheckCircle, XCircle, Ban, Clock, Settings, RefreshCw, Camera, CreditCard, ShieldCheck, Lock, Bus } from 'lucide-react';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
+import { CheckCircle, XCircle, Ban, Clock, Settings, Camera, CreditCard, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-const AdSlideshow = React.lazy(() => import('../components/AdSlideshow'));
-const BusSchedule = React.lazy(() => import('../components/BusSchedule'));
 import { db } from '../firebase';
-import { doc, onSnapshot, setDoc, updateDoc, increment, arrayUnion, getDoc, addDoc, collection } from '../firebase';
+import { doc, onSnapshot, setDoc, updateDoc, increment, arrayUnion, addDoc, collection } from '../firebase';
 import LoadingScreen from '../components/LoadingScreen';
+import { ROUTE_METADATA, ROUTES, disabledFactor } from '../data/routeMetadata';
+import { uploadClientPhoto } from '../utils/photoStorage';
+import ClientPhoto from '../components/ClientPhoto';
+import LostCardTransfer from '../components/LostCardTransfer';
+import PaymentMethodSelector from '../components/PaymentMethodSelector';
+import ModeratorInactivityWarningModal from '../components/ModeratorInactivityWarningModal';
+import { MIXED_METHOD } from '../data/paymentMethods';
+import { CARDS_MAPPING } from '../data/cardsMapping';
+import { MUNICIPALITIES, MUNICIPALITY_CUSTOM, DEFAULT_MUNICIPALITY, needsMunicipality } from '../data/municipalities';
+import { SCHOOLS, SCHOOL_MUNICIPALITY } from '../data/schools';
 
 interface Client {
     id: string;
     name: string;
     route: string;
+    routes?: string[];
     expiryDate: string;
     photo: string;
     createdAt: string;
     amountPaid?: number;
     isCanceled?: boolean;
     cancelReason?: string;
-    renewalHistory?: { date: string, amount: number, month: string }[];
+    renewalHistory?: { date: string, amount: number, month: string, route?: string, paymentMethod?: string, bankAmount?: number, cashAmount?: number }[];
     history?: { date: string; action: string; details?: string; amount?: number; performedBy?: string; }[];
     cardType?: string;
     address?: string;
+    serviceReason?: string;
     school?: string;
+    municipality?: string;
+    nfcUid?: string;
+    photoThumb?: string;
+    lastScanAt?: string;
+    cardNumber?: string;
 }
 
-const ROUTES = [
-    "Бъркач", "Тръстеник", "Биволаре", "Горна Митрополия", "Долни Дъбник",
-    "Рибен", "Садовец", "Славовица", "Байкал", "Гиген",
-    "Долна Митрополия", "Ясен", "Крушовица", "Дисевица", "Търнене", "Градина",
-    "Петърница", "Опанец", "Победа", "Подем", "Божурица",
-    "Ясен-Дисевица",
-    "Д. Дъбник - Садовец", "Д.Митрополия - Тръстеник", "Д.Митрополия - Славовица"
-];
-const SCHOOLS = [
-    "ДФСГ",
-    "МГ ГЕО МИЛЕВ",
-    "МЕД. УНИВЕРСИТЕТ",
-    "ОУ „Д-Р ПЕТЪР БЕРОН“",
-    "ОУ „ЦВ СПАСОВ“",
-    "ПГ ЕХТ",
-    "ПГ ЛВ",
-    "ПГ МЕТ",
-    "ПГ ОТ „ХР БОЯДЖИЕВ“",
-    "ПГ ПССТ",
-    "ПГ ПЧЕ",
-    "ПГ САГ",
-    "ПГ Т „ЦВ ЛАЗАРОВ“",
-    "ПГ ТУРИЗЪМ",
-    "ПГ ХВТ",
-    "СУ „АН. ДИМИТРОВА“",
-    "СУ „Г. БЕНКОВСКИ“",
-    "СУ „ИВ. ВАЗОВ“",
-    "СУ „СТ. ЗАИМОВ“"
-].sort((a, b) => a.localeCompare(b, 'bg'));
+// Service ("Служебна") cards are unpaid and valid for a whole year. Validity is
+// decided per month (a renewalHistory entry whose `month` equals the current
+// YYYY-MM), so a whole-year subscription is stored as the 12 monthly entries.
+const buildYearMonths = (year: number): string[] =>
+    Array.from({ length: 12 }, (_, i) => `${year}-${(i + 1).toString().padStart(2, '0')}`);
+
+const getServiceYearOptions = (): number[] => {
+    const y = new Date().getFullYear();
+    return [y - 1, y, y + 1, y + 2];
+};
+
+// A client's directions (source of truth `routes`; falls back to the route string).
+const getClientRoutes = (client: { route?: string; routes?: string[] }): string[] => {
+    if (client.routes && client.routes.length) return client.routes;
+    if (client.route && client.route.includes(',')) return client.route.split(',').map(r => r.trim()).filter(Boolean);
+    return client.route ? [client.route] : [];
+};
+
+// Turn GPS coordinates into a short human-readable address via OpenStreetMap
+// (Nominatim). Best-effort with a timeout — returns null on any failure so the
+// inspection still saves with the raw coordinates.
+const reverseGeocode = async (lat: number, lng: number): Promise<string | null> => {
+    try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 5000);
+        const r = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=bg&zoom=18`,
+            { signal: ctrl.signal, headers: { Accept: 'application/json' } }
+        );
+        clearTimeout(t);
+        if (!r.ok) return null;
+        const d = await r.json();
+        const a = d.address || {};
+        // City/village first (most important), then the street if known.
+        const place = a.city || a.town || a.village || a.municipality || a.hamlet || a.suburb || a.county;
+        const road = a.road ? (a.house_number ? `${a.road} ${a.house_number}` : a.road) : '';
+        const parts = [place, road].filter(Boolean);
+        return parts.length ? parts.join(', ') : (d.display_name || null);
+    } catch {
+        return null;
+    }
+};
+
+const formatTimeAgo = (totalSecs: number) => {
+    if (totalSecs < 60) {
+        return `Сканирана преди ${totalSecs} сек.`;
+    }
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    return secs > 0 
+        ? `Сканирана преди ${mins} мин. ${secs} сек.` 
+        : `Сканирана преди ${mins} мин.`;
+};
 
 const sanitizeId = (id: string | null | undefined): string => {
     if (!id) return '';
     const trimmed = id.trim();
-    if (!trimmed.includes('/')) return trimmed; 
     
-    const parts = trimmed.split('/');
-    const cleanParts = parts.filter(p => p.length > 0);
-    const lastPart = cleanParts[cleanParts.length - 1];
-    return lastPart || '';
+    // Map Bulgarian Cyrillic characters (from Phonetic & BDS layouts) to English Latin hex characters (A-F)
+    const phoneticMap: Record<string, string> = {
+        'а': 'a', 'б': 'b', 'ц': 'c', 'д': 'd', 'е': 'e', 'ф': 'f',
+        'А': 'A', 'Б': 'B', 'Ц': 'C', 'Д': 'D', 'Е': 'E', 'Ф': 'F'
+    };
+    
+    const bdsMap: Record<string, string> = {
+        'ь': 'a', 'ф': 'b', 'ц': 'c', 'в': 'd', 'е': 'e', 'а': 'f',
+        'Ь': 'A', 'Ф': 'B', 'Ц': 'C', 'В': 'D', 'Е': 'E', 'А': 'F'
+    };
+    
+    // Detect layout based on presence of layout-specific Cyrillic letters
+    let isBds = false;
+    for (const char of trimmed) {
+        if (['в', 'В', 'ь', 'Ь'].includes(char)) {
+            isBds = true;
+            break;
+        }
+    }
+    
+    const mapToUse = isBds ? bdsMap : phoneticMap;
+    
+    // Translate Cyrillic characters to Latin
+    let translated = '';
+    for (const char of trimmed) {
+        translated += mapToUse[char] || char;
+    }
+    
+    // Remove query parameters
+    translated = translated.split('?')[0];
+    
+    // Split by both / and # to get all path segments
+    const parts = translated.split(/[/#]/);
+    
+    // Filter out empty parts and known URL segments that aren't IDs
+    const cleanParts = parts.filter(p => {
+        const cleaned = p.trim().toLowerCase();
+        return cleaned.length > 0 && 
+            !['http:', 'https:', 'davidabg91.github.io', 'darycard', 'client'].includes(cleaned);
+    });
+    
+    const lastPart = cleanParts.length > 0 ? cleanParts[cleanParts.length - 1] : translated;
+    
+    // Remove all whitespace and convert to uppercase
+    return lastPart.replace(/\s+/g, '').toUpperCase();
 };
 
 const compressImage = (dataUrl: string, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
@@ -94,70 +173,256 @@ const compressImage = (dataUrl: string, maxWidth: number, maxHeight: number, qua
     });
 };
 
+const formatBGMonth = (monthStr: string) => {
+    if (!monthStr || !monthStr.includes('-')) return monthStr;
+    const [year, month] = monthStr.split('-');
+    const monthsBG: Record<string, string> = {
+        '01': 'ЯНУАРИ', '02': 'ФЕВРУАРИ', '03': 'МАРТ', '04': 'АПРИЛ',
+        '05': 'МАЙ', '06': 'ЮНИ', '07': 'ЮЛИ', '08': 'АВГУСТ',
+        '09': 'СЕПТЕМВРИ', '10': 'ОКТОМВРИ', '11': 'НОЕМВРИ', '12': 'ДЕКЕМВРИ'
+    };
+    return `${monthsBG[month] || month} ${year}`;
+};
+
 const ClientProfile: React.FC = () => {
     const { id: rawId } = useParams<{ id: string }>();
     const id = sanitizeId(rawId);
+    const location = useLocation();
+    const queryParams = new URLSearchParams(location.search);
+    const urlUid = queryParams.get('uid') || '';
     const { currentUser, loading: authLoading } = useAuth();
     const [client, setClient] = useState<Client | null>(null);
     const [loading, setLoading] = useState(true);
     const [scanTime] = useState(new Date().toLocaleTimeString('bg-BG'));
-    const [showRenewConfirm, setShowRenewConfirm] = useState(false);
-    const [renewError, setRenewError] = useState<string | null>(null);
-    const [renewAmount, setRenewAmount] = useState<number>(50);
-    const [renewMonth, setRenewMonth] = useState<string>(''); 
-    const [renewRoute, setRenewRoute] = useState<string>(''); 
     const [showPhotoModal, setShowPhotoModal] = useState(false);
     const [isRegistering, setIsRegistering] = useState(false);
-    const [isIdle, setIsIdle] = useState(false);
+    const [showLostCard, setShowLostCard] = useState(false);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     
     const [regName, setRegName] = useState('');
     const [regCardType, setRegCardType] = useState('Нормална карта');
     const [regSelectedSchool, setRegSelectedSchool] = useState('');
     const [regCustomSchool, setRegCustomSchool] = useState('');
+    const [regMunicipality, setRegMunicipality] = useState('');
+    const [regCustomMunicipality, setRegCustomMunicipality] = useState('');
     const [regRoute, setRegRoute] = useState('');
     const [regAmount, setRegAmount] = useState('50');
+    const [regPaymentMethod, setRegPaymentMethod] = useState('В брой');
+    const [regBankAmount, setRegBankAmount] = useState('');
+    const [regCashAmount, setRegCashAmount] = useState('');
     const [regPhoto, setRegPhoto] = useState<string | null>(null);
     const [regAddress, setRegAddress] = useState('');
-    const [cloudSyncStatus, setCloudSyncStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
-    const cloudSyncStatusRef = useRef(cloudSyncStatus);
-    useEffect(() => { cloudSyncStatusRef.current = cloudSyncStatus; }, [cloudSyncStatus]);
+    // Service ("Служебна") cards: reason for issuing + the year the whole-year
+    // (unpaid) subscription covers, for both activation and renewal.
+    const [regServiceReason, setRegServiceReason] = useState('');
+    const [regServiceYear, setRegServiceYear] = useState(new Date().getFullYear());
+    const [renewServiceYear, setRenewServiceYear] = useState(new Date().getFullYear());
 
-    const [regMonth, setRegMonth] = useState<string>(() => {
+    const getSuggestedMonth = () => {
         const now = new Date();
         let targetMonth = now.getMonth() + 1;
         let targetYear = now.getFullYear();
-        if (now.getDate() >= 20) {
+        if (now.getDate() > 15) {
             targetMonth += 1;
             if (targetMonth > 12) { targetMonth = 1; targetYear += 1; }
         }
         return `${targetYear}-${targetMonth.toString().padStart(2, '0')}`;
-    });
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    };
 
-    const [showOnlinePayment, setShowOnlinePayment] = useState(false);
-    const [paymentMonth, setPaymentMonth] = useState<string>('');
-    const [isPaying, setIsPaying] = useState(false);
-    const [paymentComplete, setPaymentComplete] = useState(false);
-    const [isOnline, setIsOnline] = useState(navigator.onLine);
+    const [regMonth, setRegMonth] = useState<string>(getSuggestedMonth());
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isCapturing, setIsCapturing] = useState(false);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+
+    // States for cropping tool
+    const [tempPhoto, setTempPhoto] = useState<string | null>(null);
+    const [isCropping, setIsCropping] = useState(false);
+    const [zoom, setZoom] = useState(1);
+    const [pan, setPan] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const dragStartRef = useRef({ x: 0, y: 0 });
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (!isCropping) return;
+        setIsDragging(true);
+        dragStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isCropping || !isDragging) return;
+        setPan({
+            x: e.clientX - dragStartRef.current.x,
+            y: e.clientY - dragStartRef.current.y
+        });
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (!isCropping || e.touches.length !== 1) return;
+        setIsDragging(true);
+        dragStartRef.current = { x: e.touches[0].clientX - pan.x, y: e.touches[0].clientY - pan.y };
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!isCropping || !isDragging || e.touches.length !== 1) return;
+        setPan({
+            x: e.touches[0].clientX - dragStartRef.current.x,
+            y: e.touches[0].clientY - dragStartRef.current.y
+        });
+    };
+
+    const handleCropConfirm = () => {
+        if (!tempPhoto) return;
+        const img = new Image();
+        img.src = tempPhoto;
+        img.onload = () => {
+            const canvas320 = document.createElement('canvas');
+            canvas320.width = 320;
+            canvas320.height = 320;
+            const ctx320 = canvas320.getContext('2d');
+            if (ctx320) {
+                ctx320.fillStyle = '#000';
+                ctx320.fillRect(0, 0, 320, 320);
+                
+                ctx320.save();
+                ctx320.translate(160, 160);
+                ctx320.translate(pan.x, pan.y);
+                ctx320.scale(zoom, zoom);
+                
+                const imgRatio = img.width / img.height;
+                let dw, dh;
+                if (imgRatio > 1) {
+                    dh = 320;
+                    dw = 320 * imgRatio;
+                } else {
+                    dw = 320;
+                    dh = 320 / imgRatio;
+                }
+                const dx = -dw / 2;
+                const dy = -dh / 2;
+                ctx320.drawImage(img, dx, dy, dw, dh);
+                ctx320.restore();
+            }
+
+            const cropCanvas = document.createElement('canvas');
+            cropCanvas.width = 500;
+            cropCanvas.height = 500;
+            const cropCtx = cropCanvas.getContext('2d');
+            if (cropCtx) {
+                cropCtx.drawImage(canvas320, 60, 60, 200, 200, 0, 0, 500, 500);
+                const croppedDataUrl = cropCanvas.toDataURL('image/jpeg', 0.85);
+                setRegPhoto(croppedDataUrl);
+                setTempPhoto(null);
+                setIsCropping(false);
+            }
+        };
+    };
+
+    const handleCropCancel = () => {
+        setTempPhoto(null);
+        setIsCropping(false);
+    };
+
+    const startWebcam = async () => {
+        setIsCapturing(true);
+        setError(null);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } },
+                audio: false
+            });
+            streamRef.current = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                videoRef.current.play().catch(err => console.error("Error playing video:", err));
+            }
+        } catch (err) {
+            console.error("Error accessing webcam:", err);
+            setError("Неуспешно свързване с камерата. Моля, проверете разрешенията.");
+            setIsCapturing(false);
+        }
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current) {
+            const video = videoRef.current;
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 640;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                compressImage(dataUrl, 600, 600, 0.85).then(compressed => {
+                    setTempPhoto(compressed);
+                    setIsCropping(true);
+                    setZoom(1);
+                    setPan({ x: 0, y: 0 });
+                    stopWebcam();
+                }).catch(err => {
+                    console.error("Compression error:", err);
+                    setTempPhoto(dataUrl);
+                    setIsCropping(true);
+                    setZoom(1);
+                    setPan({ x: 0, y: 0 });
+                    stopWebcam();
+                });
+            }
+        }
+    };
+
+    const stopWebcam = () => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        setIsCapturing(false);
+    };
 
     useEffect(() => {
-        const handleOnline = () => setIsOnline(true);
-        const handleOffline = () => setIsOnline(false);
-        window.addEventListener('online', handleOnline);
-        window.addEventListener('offline', handleOffline);
         return () => {
-            window.removeEventListener('online', handleOnline);
-            window.removeEventListener('offline', handleOffline);
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
         };
     }, []);
+
+    const [paymentMonth, setPaymentMonth] = useState<string>(getSuggestedMonth());
+    const [paymentComplete, setPaymentComplete] = useState(false);
+
 
     const [error, setError] = useState<string | null>(null);
     const hasPlayedSound = useRef(false);
 
+    const navigate = useNavigate();
+
+    // Quick Renewal States
+    const [showQuickRenew, setShowQuickRenew] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [renewalMonth, setRenewalMonth] = useState(getSuggestedMonth());
+    const [renewalAmount, setRenewalAmount] = useState(30);
+    const [renewalRoute, setRenewalRoute] = useState('');
+    const [renewalPaymentMethod, setRenewalPaymentMethod] = useState('В брой');
+    const [renewalBankAmount, setRenewalBankAmount] = useState('');
+    const [renewalCashAmount, setRenewalCashAmount] = useState('');
+    const [isUpdating, setIsUpdating] = useState(false);
+
+    // Moderator Inactivity / Renewal Guard State
+    const [hasMadeChange, setHasMadeChange] = useState(false);
+    const [showInactivityModal, setShowInactivityModal] = useState(false);
+    const [inactivityModalReason, setInactivityModalReason] = useState<'timeout' | 'action'>('timeout');
+    const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+    const [isWarningDismissed, setIsWarningDismissed] = useState(false);
+    const quickRenewRef = useRef<HTMLDivElement>(null);
+
     const audioContextRef = useRef<AudioContext | null>(null);
     const audioInitializedRef = useRef(false);
     const soundPendingRef = useRef<'success' | 'error' | null>(null);
+
 
     const playSuccessSound = React.useCallback(() => {
         const context = audioContextRef.current;
@@ -218,6 +483,81 @@ const ClientProfile: React.FC = () => {
         } catch (e) { console.error("Audio error error", e); }
     }, []);
 
+    // Auto-price logic for registration
+    useEffect(() => {
+        if (regCardType === 'Служебна карта') { setRegAmount('0'); return; }
+        if (regRoute && ROUTE_METADATA[regRoute]) {
+            const meta = ROUTE_METADATA[regRoute];
+            let priceStr = meta.priceCard;
+            
+            if (regCardType === 'Ученическа карта') {
+                if (meta.priceCardStudent) {
+                    priceStr = meta.priceCardStudent;
+                } else if (priceStr && priceStr !== '-' && priceStr !== '---') {
+                    const normal = parseFloat(priceStr.replace(' €', ''));
+                    if (!isNaN(normal)) {
+                        setRegAmount((normal / 2).toFixed(2));
+                        return;
+                    }
+                }
+            } else if (regCardType === 'Пенсионерска карта') {
+                if (priceStr && priceStr !== '-' && priceStr !== '---') {
+                    const normal = parseFloat(priceStr.replace(' €', ''));
+                    if (!isNaN(normal)) {
+                        setRegAmount((normal / 2).toFixed(2));
+                        return;
+                    }
+                }
+            } else if (regCardType === 'Инвалидна карта') {
+                if (priceStr && priceStr !== '-' && priceStr !== '---') {
+                    const normal = parseFloat(priceStr.replace(' €', ''));
+                    if (!isNaN(normal)) {
+                        setRegAmount((normal * disabledFactor(regRoute)).toFixed(2));
+                        return;
+                    }
+                }
+            }
+
+            if (priceStr && priceStr !== '-' && priceStr !== '---') {
+                const numericPrice = priceStr.replace(' €', '').trim();
+                setRegAmount(numericPrice);
+            }
+        }
+    }, [regRoute, regCardType]);
+
+    // Auto-price the quick-renew amount from the route + card type (pensioner &
+    // student = half), so a renewal uses the route's current card price instead
+    // of the last paid amount. Service cards are handled separately (whole year).
+    useEffect(() => {
+        if (!client || client.cardType === 'Служебна карта') return;
+        if (renewalRoute && ROUTE_METADATA[renewalRoute]) {
+            const meta = ROUTE_METADATA[renewalRoute];
+            let priceStr = meta.priceCard;
+            if (client.cardType === 'Ученическа карта') {
+                if (meta.priceCardStudent) {
+                    priceStr = meta.priceCardStudent;
+                } else if (priceStr && priceStr !== '-' && priceStr !== '---') {
+                    const normal = parseFloat(priceStr.replace(' €', ''));
+                    if (!isNaN(normal)) { setRenewalAmount(Number((normal / 2).toFixed(2))); return; }
+                }
+            } else if (client.cardType === 'Пенсионерска карта') {
+                if (priceStr && priceStr !== '-' && priceStr !== '---') {
+                    const normal = parseFloat(priceStr.replace(' €', ''));
+                    if (!isNaN(normal)) { setRenewalAmount(Number((normal / 2).toFixed(2))); return; }
+                }
+            } else if (client.cardType === 'Инвалидна карта') {
+                if (priceStr && priceStr !== '-' && priceStr !== '---') {
+                    const normal = parseFloat(priceStr.replace(' €', ''));
+                    if (!isNaN(normal)) { setRenewalAmount(Number((normal * disabledFactor(renewalRoute)).toFixed(2))); return; }
+                }
+            }
+            if (priceStr && priceStr !== '-' && priceStr !== '---') {
+                const n = parseFloat(priceStr.replace(' €', '').trim());
+                if (!isNaN(n)) setRenewalAmount(n);
+            }
+        }
+    }, [renewalRoute, client]);
+
     const initAudio = React.useCallback(() => {
         if (audioInitializedRef.current) return;
         try {
@@ -249,14 +589,86 @@ const ClientProfile: React.FC = () => {
         initAudio();
     }, [id, initAudio]);
 
+    // 20-second inactivity guard for moderator
+    useEffect(() => {
+        if (currentUser?.role !== 'moderator' || !client || loading || hasMadeChange || isWarningDismissed) return;
+
+        const timer = setTimeout(() => {
+            if (!hasMadeChange && !isWarningDismissed) {
+                playErrorSound();
+                setInactivityModalReason('timeout');
+                setShowInactivityModal(true);
+            }
+        }, 20000);
+
+        return () => clearTimeout(timer);
+    }, [currentUser?.role, client, loading, hasMadeChange, isWarningDismissed, playErrorSound]);
+
+    // Global navigation interceptor for navbar, logo, and external link clicks
+    useEffect(() => {
+        if (currentUser?.role === 'moderator' && client && !hasMadeChange && !isWarningDismissed) {
+            (window as unknown as { __moderatorGuardActive?: boolean }).__moderatorGuardActive = true;
+            (window as unknown as { __triggerModeratorGuard?: (onConfirmProceed?: () => void) => void }).__triggerModeratorGuard = (onConfirmProceed) => {
+                playErrorSound();
+                setInactivityModalReason('action');
+                if (onConfirmProceed) {
+                    setPendingAction(() => onConfirmProceed);
+                }
+                setShowInactivityModal(true);
+            };
+        } else {
+            (window as unknown as { __moderatorGuardActive?: boolean }).__moderatorGuardActive = false;
+            (window as unknown as { __triggerModeratorGuard?: unknown }).__triggerModeratorGuard = undefined;
+        }
+
+        return () => {
+            (window as unknown as { __moderatorGuardActive?: boolean }).__moderatorGuardActive = false;
+            (window as unknown as { __triggerModeratorGuard?: unknown }).__triggerModeratorGuard = undefined;
+        };
+    }, [currentUser?.role, client, hasMadeChange, isWarningDismissed, playErrorSound]);
+
+    // Intercept navigation / button clicks before making a change
+    const handleModeratorGuardedAction = (actionCallback?: () => void) => {
+        if (currentUser?.role === 'moderator' && !hasMadeChange && !isWarningDismissed) {
+            playErrorSound();
+            setInactivityModalReason('action');
+            setPendingAction(() => actionCallback || null);
+            setShowInactivityModal(true);
+            return false;
+        }
+        if (actionCallback) actionCallback();
+        return true;
+    };
+
+    const handleStayAndRenew = () => {
+        setShowInactivityModal(false);
+        setShowQuickRenew(true);
+        setTimeout(() => {
+            quickRenewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+    };
+
+    const handleContinueWithoutChange = () => {
+        setIsWarningDismissed(true);
+        setShowInactivityModal(false);
+        if (pendingAction) {
+            const act = pendingAction;
+            setPendingAction(null);
+            act();
+        }
+    };
+
     const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             const reader = new FileReader();
             reader.onloadend = async () => {
                 const base64 = reader.result as string;
-                const compressed = await compressImage(base64, 500, 500, 0.8);
-                setRegPhoto(compressed);
+                const compressed = await compressImage(base64, 600, 600, 0.85);
+                setTempPhoto(compressed);
+                setIsCropping(true);
+                setZoom(1);
+                setPan({ x: 0, y: 0 });
             };
             reader.readAsDataURL(file);
         }
@@ -267,25 +679,98 @@ const ClientProfile: React.FC = () => {
             alert('Моля, попълнете всички полета и направете снимка.');
             return;
         }
+        // Guard against a truncated/partial NFC read: real card ids are 8–9 chars.
+        // A shorter id (e.g. "JST", "SH5") means the reader opened an incomplete
+        // link, so refuse activation instead of creating a broken profile.
+        if (id.length < 8) {
+            alert(`Картата изглежда прочетена НЕПЪЛНО (къс код: "${id}").\n\nМоля, сканирайте картата отново — по-бавно и плътно до четеца — преди да я активирате.`);
+            return;
+        }
+        // The id must correspond to a real printed card (i.e. exist in the card
+        // list with a number). Otherwise the profile would have no card number.
+        if (!CARDS_MAPPING[id]) {
+            alert(`Кодът "${id}" не е в списъка с картите на системата, затова няма номер на карта.\n\nПроверете картата и сканирайте отново. Ако е нова карта, първо трябва да се добави в списъка.`);
+            return;
+        }
+        // Teachers require an община; disabled cards require an address (like pensioners).
+        const resolvedMunicipality = regMunicipality === MUNICIPALITY_CUSTOM ? regCustomMunicipality.trim() : regMunicipality;
+        if (needsMunicipality(regCardType) && !resolvedMunicipality) {
+            alert('Моля, изберете Община.');
+            return;
+        }
+        if ((regCardType === 'Инвалидна карта' || regCardType === 'Пенсионерска карта') && !regAddress.trim()) {
+            alert('Моля, въведете адрес.');
+            return;
+        }
+        if (regCardType === 'Служебна карта' && !regServiceReason.trim()) {
+            alert('Моля, въведете причина за издаване на служебната карта.');
+            return;
+        }
         const now = new Date();
-        const expiryMonth = regMonth;
+        const isServiceCard = regCardType === 'Служебна карта';
+        const expiryMonth = isServiceCard ? `${regServiceYear}-12` : regMonth;
+
+        // Upload the photo to Storage; keep only the URL in the document. Fall back to
+        // the inline base64 image if the upload fails so activation never breaks.
+        let photoValue = regPhoto;
+        try {
+            photoValue = await uploadClientPhoto(regPhoto, id);
+        } catch (uploadErr) {
+            console.error('Photo upload failed, falling back to inline image:', uploadErr);
+        }
+
+        // Tiny inline thumbnail (~few KB) kept in the document for instant/offline display.
+        let photoThumb = '';
+        try {
+            photoThumb = await compressImage(regPhoto, 96, 96, 0.5);
+        } catch (thumbErr) {
+            console.error('Thumbnail generation failed:', thumbErr);
+        }
+
+        // Payment: "Смесено" (mixed) splits the total between bank and cash.
+        const isMixedReg = regPaymentMethod === MIXED_METHOD;
+        const regBank = Number(regBankAmount) || 0;
+        const regCash = Number(regCashAmount) || 0;
+        const regEffectiveAmount = isMixedReg ? (regBank + regCash) : Number(regAmount);
+        const regPaymentLabel = isMixedReg ? `Смесено (Банка: ${regBank.toFixed(2)} / Кеш: ${regCash.toFixed(2)})` : regPaymentMethod;
+        const regPaymentFields = isMixedReg ? { paymentMethod: regPaymentMethod, bankAmount: regBank, cashAmount: regCash } : { paymentMethod: regPaymentMethod };
+
+        if (isMixedReg && regEffectiveAmount <= 0) {
+            alert('При смесено плащане въведете сумите по банка и/или в брой.');
+            return;
+        }
+
+        // Service cards: whole selected year (12 monthly entries, amount 0).
+        const initialRenewalHistory = isServiceCard
+            ? buildYearMonths(regServiceYear).map(m => ({ date: now.toISOString(), amount: 0, month: m, route: regRoute, paymentMethod: 'Служебна' }))
+            : [{ date: now.toISOString(), amount: regEffectiveAmount, month: expiryMonth, route: regRoute, ...regPaymentFields }];
+        const initialDetails = isServiceCard
+            ? `Служебна карта за цялата ${regServiceYear} г. (без плащане) | Причина: ${regServiceReason.trim()}`
+            : `Първоначално плащане: ${regEffectiveAmount.toFixed(2)} € за месец ${expiryMonth} | Начин на плащане: ${regPaymentLabel}`;
+
         const newClient: Client = {
             id,
+            nfcUid: urlUid.toUpperCase(),
             name: regName,
             route: regRoute,
+            routes: [regRoute],
             cardType: regCardType,
-            address: regCardType === 'Пенсионерска карта' ? regAddress : '',
+            address: (regCardType === 'Пенсионерска карта' || regCardType === 'Инвалидна карта') ? regAddress : '',
+            serviceReason: isServiceCard ? regServiceReason.trim() : '',
             school: regCardType === 'Ученическа карта' ? (regSelectedSchool === 'custom' ? regCustomSchool : regSelectedSchool) : '',
+            municipality: needsMunicipality(regCardType) ? resolvedMunicipality : '',
+            cardNumber: CARDS_MAPPING[id] || '',
             expiryDate: expiryMonth,
-            photo: regPhoto,
+            photo: photoValue,
+            photoThumb,
             createdAt: now.toISOString(),
-            amountPaid: Number(regAmount),
-            renewalHistory: [{ date: now.toISOString(), amount: Number(regAmount), month: expiryMonth }],
+            amountPaid: isServiceCard ? 0 : regEffectiveAmount,
+            renewalHistory: initialRenewalHistory,
             history: [{
                 date: now.toISOString(),
                 action: 'Активиране (Сканиране)',
-                details: `Първоначално плащане: ${regAmount} € за месец ${expiryMonth}`,
-                amount: Number(regAmount),
+                details: initialDetails,
+                amount: isServiceCard ? 0 : regEffectiveAmount,
                 performedBy: currentUser?.username || 'Система (Линк)'
             }]
         };
@@ -299,9 +784,14 @@ const ClientProfile: React.FC = () => {
                     performedBy: currentUser?.username || 'Система (Линк)',
                     action: 'Създаване',
                     targetName: regName,
-                    details: `Нова карта (NFC): ${id}. Сума: ${regAmount} €. Регион: ${regRoute}`,
-                    amount: Number(regAmount)
+                    details: isServiceCard
+                        ? `Нова служебна карта (NFC): ${id}. Валидна за цялата ${regServiceYear} г. Регион: ${regRoute} | Причина: ${regServiceReason.trim()}`
+                        : `Нова карта (NFC): ${id}. Сума: ${regEffectiveAmount.toFixed(2)} €. Регион: ${regRoute} | Начин на плащане: ${regPaymentLabel}`,
+                    amount: isServiceCard ? 0 : regEffectiveAmount
                 });
+                const cardNum = CARDS_MAPPING[id] || '';
+                const nameWithCard = cardNum ? `${regName} (Карта № ${cardNum})` : regName;
+                console.log(`[TRANSITFLOW_BRIDGE_LOG]: Нов профил на ${nameWithCard} (${regRoute}) - Сума: ${regAmount} €`);
             } catch (logErr) {
                 console.error("Error logging activity:", logErr);
             }
@@ -321,6 +811,12 @@ const ClientProfile: React.FC = () => {
             if (docSnap.exists()) {
                 const data = docSnap.data() as Record<string, unknown>;
                 const clientData: Client = { ...data, id: docSnap.id } as Client;
+                
+                if (currentUser && urlUid && clientData.nfcUid !== urlUid.toUpperCase()) {
+                    updateDoc(doc(db, 'clients', id), { nfcUid: urlUid.toUpperCase() }).catch(console.error);
+                    clientData.nfcUid = urlUid.toUpperCase();
+                }
+
                 setClient(clientData);
                 if (!hasPlayedSound.current) {
                     initAudio();
@@ -328,9 +824,29 @@ const ClientProfile: React.FC = () => {
                     const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
                     const hasPaidCurrentMonth = (clientData.renewalHistory || []).some(rh => rh.month === currentMonthStr);
                     const isActive = !clientData.isCanceled && hasPaidCurrentMonth;
-                    if (isActive) playSuccessSound();
-                    else playErrorSound();
+                    const lastMs = clientData.lastScanAt ? new Date(clientData.lastScanAt).getTime() : 0;
+                    const secsSince = lastMs ? Math.round((Date.now() - lastMs) / 1000) : Infinity;
+                    const isPassback = secsSince >= 0 && secsSince < 180; // 3 min passback
+
+                    if (isPassback) {
+                        playErrorSound();
+                    } else if (isActive) {
+                        playSuccessSound();
+                    } else {
+                        playErrorSound();
+                    }
+                    
+                    const cardNum = clientData.cardNumber || CARDS_MAPPING[clientData.id] || '';
+                    const cardPart = cardNum ? ` (Карта № ${cardNum})` : '';
+                    const statusStr = clientData.isCanceled ? 'Анулиран' : (hasPaidCurrentMonth ? 'Платен' : 'Неплатен');
+                    console.log(`[TRANSITFLOW_BRIDGE_LOG]: Сканиран профил: ${clientData.name}${cardPart} - Статус: ${statusStr}`);
+                    
                     hasPlayedSound.current = true;
+
+                    // Sync renewal form
+                    setRenewalMonth(getSuggestedMonth());
+                    setRenewalAmount(clientData.renewalHistory?.[clientData.renewalHistory.length - 1]?.amount || 30);
+                    setRenewalRoute(clientData.route || '');
                 }
             } else {
                 setClient(null);
@@ -339,24 +855,6 @@ const ClientProfile: React.FC = () => {
                     playErrorSound();
                     hasPlayedSound.current = true;
                 }
-                const checkAdminWaiting = async () => {
-                    try {
-                        const actionRef = doc(db, 'admin_actions', 'current');
-                        const actionSnap = await getDoc(actionRef);
-                        if (actionSnap.exists()) {
-                            const data = actionSnap.data();
-                            if (data.action === 'waiting_for_reg') {
-                                setCloudSyncStatus('sending');
-                                await updateDoc(actionRef, {
-                                    action: 'id_received',
-                                    cardId: id
-                                });
-                                setCloudSyncStatus('sent');
-                            }
-                        }
-                    } catch (e) { console.error("Cloud sync error:", e); }
-                };
-                if (cloudSyncStatusRef.current === 'idle') checkAdminWaiting();
             }
             setLoading(false);
         }, (err) => {
@@ -365,50 +863,122 @@ const ClientProfile: React.FC = () => {
             setLoading(false);
         });
         return () => unsubscribe();
-    }, [id, initAudio, playSuccessSound, playErrorSound]); // Removed cloudSyncStatus to prevent re-subscription flicker
+    }, [id, initAudio, playSuccessSound, playErrorSound, urlUid, currentUser]); // Removed cloudSyncStatus to prevent re-subscription flicker
 
     const scannedRef = useRef<string | null>(null);
+    // Always points at the latest client snapshot (used when saving an inspection
+    // so we record the freshest boarding-scan time, not a stale offline-cache one).
+    const latestClientRef = useRef(client);
+    latestClientRef.current = client;
     const hasClient = !!client;
+    // Visible scan feedback shown on the profile: green "recorded" / yellow "passback".
+    const [scanFeedback, setScanFeedback] = useState<{ type: 'recorded' | 'passback' | 'recent' | 'inspection'; secs?: number } | null>(null);
 
     useEffect(() => {
-        if (!id || !currentUser || loading || !hasClient || scannedRef.current === id) return;
-        const performTrackScan = async () => {
-            const scanKey = `scanned_${id}`;
-            const lastSessionScan = sessionStorage.getItem(scanKey);
-            const now = new Date().getTime();
-            if (lastSessionScan && (now - parseInt(lastSessionScan)) < 3600000) {
-                scannedRef.current = id;
-                return;
-            }
-            try {
-                scannedRef.current = id;
-                const clientRef = doc(db, 'clients', id);
-                const isoNow = new Date().toISOString();
-                await updateDoc(clientRef, {
-                    scanCount: increment(1),
+        // Record the scan for everyone who opens a registered card — drivers do NOT
+        // Record the scan for everyone who opens a registered card — drivers/passengers do NOT
+        // log in, so we must not gate this on currentUser.
+        if (!id || loading || authLoading || !hasClient || scannedRef.current === id) return;
+        scannedRef.current = id;
+
+        const isoNow = new Date().toISOString();
+        const clientRef = doc(db, 'clients', id);
+        const cardNum = client?.cardNumber || CARDS_MAPPING[id] || '';
+
+        // Staff scans vs Anonymous passenger/driver scans
+        if (currentUser) {
+            if (currentUser.role === 'inspector' || currentUser.role === 'admin') {
+                const base = {
+                    inspectorId: currentUser.id,
+                    inspectorName: currentUser.username,
+                    inspectorRole: currentUser.role,
+                    clientId: id,
+                    clientName: client?.name ?? '',
+                    clientCard: cardNum,
+                    route: client?.route ?? '',
+                    at: isoNow,
+                };
+                const save = (extra: Record<string, unknown>) =>
+                    addDoc(collection(db, 'inspector_scans'), { ...base, boardingScanAt: latestClientRef.current?.lastScanAt ?? null, ...extra })
+                        .catch(err => console.error('Inspection log failed:', err));
+                if (typeof navigator !== 'undefined' && navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        pos => {
+                            const lat = pos.coords.latitude, lng = pos.coords.longitude;
+                            reverseGeocode(lat, lng).then(address =>
+                                save({ lat, lng, accuracy: pos.coords.accuracy, address: address || null })
+                            );
+                        },
+                        () => save({ lat: null, lng: null, locationError: true }),
+                        { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+                    );
+                } else {
+                    save({ lat: null, lng: null, locationError: true });
+                }
+                setScanFeedback({ type: 'inspection' });
+            } else if (currentUser.role === 'moderator') {
+                const modScanData = { 
+                    at: isoNow, 
+                    route: client?.route ?? '',
+                    scannedBy: 'moderator',
+                    scannedByName: currentUser.username || 'Модератор',
+                    role: 'moderator'
+                };
+                addDoc(collection(db, 'clients', id, 'scans'), modScanData)
+                    .catch(err => console.error('Moderator scan subcollection write failed:', err));
+                updateDoc(clientRef, { 
+                    scanCount: increment(1), 
                     lastScanAt: isoNow,
-                    scanHistory: arrayUnion(isoNow)
+                    scanHistory: arrayUnion(modScanData)
+                }).catch(err => {
+                    console.error('Moderator scan updateDoc failed, fallback to counters:', err);
+                    updateDoc(clientRef, { scanCount: increment(1), lastScanAt: isoNow }).catch(() => {});
                 });
-                sessionStorage.setItem(scanKey, now.toString());
-            } catch (e) {
-                console.error("Error tracking scan:", e);
-                scannedRef.current = null; 
+                setScanFeedback({ type: 'recorded' });
             }
+            return;
+        }
+
+        // Anonymous driver / validator scan (not logged in)
+        const lastMs = client?.lastScanAt ? new Date(client.lastScanAt).getTime() : 0;
+        const secsSince = lastMs ? Math.round((Date.now() - lastMs) / 1000) : Infinity;
+
+        // Ignore instant duplicate renders (< 5s)
+        if (secsSince >= 0 && secsSince < 5) {
+            return;
+        }
+
+        if (secsSince >= 0 && secsSince < 180) {
+            setScanFeedback({ type: 'passback', secs: secsSince });
+        } else if (secsSince >= 180 && secsSince < 300) {
+            setScanFeedback({ type: 'recent', secs: secsSince });
+        } else {
+            setScanFeedback({ type: 'recorded' });
+        }
+
+        const anonScanData = { 
+            at: isoNow, 
+            route: client?.route ?? ''
         };
-        performTrackScan();
-    }, [id, currentUser, loading, hasClient]);
+
+        addDoc(collection(db, 'clients', id, 'scans'), anonScanData)
+            .catch(err => console.error('Anonymous scan subcollection write failed:', err));
+        updateDoc(clientRef, { 
+            scanCount: increment(1), 
+            lastScanAt: isoNow
+        }).catch(err => {
+            console.error('Anonymous scan updateDoc failed:', err);
+        });
+    }, [id, loading, authLoading, hasClient, currentUser, client?.route, client?.lastScanAt, client?.name, client?.cardNumber]);
 
     useEffect(() => {
         const resetIdleTimer = () => {
             if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-            setIsIdle(false);
 
-            if (loading || isRegistering || showPhotoModal || showRenewConfirm) return;
+            if (loading || isRegistering || showPhotoModal) return;
 
             idleTimerRef.current = setTimeout(() => {
-                if (document.visibilityState === 'visible') {
-                    setIsIdle(true);
-                }
+                // Idle slideshow removed to match old UI
             }, 30000); 
         };
 
@@ -419,24 +989,21 @@ const ClientProfile: React.FC = () => {
         };
         events.forEach(event => document.addEventListener(event, handler, { passive: true }));
         
-        if (!loading && !isRegistering && !showPhotoModal && !showRenewConfirm) {
+        if (!loading && !isRegistering && !showPhotoModal) {
             idleTimerRef.current = setTimeout(() => {
-                if (document.visibilityState === 'visible') {
-                    setIsIdle(true);
-                }
+                 // Idle indicator
             }, 30000);
         }
 
         return () => {
             events.forEach(event => document.removeEventListener(event, handler));
-            if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+        if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
         };
-    }, [loading, isRegistering, showPhotoModal, showRenewConfirm, id, initAudio]);
+    }, [loading, isRegistering, showPhotoModal, initAudio]);
 
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.visibilityState !== 'visible') {
-                setIsIdle(false);
                 if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
             }
         };
@@ -446,7 +1013,6 @@ const ClientProfile: React.FC = () => {
 
 
 
-    const isInitializingAuth = !currentUser && authLoading;
 
     if (loading && !client) {
         return <LoadingScreen />;
@@ -458,14 +1024,8 @@ const ClientProfile: React.FC = () => {
                 <div style={{ textAlign: 'center', maxWidth: '400px', width: '100%' }}>
                     <Ban size={64} color="var(--error-color)" style={{ marginBottom: '1.5rem' }} />
                     <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--error-color)', marginBottom: '0.5rem' }}>Картата не е намерена</h1>
-                    {cloudSyncStatus === 'sent' && (
-                        <div style={{ background: 'rgba(0, 200, 83, 0.15)', color: '#00c853', padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem', border: '1px solid rgba(0,200,83,0.3)', animation: 'fadeIn 0.4s ease' }}>
-                            <CheckCircle size={20} />
-                            ID-то е изпратено към Админ Панела!
-                        </div>
-                    )}
                     <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>{error}</p>
-                    <Link to="/" style={{ padding: '0.8rem 2rem', background: 'var(--primary-color)', color: '#fff', borderRadius: '50px', textDecoration: 'none', fontWeight: 600 }}>Към Начало</Link>
+                    <Link to="/" onClick={(e) => { if (!handleModeratorGuardedAction(() => navigate('/'))) e.preventDefault(); }} style={{ padding: '0.8rem 2rem', background: 'var(--primary-color)', color: '#fff', borderRadius: '50px', textDecoration: 'none', fontWeight: 600 }}>Към Начало</Link>
                 </div>
             </div>
         );
@@ -476,6 +1036,39 @@ const ClientProfile: React.FC = () => {
             <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', color: '#fff', padding: '1rem', fontFamily: 'Inter, sans-serif' }}>
                 <div style={{ textAlign: 'center', maxWidth: '440px', width: '100%' }}>
                     {!isRegistering ? (
+                        id.length < 8 ? (
+                            // Truncated / partial NFC read (real card ids are 8–9 chars).
+                            // Don't offer activation under a broken id — tell the operator to rescan.
+                            <>
+                                <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(255,171,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem', border: '1px solid rgba(255,171,0,0.3)' }}>
+                                    <AlertTriangle size={48} color="#ffab00" />
+                                </div>
+                                <h2 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '1rem', color: '#ffab00' }}>КАРТАТА Е ПРОЧЕТЕНА НЕПЪЛНО</h2>
+                                <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '1rem', lineHeight: '1.6' }}>
+                                    Прочетен е само къс код <b style={{ color: '#fff', fontFamily: 'monospace' }}>„{id}"</b>, а реалният номер на картата е по-дълъг. Затова картата <b>не може</b> да се активира — иначе профилът ще е сгрешен.
+                                </p>
+                                <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '2.5rem', lineHeight: '1.6' }}>
+                                    Моля, сканирайте картата <b>отново</b> — по-бавно и плътно до четеца — и проверете дали в адреса излиза пълен код.
+                                </p>
+                                <Link to="/" onClick={(e) => { if (!handleModeratorGuardedAction(() => navigate('/'))) e.preventDefault(); }} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 }}>Към Начало</Link>
+                            </>
+                        ) : currentUser && !CARDS_MAPPING[id] ? (
+                            // Id is a full length but is NOT in the printed-card list, so it has
+                            // no real card number. Block activation to avoid a numberless profile.
+                            <>
+                                <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(255,171,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem', border: '1px solid rgba(255,171,0,0.3)' }}>
+                                    <AlertTriangle size={48} color="#ffab00" />
+                                </div>
+                                <h2 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '1rem', color: '#ffab00' }}>НЕПОЗНАТА КАРТА</h2>
+                                <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '1rem', lineHeight: '1.6' }}>
+                                    Кодът <b style={{ color: '#fff', fontFamily: 'monospace' }}>„{id}"</b> не е в списъка с картите на системата, затова няма номер на карта. Активиране е спряно, за да не се създаде сгрешен профил.
+                                </p>
+                                <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '2.5rem', lineHeight: '1.6' }}>
+                                    Проверете картата и сканирайте <b>отново</b>. Ако е нова карта, тя първо трябва да бъде добавена в списъка с картите.
+                                </p>
+                                <Link to="/" onClick={(e) => { if (!handleModeratorGuardedAction(() => navigate('/'))) e.preventDefault(); }} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 }}>Към Начало</Link>
+                            </>
+                        ) : (
                         <>
                             <div style={{  width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem', border: '1px solid rgba(255,255,255,0.1)' }}>
                                 <Settings size={48} color={currentUser ? "var(--primary-color)" : "rgba(255,255,255,0.2)"} />
@@ -488,31 +1081,210 @@ const ClientProfile: React.FC = () => {
                                 {currentUser && (
                                     <button onClick={() => setIsRegistering(true)} style={{ padding: '1.2rem', background: 'var(--primary-color)', color: '#fff', borderRadius: '50px', border: 'none', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 10px 30px rgba(0, 173, 181, 0.3)' }}>АКТИВИРАЙ КАРТАТА СЕГА</button>
                                 )}
-                                <Link to="/" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 }}>Към Начало</Link>
+                                {currentUser && (
+                                    <button onClick={() => setShowLostCard(true)} style={{ padding: '0.95rem', background: 'rgba(255,82,82,0.08)', color: '#ff8a8a', borderRadius: '50px', border: '1px solid rgba(255,82,82,0.3)', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer' }}>Загубена карта</button>
+                                )}
+                                <Link to="/" onClick={(e) => { if (!handleModeratorGuardedAction(() => navigate('/'))) e.preventDefault(); }} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 }}>Към Начало</Link>
                             </div>
                         </>
+                        )
                     ) : (
                         <div style={{ animation: 'fadeIn 0.4s ease', textAlign: 'left', background: 'rgba(255,255,255,0.03)', padding: '2rem', borderRadius: '32px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                            <h3 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>Регистрация на Карта</h3>
+                            <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', textAlign: 'center' }}>Регистрация на Карта</h3>
+                            {CARDS_MAPPING[id] && (
+                                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary-color)', textAlign: 'center', marginBottom: '1.5rem' }}>
+                                    Номер на Карта: {CARDS_MAPPING[id]}
+                                </div>
+                            )}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-                                <div onClick={() => fileInputRef.current?.click()} style={{ width: '120px', height: '120px', borderRadius: '24px', background: 'rgba(255,255,255,0.05)', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed rgba(255,255,255,0.2)', cursor: 'pointer', overflow: 'hidden', position: 'relative' }}>
-                                    {regPhoto ? <img src={regPhoto} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ textAlign: 'center' }}><Camera size={24} color="var(--primary-color)" /><div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.4rem' }}>СНИМКА</div></div>}
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                                    <div 
+                                        style={{ 
+                                            width: (isCapturing || isCropping) ? '320px' : '150px', 
+                                            height: (isCapturing || isCropping) ? '320px' : '150px', 
+                                            borderRadius: '24px', 
+                                            background: 'rgba(255,255,255,0.05)', 
+                                            margin: '0 auto', 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            justifyContent: 'center', 
+                                            border: '2px dashed rgba(255,255,255,0.2)', 
+                                            overflow: 'hidden', 
+                                            position: 'relative',
+                                            transition: 'width 0.3s ease, height 0.3s ease',
+                                            cursor: isCropping ? 'grab' : 'default'
+                                        }}
+                                        onMouseDown={handleMouseDown}
+                                        onMouseMove={handleMouseMove}
+                                        onMouseUp={handleMouseUp}
+                                        onMouseLeave={handleMouseUp}
+                                        onTouchStart={handleTouchStart}
+                                        onTouchMove={handleTouchMove}
+                                        onTouchEnd={handleMouseUp}
+                                    >
+                                        {regPhoto ? (
+                                            <>
+                                                <img src={regPhoto} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setRegPhoto(null)} 
+                                                    style={{ position: 'absolute', top: '0.3rem', right: '0.3rem', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '0.8rem', zIndex: 10 }}
+                                                >
+                                                    ✕
+                                                </button>
+                                            </>
+                                        ) : isCropping && tempPhoto ? (
+                                            <>
+                                                <img 
+                                                    src={tempPhoto} 
+                                                    style={{ 
+                                                        position: 'absolute',
+                                                        width: '100%',
+                                                        height: '100%',
+                                                        objectFit: 'cover',
+                                                        transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                                                        transformOrigin: 'center center',
+                                                        userSelect: 'none',
+                                                        pointerEvents: 'none'
+                                                    }} 
+                                                />
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    width: '100%',
+                                                    height: '100%',
+                                                    pointerEvents: 'none',
+                                                    border: '60px solid rgba(0, 0, 0, 0.6)',
+                                                    boxSizing: 'border-box',
+                                                    zIndex: 2
+                                                }} />
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    top: '60px',
+                                                    left: '60px',
+                                                    width: '200px',
+                                                    height: '200px',
+                                                    border: '2px dashed var(--primary-color)',
+                                                    borderRadius: '20px',
+                                                    boxSizing: 'border-box',
+                                                    pointerEvents: 'none',
+                                                    zIndex: 3
+                                                }} />
+                                            </>
+                                        ) : isCapturing ? (
+                                            <>
+                                                <video 
+                                                    ref={videoRef} 
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                                    playsInline 
+                                                    muted 
+                                                />
+                                                <div style={{ position: 'absolute', bottom: '0.4rem', left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: '0.5rem', zIndex: 10 }}>
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={capturePhoto} 
+                                                        style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                                                    >
+                                                        Снимай
+                                                    </button>
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={stopWebcam} 
+                                                        style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                                                    >
+                                                        Отказ
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div 
+                                                onClick={startWebcam} 
+                                                style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                            >
+                                                <Camera size={28} color="var(--primary-color)" />
+                                                <div style={{ fontSize: '0.7rem', color: 'var(--primary-color)', marginTop: '0.4rem', fontWeight: 800 }}>ПУСНИ КАМЕРАТА</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {isCropping && tempPhoto && (
+                                        <div style={{ width: '280px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem', marginTop: '0.4rem', animation: 'fadeIn 0.3s ease' }}>
+                                            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>
+                                                    <span>МАЩАБ (ZOOM)</span>
+                                                    <span>{zoom.toFixed(1)}x</span>
+                                                </div>
+                                                <input 
+                                                    type="range" 
+                                                    min="1" 
+                                                    max="3" 
+                                                    step="0.02" 
+                                                    value={zoom} 
+                                                    onChange={e => setZoom(parseFloat(e.target.value))} 
+                                                    style={{ width: '100%', accentColor: 'var(--primary-color)', cursor: 'pointer', height: '6px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)', outline: 'none' }}
+                                                />
+                                            </div>
+                                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', fontStyle: 'italic' }}>
+                                                Влачете снимката, за да центрирате главата
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '0.75rem', width: '100%' }}>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={handleCropConfirm} 
+                                                    style={{ flex: 1, background: '#22c55e', color: '#fff', border: 'none', padding: '0.6rem', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(34, 197, 94, 0.2)' }}
+                                                >
+                                                    ✓ Изрежи главата
+                                                </button>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={handleCropCancel} 
+                                                    style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '0.6rem 1rem', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer' }}
+                                                >
+                                                    Отказ
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {!regPhoto && !isCapturing && !isCropping && (
+                                        <button 
+                                            type="button" 
+                                            onClick={() => fileInputRef.current?.click()} 
+                                            style={{ background: 'transparent', color: 'rgba(255,255,255,0.4)', border: 'none', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline' }}
+                                        >
+                                            или качете файл от компютъра
+                                        </button>
+                                    )}
                                     <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handlePhotoUpload} style={{ display: 'none' }} />
                                 </div>
                                 <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>ИМЕ НА КЛИЕНТА</label><input value={regName} onChange={e => setRegName(e.target.value)} style={{ width: '100%', padding: '1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none' }} placeholder="Име Фамилия..." /></div>
-                                <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>ВИД КАРТА</label><select value={regCardType} onChange={e => setRegCardType(e.target.value)} style={{ width: '100%', padding: '1rem', background: '#222', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none' }}>
+                                <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>ВИД КАРТА</label><select value={regCardType} onChange={e => {
+                                    const val = e.target.value;
+                                    setRegCardType(val);
+                                    if (val === 'Ученическа карта') setRegMunicipality(regSelectedSchool && regSelectedSchool !== 'custom' ? (SCHOOL_MUNICIPALITY[regSelectedSchool] || DEFAULT_MUNICIPALITY) : '');
+                                    else if (needsMunicipality(val)) setRegMunicipality(DEFAULT_MUNICIPALITY);
+                                    else setRegMunicipality('');
+                                    setRegCustomMunicipality('');
+                                }} style={{ width: '100%', padding: '1rem', background: '#222', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none' }}>
                                     <option value="Нормална карта">Нормална карта</option>
                                     <option value="Ученическа карта">Ученическа карта</option>
                                     <option value="Пенсионерска карта">Пенсионерска карта</option>
+                                    <option value="Учителска карта">Учителска карта</option>
                                     <option value="Инвалидна карта">Инвалидна карта</option>
+                                    <option value="Служебна карта">Служебна карта</option>
                                 </select></div>
                                 {regCardType === 'Ученическа карта' && (
                                     <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                         <div>
                                             <label style={{ fontSize: '0.8rem', color: 'var(--primary-color)', marginBottom: '0.4rem', display: 'block', fontWeight: 800 }}>УЧИЛИЩЕ</label>
-                                            <select 
-                                                value={regSelectedSchool} 
-                                                onChange={e => setRegSelectedSchool(e.target.value)} 
+                                            <select
+                                                value={regSelectedSchool}
+                                                onChange={e => {
+                                                    const val = e.target.value;
+                                                    setRegSelectedSchool(val);
+                                                    if (val === 'custom' || val === '') setRegMunicipality('');
+                                                    else setRegMunicipality(SCHOOL_MUNICIPALITY[val] || DEFAULT_MUNICIPALITY);
+                                                    setRegCustomMunicipality('');
+                                                }}
                                                 style={{ width: '100%', padding: '1rem', background: '#222', border: '1px solid var(--primary-color)', borderRadius: '12px', color: '#fff', outline: 'none' }}
                                                 required={regCardType === 'Ученическа карта'}
                                             >
@@ -535,103 +1307,113 @@ const ClientProfile: React.FC = () => {
                                         )}
                                     </div>
                                 )}
-                                {regCardType === 'Пенсионерска карта' && (
+                                {(regCardType === 'Пенсионерска карта' || regCardType === 'Инвалидна карта') && (
                                     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                                        <label style={{ fontSize: '0.8rem', color: '#ffab00', marginBottom: '0.4rem', display: 'block', fontWeight: 800 }}>АДРЕС (Задължително за пенсионери)</label>
-                                        <input 
-                                            value={regAddress} 
-                                            onChange={e => setRegAddress(e.target.value)} 
-                                            style={{ width: '100%', padding: '1rem', background: 'rgba(255,171,0,0.05)', border: '1px solid rgba(255,171,0,0.3)', borderRadius: '12px', color: '#ffab00', outline: 'none' }} 
-                                            placeholder="напр. гр. Плевен, ул. Свобода 1..." 
-                                            required={regCardType === 'Пенсионерска карта'}
+                                        <label style={{ fontSize: '0.8rem', color: '#ffab00', marginBottom: '0.4rem', display: 'block', fontWeight: 800 }}>АДРЕС (Задължително)</label>
+                                        <input
+                                            value={regAddress}
+                                            onChange={e => setRegAddress(e.target.value)}
+                                            style={{ width: '100%', padding: '1rem', background: 'rgba(255,171,0,0.05)', border: '1px solid rgba(255,171,0,0.3)', borderRadius: '12px', color: '#ffab00', outline: 'none' }}
+                                            placeholder="напр. гр. Плевен, ул. Свобода 1..."
+                                            required={regCardType === 'Пенсионерска карта' || regCardType === 'Инвалидна карта'}
                                         />
                                     </div>
                                 )}
+                                {needsMunicipality(regCardType) && (
+                                    <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        <div>
+                                            <label style={{ fontSize: '0.8rem', color: '#7dd3fc', marginBottom: '0.4rem', display: 'block', fontWeight: 800 }}>ОБЩИНА</label>
+                                            <select
+                                                value={regMunicipality}
+                                                onChange={e => { setRegMunicipality(e.target.value); if (e.target.value !== MUNICIPALITY_CUSTOM) setRegCustomMunicipality(''); }}
+                                                style={{ width: '100%', padding: '1rem', background: '#222', border: '1px solid rgba(125,211,252,0.5)', borderRadius: '12px', color: '#fff', outline: 'none' }}
+                                                required={needsMunicipality(regCardType)}
+                                            >
+                                                <option value="">Избери община...</option>
+                                                {MUNICIPALITIES.map(m => <option key={m} value={m}>{m}</option>)}
+                                                <option value={MUNICIPALITY_CUSTOM}>Друго (въведи ръчно)...</option>
+                                            </select>
+                                        </div>
+                                        {regMunicipality === MUNICIPALITY_CUSTOM && (
+                                            <div style={{ animation: 'slideDown 0.3s ease' }}>
+                                                <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>ИМЕ НА ОБЩИНА</label>
+                                                <input
+                                                    value={regCustomMunicipality}
+                                                    onChange={e => setRegCustomMunicipality(e.target.value)}
+                                                    style={{ width: '100%', padding: '1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none' }}
+                                                    placeholder="Въведи община..."
+                                                    required={regMunicipality === MUNICIPALITY_CUSTOM}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                {regCardType === 'Служебна карта' && (
+                                    <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        <div>
+                                            <label style={{ fontSize: '0.8rem', color: '#4dd0e1', marginBottom: '0.4rem', display: 'block', fontWeight: 800 }}>ПРИЧИНА ЗА СЛУЖЕБНА КАРТА (Задължително)</label>
+                                            <textarea
+                                                rows={2}
+                                                value={regServiceReason}
+                                                onChange={e => setRegServiceReason(e.target.value)}
+                                                style={{ width: '100%', padding: '1rem', background: 'rgba(77,208,225,0.05)', border: '1px solid rgba(77,208,225,0.3)', borderRadius: '12px', color: '#4dd0e1', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+                                                placeholder="напр. роднина на шофьор / договор с Община Плевен"
+                                                required={regCardType === 'Служебна карта'}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '0.8rem', color: '#4dd0e1', marginBottom: '0.4rem', display: 'block', fontWeight: 800 }}>АБОНАМЕНТ ЗА ЦЯЛАТА ГОДИНА</label>
+                                            <select
+                                                value={regServiceYear}
+                                                onChange={e => setRegServiceYear(Number(e.target.value))}
+                                                style={{ width: '100%', padding: '1rem', background: '#222', border: '1px solid rgba(77,208,225,0.3)', borderRadius: '12px', color: '#fff', outline: 'none' }}
+                                            >
+                                                {getServiceYearOptions().map(y => <option key={y} value={y}>{y} г. (Януари – Декември)</option>)}
+                                            </select>
+                                            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.4rem' }}>
+                                                Служебната карта е безплатна и валидна за всичките 12 месеца на избраната година.
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>МАРШРУТ (КУРС)</label><select value={regRoute} onChange={e => setRegRoute(e.target.value)} style={{ width: '100%', padding: '1rem', background: '#222', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none' }}><option value="">Избери маршрут...</option>{ROUTES.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
+                                {regCardType !== 'Служебна карта' && (
+                                <>
                                 <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>СУМА (€)</label><input type="number" value={regAmount} onChange={e => setRegAmount(e.target.value)} style={{ width: '100%', padding: '1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none' }} /></div>
                                 <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>МЕСЕЦ</label><input type="month" value={regMonth} onChange={e => setRegMonth(e.target.value)} style={{ width: '100%', padding: '1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none', colorScheme: 'dark' }} /></div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>НАЧИН НА ПЛАЩАНЕ</label>
+                                    <PaymentMethodSelector
+                                        value={regPaymentMethod}
+                                        onChange={(m) => { setRegPaymentMethod(m); if (m === MIXED_METHOD && !regBankAmount && !regCashAmount) { setRegBankAmount(regAmount || ''); setRegCashAmount('0'); } }}
+                                        bankAmount={regBankAmount}
+                                        cashAmount={regCashAmount}
+                                        onBankAmountChange={setRegBankAmount}
+                                        onCashAmountChange={setRegCashAmount}
+                                        activeColor="#00e676"
+                                        surface="rgba(255,255,255,0.03)"
+                                    />
+                                </div>
+                                </>
+                                )}
                                 <button onClick={handleRegister} style={{ marginTop: '1rem', padding: '1.2rem', background: '#00e676', color: '#ffffff', borderRadius: '12px', border: 'none', fontWeight: 900, fontSize: '1.1rem', cursor: 'pointer' }}>ЗАПАЗИ И АКТИВИРАЙ</button>
                                 <button onClick={() => setIsRegistering(false)} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem', cursor: 'pointer' }}>Отказ</button>
                             </div>
                         </div>
                     )}
                 </div>
+                {showLostCard && (
+                    <LostCardTransfer
+                        newCardId={id}
+                        newCardUid={urlUid}
+                        onClose={() => setShowLostCard(false)}
+                        onDone={() => setShowLostCard(false)}
+                    />
+                )}
             </div>
         );
     }
 
-    const getQuickRenewSummary = () => {
-        const now = new Date();
-        const day = now.getDate();
-        let month = now.getMonth();
-        let year = now.getFullYear();
-        if (day > 10) { month += 1; if (month > 11) { month = 0; year += 1; } }
-        const targetMonth = `${year}-${(month + 1).toString().padStart(2, '0')}`;
-        const bgMonths = ["Януари", "Февруари", "Март", "Април", "Май", "Юни", "Юли", "Август", "Септември", "Октомври", "Ноември", "Декември"];
-        const monthName = bgMonths[month];
-        let defaultAmount = 50;
-        if (client?.renewalHistory && client.renewalHistory.length > 0) { defaultAmount = client.renewalHistory[client.renewalHistory.length - 1].amount; } 
-        else if (client?.amountPaid) { defaultAmount = client.amountPaid; }
-        return { targetMonth, monthName, year, defaultAmount };
-    };
-
-    const initiationRenew = () => {
-        if (!client) return;
-        const { targetMonth, defaultAmount } = getQuickRenewSummary();
-        setRenewAmount(defaultAmount);
-        setRenewMonth(targetMonth);
-        setRenewRoute(client.route);
-        setShowRenewConfirm(true);
-    };
-
-    const handleConfirmRenew = async () => {
-        if (!client) return;
-        setRenewError(null);
-        try {
-            const amount = Number(renewAmount);
-            const targetMonth = renewMonth;
-            if (isNaN(amount) || amount <= 0) { setRenewError('Моля, въведете валидна сума.'); return; }
-            if (!targetMonth) { setRenewError('Моля, изберете месец.'); return; }
-            if (!renewRoute) { setRenewError('Моля, изберете курс.'); return; }
-
-            const history = client.history || [];
-            const renewalHistory = client.renewalHistory || [];
-            const routeChanged = renewRoute !== client.route;
-
-            const updatedClient = {
-                ...client,
-                route: renewRoute,
-                expiryDate: targetMonth,
-                amountPaid: (client.amountPaid || 0) + amount,
-                isCanceled: false,
-                cancelReason: "",
-                renewalHistory: [...renewalHistory, { date: new Date().toISOString(), amount, month: targetMonth }],
-                history: [...history, {
-                    date: new Date().toISOString(),
-                    action: 'Бързо Подновяване (Профил)',
-                    details: `Месец: ${targetMonth}${routeChanged ? ` | Променен курс: ${client.route} -> ${renewRoute}` : ''}`,
-                    amount,
-                    performedBy: currentUser?.username || 'Модератор'
-                }]
-            };
-            await setDoc(doc(db, 'clients', client.id), updatedClient);
-            
-            try {
-                await addDoc(collection(db, 'activity_logs'), {
-                    timestamp: new Date().toISOString(),
-                    performedBy: currentUser?.username || 'Модератор',
-                    action: 'Подновяване',
-                    targetName: client.name,
-                    details: `Бързо подновяване (Профил). Месец: ${targetMonth}${routeChanged ? ` | Променен курс: ${client.route} -> ${renewRoute}` : ''}`,
-                    amount: amount
-                });
-            } catch (logErr) {
-                console.error("Error logging activity:", logErr);
-            }
-
-            setShowRenewConfirm(false);
-        } catch (err) { console.error(err); setRenewError('Грешка при записване. Моля, опитайте пак.'); }
-    };
 
     const now = new Date();
     const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -644,17 +1426,49 @@ const ClientProfile: React.FC = () => {
     };
 
     const isCanceled = client?.isCanceled;
-    const hasPaidCurrentMonth = (client?.renewalHistory || []).some(rh => rh.month === currentMonthStr);
+    const renewalHistory = client?.renewalHistory || [];
+    const hasPaidCurrentMonth = renewalHistory.some(rh => rh.month === currentMonthStr);
+    const lastPaidMonth = renewalHistory.length > 0 
+        ? [...renewalHistory].sort((a, b) => b.month.localeCompare(a.month))[0].month 
+        : currentMonthStr;
     const isActive = !isCanceled && hasPaidCurrentMonth;
     const themeColor = isActive ? '#00e676' : '#ff1744';
-    const StatusIcon = isActive ? CheckCircle : XCircle;
-    
-    let statusText = isCanceled ? 'АНУЛИРАН' : 'НЕВАЛИДЕН АБОНАМЕНТ';
+
+    // The boarding scan to show inspectors/admins = the client's LIVE last-scan
+    // time. Their own check does not touch lastScanAt, so no freezing is needed;
+    // using the live value means it self-corrects from the offline cache to the
+    // fresh server value without needing a manual refresh.
+    const lastBoardingScan = client?.lastScanAt || null;
+    const formatScanMoment = (iso: string) => {
+        const d = new Date(iso);
+        const dateStr = d.toLocaleString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const secs = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000));
+        let rel: string;
+        if (secs < 60) rel = `преди ${secs} сек`;
+        else if (secs < 3600) rel = `преди ${Math.round(secs / 60)} мин`;
+        else if (secs < 86400) rel = `преди ${Math.round(secs / 3600)} ч`;
+        else rel = `преди ${Math.round(secs / 86400)} дни`;
+        return { dateStr, rel, secs };
+    };
+
+    let statusText = isCanceled ? 'АНУЛИРАН' : 'КАРТАТА НЕ Е ПЛАТЕНА';
     if (!isCanceled && !hasPaidCurrentMonth) { 
         statusText = `БЕЗ ТАКСА ЗА ${getFormattedMonth(currentMonthStr).split(' ')[0]}`; 
     } else if (isActive) { 
         statusText = 'ВАЛИДЕН АБОНАМЕНТ'; 
     }
+
+    const getCardTypeColor = (type?: string) => {
+        if (!type) return 'rgba(255,255,255,0.4)';
+        const t = type.toLowerCase();
+        if (t.includes('ученическа')) return '#ffd54f';
+        if (t.includes('пенсионерска')) return '#b39ddb';
+        if (t.includes('инвалидна')) return '#ffab91';
+        if (t.includes('учителска')) return '#80cbc4';
+        if (t.includes('служебна')) return '#90a4ae';
+        return '#81d4fa'; // Нормална
+    };
+    const cardTypeColor = getCardTypeColor(client?.cardType);
 
     return (
         <div style={{ 
@@ -668,589 +1482,707 @@ const ClientProfile: React.FC = () => {
             fontFamily: '"Outfit", "Inter", sans-serif',
             overflowX: 'hidden',
             padding: '2rem 1rem',
-            position: 'relative'
+            position: 'relative',
+            transition: 'background 0.3s ease, color 0.3s ease'
         }}>
-            {/* Background Decor */}
-            <div style={{ position: 'fixed', top: '-10%', left: '-10%', width: '40%', height: '40%', background: `${themeColor}10`, filter: 'blur(120px)', borderRadius: '50%', pointerEvents: 'none' }} />
-            <div style={{ position: 'fixed', bottom: '-10%', right: '-10%', width: '40%', height: '40%', background: `${themeColor}05`, filter: 'blur(120px)', borderRadius: '50%', pointerEvents: 'none' }} />
 
-            {/* Тhe ID CARD */}
+            {/* Environment Glow - Full Screen Modern Ambient */}
+            <div style={{ 
+                position: 'fixed', 
+                inset: 0, 
+                background: `radial-gradient(circle at 50% 40%, ${themeColor}15 0%, ${themeColor}05 50%, transparent 100%)`, 
+                pointerEvents: 'none',
+                zIndex: 0,
+                transition: 'background 0.8s ease'
+            }} />
+            
+
+            {/* Background Ambient Layers */}
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: '100vh', background: `radial-gradient(circle at 20% 20%, ${themeColor}08 0%, transparent 50%)`, pointerEvents: 'none' }} />
+            <div style={{ position: 'fixed', bottom: 0, right: 0, left: 0, height: '100vh', background: `radial-gradient(circle at 80% 80%, ${themeColor}08 0%, transparent 50%)`, pointerEvents: 'none' }} />
+
+            {/* Card + action panels. Stacked on mobile; on desktop the card moves to
+                the left and the panels sit to its right (see .profile-layout CSS). */}
+            <div className="profile-layout">
+
+            {/* The Modern ID CARD */}
             <div className="id-card-container" style={{
                 width: '100%',
-                maxWidth: '480px',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                boxShadow: '0 40px 100px rgba(0,0,0,0.6)',
+                maxWidth: '440px',
+                background: '#18181b',
+                borderRadius: '32px',
+                border: `1px solid ${themeColor}44`,
+                boxShadow: `0 20px 60px rgba(0,0,0,0.5)`,
                 position: 'relative',
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
-                animation: 'cardEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
                 zIndex: 10,
-                willChange: 'transform, opacity',
-                // Disable backdrop-filter on small screens for performance
-                ...(window.innerWidth > 600 ? { backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)' } : { background: 'rgba(30, 30, 35, 0.95)' })
+                transition: 'background 0.3s ease'
             }}>
-                {/* Holographic Overlay */}
-                <div style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: `linear-gradient(135deg, transparent 0%, ${themeColor}11 50%, transparent 100%)`,
-                    backgroundSize: '200% 200%',
-                    animation: 'hologram 8s linear infinite',
-                    pointerEvents: 'none',
-                    zIndex: 5
-                }} />
+                {/* Holographic Animation Overlay */}
 
-                {/* Card Header */}
-                <div className="card-header" style={{
-                    padding: '1.2rem 1.5rem 0.8rem',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    background: 'rgba(255,255,255,0.03)',
-                    position: 'relative'
-                }}>
-                    {!isOnline && (
-                        <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            background: '#f79e1b',
-                            color: '#000',
-                            fontSize: '0.6rem',
-                            fontWeight: 900,
-                            textAlign: 'center',
-                            padding: '2px 0',
-                            zIndex: 20
-                        }}>
-                            РАБОТА В ОФЛАЙН РЕЖИМ (КЕШИРАНИ ДАННИ)
-                        </div>
-                    )}
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: '0.65rem', fontWeight: 800, color: themeColor, letterSpacing: '2px', textTransform: 'uppercase' }}>TRANSITFLOW CARD</span>
-                        <span className="card-subtitle" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.5px' }}>{client?.cardType ? client.cardType.toUpperCase() : 'УДОСТОВЕРЕНИЕ ЗА ПЪТУВАНЕ'}</span>
-                    </div>
+                {scanFeedback && (scanFeedback.type === 'passback' || scanFeedback.type === 'recent') ? (
                     <div style={{
-                        background: `${themeColor}22`,
-                        padding: '4px 10px',
-                        borderRadius: '10px',
-                        border: `1px solid ${themeColor}44`,
-                        fontSize: '0.65rem',
-                        fontWeight: 900,
-                        color: themeColor,
+                        width: '100%',
+                        background: 'linear-gradient(135deg, #ffd600 0%, #ff9100 100%)',
+                        padding: '1.5rem 1rem',
+                        textAlign: 'center',
+                        color: '#1a1500',
+                        borderBottom: '4px solid #ff5252',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '4px'
+                        justifyContent: 'center',
+                        gap: '12px',
+                        animation: 'pulse 1.3s ease-in-out infinite'
                     }}>
-                        <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: isOnline ? themeColor : '#f79e1b', boxShadow: `0 0 8px ${isOnline ? themeColor : '#f79e1b'}` }} />
-                        {isOnline ? 'СИНХРОНИЗИРАНО' : 'ОФЛАЙН'}
-                    </div>
-                </div>
-
-                {/* Card Body */}
-                <div className="id-card-body" style={{ 
-                    flex: 1, 
-                    display: 'flex', 
-                    padding: '1.5rem', 
-                    gap: '1.5rem', 
-                    position: 'relative',
-                    flexWrap: 'wrap'
-                }}>
-                    {/* Photo Area */}
-                    <div className="id-photo-area" style={{ 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        alignItems: 'center'
-                    }}>
-                        <div className="photo-frame" style={{
-                            width: '140px',
-                            height: '165px',
-                            borderRadius: '16px',
-                            overflow: 'hidden',
-                            border: '1px solid rgba(255,255,255,0.12)',
-                            position: 'relative',
-                            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
-                            background: '#111'
-                        }} onClick={() => setShowPhotoModal(true)}>
-                            {client && client.photo && <img src={client.photo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Client" />}
-                            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }} />
-                            <div style={{ position: 'absolute', inset: 0, border: `2px solid ${themeColor}22`, borderRadius: '16px', pointerEvents: 'none' }} />
-                        </div>
-                    </div>
-
-                    {/* Data Area */}
-                    <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '1.2rem' }}>
-                        <div>
-                            <div style={{ fontSize: '0.6rem', color: themeColor, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>ПРИТЕЖАТЕЛ</div>
-                            <h2 className="holder-name" style={{ fontSize: '1.6rem', fontWeight: 900, margin: 0, letterSpacing: '-0.5px', color: '#fff', lineHeight: 1.1 }}>{client?.name.toUpperCase()}</h2>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                            <div>
-                                <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '2px' }}>ДЕСТИНАЦИЯ</div>
-                                <div className="route-text" style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>{client?.route}</div>
+                        <AlertTriangle size={36} strokeWidth={3} style={{ flexShrink: 0, color: '#cc0000' }} />
+                        <div style={{ textAlign: 'left', lineHeight: 1.25 }}>
+                            <div style={{ fontSize: '1.6rem', fontWeight: 950, letterSpacing: '0.5px', color: '#cc0000' }}>
+                                ВЕЧЕ СКАНИРАНА!
                             </div>
-                            <div>
-                                <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '2px' }}>ИЗДАДЕНА НА</div>
-                                <div className="date-text" style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>{client && new Date(client.createdAt).toLocaleDateString('bg-BG')}</div>
-                            </div>
-                        </div>
-
-                        {/* Validity Badge */}
-                        <div style={{ 
-                            background: `${themeColor}20`,
-                            border: `1px solid ${themeColor}40`,
-                            borderRadius: '16px',
-                            padding: '1rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px',
-                            boxShadow: `0 10px 30px ${themeColor}10`
-                        }}>
-                            <div className="validity-content" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                {hasPaidCurrentMonth && (
-                                    <>
-                                        <div style={{ fontSize: '0.6rem', color: themeColor, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>ВАЛИДНА ДО КРАЯ НА</div>
-                                        <div className="valid-month" style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fff' }}>{getFormattedMonth(currentMonthStr)}</div>
-                                    </>
-                                )}
-                                <div className="status-badge" style={{ fontSize: '0.75rem', fontWeight: 800, color: themeColor, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <StatusIcon size={14} />
-                                    {statusText}
-                                </div>
+                            <div style={{ fontSize: '1.05rem', fontWeight: 800 }}>
+                                {formatTimeAgo(scanFeedback.secs ?? 0)}
                             </div>
                         </div>
                     </div>
-                </div>
+                ) : (
+                    <>
+                        {/* Card Top Branding */}
+                        <div style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: themeColor, letterSpacing: '2px' }}>TRANSITFLOW CARD</span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: cardTypeColor, opacity: 0.9, background: `${cardTypeColor}15`, padding: '4px 10px', borderRadius: '8px', border: `1px solid ${cardTypeColor}33` }}>{client?.cardType?.toUpperCase() || 'УДОСТОВЕРЕНИЕ'}</span>
+                        </div>
 
-                {/* Bottom Signature / Security */}
-                <div style={{
-                    padding: '0.8rem 1.5rem',
-                    background: 'rgba(0,0,0,0.3)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    borderTop: '1px solid rgba(255,255,255,0.06)'
-                }}>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                         <span style={{ fontSize: '0.55rem', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '1px' }}>ИДЕНТИФИКАТОР:</span>
-                         <span style={{ fontSize: '0.75rem', fontWeight: 900, color: themeColor, fontFamily: 'monospace', letterSpacing: '1px' }}>{client?.id.substring(0, 12).toUpperCase()}</span>
-                    </div>
-                    <div style={{ opacity: 0.15 }}>
-                         <Bus size={28} color="rgba(255,255,255,0.4)" />
-                    </div>
-                </div>
-            </div>
-
-            {/* Action Area (Outside Card) - Delayed until Auth is ready */}
-            <div className="action-area" style={{ 
-                marginTop: '2.5rem', 
-                width: '100%', 
-                maxWidth: '480px', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: '1rem',
-                opacity: isInitializingAuth ? 0 : 1,
-                transition: 'opacity 0.4s ease'
-            }}>
-                {currentUser && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                        <button onClick={initiationRenew} style={{ 
-                            background: '#00e676', 
-                            color: '#000', 
-                            padding: '1.2rem', 
-                            borderRadius: '20px', 
-                            border: 'none', 
-                            fontWeight: 900, 
-                            fontSize: '1.1rem', 
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '10px',
-                            boxShadow: '0 10px 30px rgba(0, 230, 118, 0.3)',
-                            transition: 'all 0.3s'
-                        }} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
-                            <RefreshCw size={20} /> ПОДНОВИ
-                        </button>
-                        <Link to={`/admin?edit=${client?.id}`} style={{ 
-                            background: 'rgba(255,255,255,0.05)', 
-                            color: '#fff', 
-                            padding: '1.2rem', 
-                            borderRadius: '20px', 
-                            textDecoration: 'none', 
-                            fontWeight: 800, 
-                            fontSize: '0.9rem',
+                        {/* Sub-Header Status Panel (Full Width) */}
+                        <div style={{
+                            width: '100%',
+                            background: `${themeColor}22`,
+                            padding: '8px 0',
+                            textAlign: 'center',
+                            borderTop: '1px solid rgba(255,255,255,0.06)',
+                            borderBottom: '1px solid rgba(255,255,255,0.06)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: '8px',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            transition: 'all 0.3s'
-                        }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}>
-                            <Settings size={18} /> УПРАВЛЕНИЕ
-                        </Link>
-                    </div>
-                )}
-                
-                {!currentUser && !client?.isCanceled && (
-                    <button onClick={() => setShowOnlinePayment(true)} style={{ 
-                        background: 'linear-gradient(135deg, #635bff 0%, #4a154b 100%)', 
-                        color: '#fff', 
-                        padding: '1.5rem', 
-                        borderRadius: '24px', 
-                        border: 'none', 
-                        fontWeight: 900, 
-                        fontSize: '1.2rem', 
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'flex-start',
-                        gap: '12px',
-                        boxShadow: '0 15px 35px rgba(99, 91, 255, 0.4)',
-                        transition: 'all 0.3s',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        width: '100%'
-                    }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 25px 45px rgba(99, 91, 255, 0.6)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 15px 35px rgba(99, 91, 255, 0.4)'; }}>
-                        <div style={{ position: 'absolute', top: '-50%', right: '-20%', width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%)', borderRadius: '50%' }} />
-                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', position: 'relative', zIndex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ background: 'rgba(255, 255, 255, 0.2)', padding: '10px', borderRadius: '12px', color: '#fff' }}>
-                                    <CreditCard size={24} />
-                                </div>
-                                <span style={{ letterSpacing: '1px' }}>ПЛАТИ С КАРТА</span>
-                            </div>
-                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                <div style={{ fontStyle: 'italic', fontWeight: 900, color: '#fff', fontSize: '1.1rem', letterSpacing: '-0.5px' }}>VISA</div>
-                                <div style={{ display: 'flex', position: 'relative', width: '28px', height: '18px', alignItems: 'center' }}>
-                                    <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#eb001b', position: 'absolute', left: 0 }} />
-                                    <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#f79e1b', position: 'absolute', left: '10px', mixBlendMode: 'screen' }} />
-                                </div>
-                            </div>
+                            fontSize: '0.9rem',
+                            fontWeight: 900,
+                            color: themeColor,
+                            letterSpacing: '1px'
+                        }}>
+                            {isActive ? <CheckCircle size={18} /> : <XCircle size={18} />}
+                            {statusText.toUpperCase()}
                         </div>
-                        <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', fontWeight: 600, position: 'relative', zIndex: 1 }}>
-                            Онлайн подновяване на абонамента
-                        </div>
-                    </button>
+                    </>
                 )}
 
-                {/* Secondary Info Area */}
+                {/* Card Core Content */}
+                <div style={{ padding: '1.2rem 1.2rem 0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', textAlign: 'center' }}>
+                    {/* Centered Photo with Glow */}
+                    <div style={{ position: 'relative' }} onClick={() => setShowPhotoModal(true)}>
+                        <div style={{
+                            position: 'absolute',
+                            inset: '-10px',
+                            background: themeColor,
+                            borderRadius: '28px',
+                            opacity: 0.15,
+                            filter: 'blur(15px)'
+                        }} />
+                        <ClientPhoto
+                            src={client.photo}
+                            thumb={client.photoThumb}
+                            alt="Profile"
+                            style={{
+                                width: '240px',
+                                height: '240px',
+                                borderRadius: '28px',
+                                border: `4px solid ${themeColor}`,
+                                boxShadow: `0 20px 50px rgba(0,0,0,0.7)`,
+                                position: 'relative'
+                            }}
+                        />
+                    </div>
+
+                    <div style={{ marginBottom: '0.5rem' }}>
+                        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 0.1rem 0', letterSpacing: '-0.2px', color: 'rgba(255,255,255,0.6)' }}>{client.name.toUpperCase()}</h2>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 900, color: themeColor, textShadow: `0 0 30px ${themeColor}66` }}>{client.route.toUpperCase()}</div>
+                        {(() => {
+                            const dirs = getClientRoutes(client);
+                            if (dirs.length < 2) return null;
+                            return (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', justifyContent: 'center', marginTop: '0.5rem' }}>
+                                    {dirs.map(dir => {
+                                        const paid = (client.renewalHistory || []).some(rh => rh.month === currentMonthStr && (rh.route ? rh.route === dir : dir === dirs[0]));
+                                        return (
+                                            <span key={dir} style={{ fontSize: '0.72rem', fontWeight: 800, padding: '0.2rem 0.55rem', borderRadius: '50px', background: paid ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)', color: paid ? '#00e676' : '#ff5252', border: `1px solid ${paid ? 'rgba(0,230,118,0.3)' : 'rgba(255,82,82,0.3)'}` }}>
+                                                {paid ? '✓' : '✗'} {dir}
+                                            </span>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
+                    </div>
+                </div>
+
+                {/* Full Width Status Panel */}
                 <div style={{
-                    background: 'rgba(255,255,255,0.03)',
+                    width: '100%',
+                    background: isActive ? 'rgba(0, 230, 118, 0.15)' : 'rgba(255, 23, 68, 0.2)',
+                    padding: '1.5rem 1rem',
+                    borderTop: `1px solid ${isActive ? 'rgba(0, 230, 118, 0.3)' : 'rgba(255, 23, 68, 0.5)'}`,
+                    borderBottom: `1px solid ${isActive ? 'rgba(0, 230, 118, 0.3)' : 'rgba(255, 23, 68, 0.5)'}`,
+                    textAlign: 'center',
+                    boxShadow: `inset 0 0 40px ${isActive ? 'rgba(0,230,118,0.1)' : 'rgba(255,23,68,0.1)'}`
+                }}>
+                    <div style={{ color: isActive ? 'rgba(255,255,255,0.6)' : '#ff5252', fontSize: '0.9rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '4px', marginBottom: '8px' }}>
+                        {isActive ? 'ВАЛИДЕН АБОНАМЕНТ ДО' : 'НЯМА ВАЛИДЕН АБОНАМЕНТ ЗА'}
+                    </div>
+                    <div style={{ fontSize: '2.4rem', fontWeight: 900, color: isActive ? '#fff' : '#ff5252', letterSpacing: '2px', lineHeight: 1 }}>
+                        {getFormattedMonth(isActive ? lastPaidMonth : currentMonthStr)}
+                    </div>
+                </div>
+
+                {/* Last-scan info (previous scan, excluding this one) — visible only to
+                    inspectors and admins (not to drivers/moderators or the public). */}
+                {(currentUser?.role === 'inspector' || currentUser?.role === 'admin') && (() => {
+                    const prev = lastBoardingScan;
+                    if (!prev) {
+                        return (
+                            <div style={{ padding: '0.9rem 1.25rem', background: 'rgba(255,171,0,0.08)', borderBottom: '1px solid rgba(255,171,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#ffab00', fontSize: '0.9rem', fontWeight: 700 }}>
+                                <Clock size={16} /> Няма предишно сканиране на тази карта
+                            </div>
+                        );
+                    }
+                    const f = formatScanMoment(prev);
+                    // Green if scanned within the last hour (same rule as the boarding verdict).
+                    const recent = f.secs < 3600;
+                    return (
+                        <div style={{ padding: '0.9rem 1.25rem', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', fontSize: '0.9rem' }}>
+                            <Clock size={16} color={recent ? '#00e676' : 'rgba(255,255,255,0.5)'} />
+                            <span style={{ color: 'rgba(255,255,255,0.55)' }}>Последно сканиране:</span>
+                            <b style={{ color: recent ? '#00e676' : '#fff' }}>{f.dateStr}</b>
+                            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem' }}>({f.rel})</span>
+                        </div>
+                    );
+                })()}
+
+                {/* Inspector/admin: boarding-scan verdict (same rule as the Проверки tab:
+                    scanned within 3h before this check = scanned at boarding). */}
+                {(currentUser?.role === 'inspector' || currentUser?.role === 'admin') && scanFeedback?.type === 'inspection' && (() => {
+                    const prev = lastBoardingScan;
+                    const ok = !!prev && (Date.now() - new Date(prev).getTime()) < 3600 * 1000;
+                    return (
+                        <div style={{ padding: '1.1rem 1.25rem', background: ok ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)', borderBottom: `1px solid ${ok ? 'rgba(0,230,118,0.35)' : 'rgba(255,82,82,0.4)'}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: ok ? '#00e676' : '#ff5252', fontSize: '1.3rem', fontWeight: 900, letterSpacing: '1px' }}>
+                                {ok ? <CheckCircle size={24} /> : <XCircle size={24} />}
+                                {ok ? 'СКАНИРАН ПРИ КАЧВАНЕ' : 'НЕ Е СКАНИРАН'}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>Проверката е записана (с локация)</div>
+                        </div>
+                    );
+                })()}
+
+                {/* Footer Security Element */}
+                <div style={{ padding: '1rem 1.5rem', background: 'rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
+                        #{client.id.substring(0,8).toUpperCase()}
+                        {(client.cardNumber || CARDS_MAPPING[client.id]) && ` | КАРТА: ${client.cardNumber || CARDS_MAPPING[client.id]}`}
+                    </span>
+                    <Settings size={16} style={{ opacity: 0.1 }} />
+                </div>
+            </div>
+
+            {/* Account Actions / Payment Area */}
+            <div className="profile-actions" style={{ width: '100%', maxWidth: '440px', marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                
+                {/* Online Payment Panel */}
+                {!currentUser && !client?.isCanceled && (
+                    <div style={{
+                        background: '#18181b',
+                        borderRadius: '28px',
+                        padding: '1.5rem',
+                        border: '1px solid rgba(255,255,255,0.05)',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
+                            <div style={{ background: 'rgba(0,230,118,0.1)', padding: '8px', borderRadius: '10px' }}>
+                                <CreditCard size={20} color="#00e676" />
+                            </div>
+                            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800 }}>ОНЛАЙН ПЛАЩАНЕ С КАРТА</h3>
+                        </div>
+
+                        {!paymentComplete ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                                <div style={{ 
+                                    display: 'grid', 
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+                                    gap: '1rem' 
+                                }}>
+                                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                        <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px' }}>МЕСЕЦ</div>
+                                        <input 
+                                            type="month" 
+                                            value={paymentMonth} 
+                                            onChange={(e) => setPaymentMonth(e.target.value)} 
+                                            style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '1rem', fontWeight: 800, width: '100%', outline: 'none', colorScheme: 'dark' }} 
+                                        />
+                                    </div>
+                                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                        <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px' }}>СУМА</div>
+                                        <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#00e676' }}>50.80 €</div>
+                                    </div>
+                                </div>
+
+                                <button 
+                                    disabled={true}
+                                    style={{ 
+                                        width: '100%', 
+                                        background: 'rgba(255,255,255,0.03)', 
+                                        color: 'rgba(255,255,255,0.2)', 
+                                        padding: '1.2rem', 
+                                        borderRadius: '18px', 
+                                        border: '1px solid rgba(255,255,255,0.05)', 
+                                        fontWeight: 900, 
+                                        fontSize: '1rem', 
+                                        cursor: 'not-allowed',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '10px'
+                                    }}
+                                >
+                                    <Clock size={20} />
+                                    СКОРО
+                                </button>
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: '1rem 0', animation: 'fadeIn 0.4s ease' }}>
+                                <CheckCircle size={40} color="#00e676" style={{ marginBottom: '1rem' }} />
+                                <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', color: '#00e676' }}>УСПЕШНО ПЛАЩАНЕ!</h4>
+                                <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>Абонаментът беше подновен успешно.</p>
+                                <button onClick={() => { setPaymentComplete(false); setPaymentMonth(getSuggestedMonth()); }} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', padding: '0.8rem 1.5rem', borderRadius: '12px', marginTop: '1rem', fontWeight: 700, cursor: 'pointer' }}>ЗАТВОРИ</button>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Renewal History Panel */}
+                <div style={{
+                    background: 'rgba(255,255,255,0.01)',
                     borderRadius: '24px',
                     padding: '1.5rem',
-                    border: '1px solid rgba(255,255,255,0.06)'
+                    border: '1px solid rgba(255,255,255,0.03)'
                 }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Clock size={14} /> ИСТОРИЯ НА ПЛАЩАНИЯТА
+                    <div style={{ fontSize: '0.75rem', fontWeight: 900, color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Clock size={14} /> ПОСЛЕДНИ ПЛАЩАНИЯ
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                         {[...(client?.renewalHistory || [])].sort((a, b) => b.month.localeCompare(a.month)).slice(0, 3).map((rh, index) => (
                             <div key={index} style={{ 
                                 display: 'flex', 
                                 justifyContent: 'space-between', 
                                 alignItems: 'center',
-                                padding: '0.75rem 1rem',
+                                padding: '1rem',
                                 background: 'rgba(255,255,255,0.02)',
-                                borderRadius: '12px',
-                                border: '1px solid rgba(255,255,255,0.03)'
+                                borderRadius: '14px',
+                                border: '1px solid rgba(255,255,255,0.02)'
                             }}>
-                                <span style={{ fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>{getFormattedMonth(rh.month)}</span>
-                                <span style={{ fontWeight: 800, color: themeColor }}>{rh.amount} €</span>
+                                <span style={{ fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>{getFormattedMonth(rh.month)}</span>
+                                <span style={{ fontWeight: 900, color: '#00e676' }}>{rh.amount} €</span>
                             </div>
                         ))}
                         {(client?.renewalHistory || []).length === 0 && (
-                            <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.85rem', fontStyle: 'italic', textAlign: 'center' }}>НЯМА ИСТОРИЯ</div>
+                            <div style={{ color: 'rgba(255,255,255,0.1)', fontSize: '0.8rem', fontStyle: 'italic', textAlign: 'center' }}>НЯМА ИСТОРИЯ</div>
                         )}
                     </div>
                 </div>
 
-                <div style={{ textAlign: 'center', opacity: 0.3, padding: '1rem', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '1px' }}>
-                    ПОСЛЕДНО СКАНЕ: {scanTime} • СИСТЕМЕН РЕФ: {client?.id.toUpperCase()}
-                </div>
-                
-                <React.Suspense fallback={null}>
-                    <BusSchedule route={client?.route || ''} />
-                </React.Suspense>
-            </div>
-
-            {/* Overlays */}
-            {isIdle && !loading && !isRegistering && !showPhotoModal && !showRenewConfirm && !showOnlinePayment && (
-                <React.Suspense fallback={null}>
-                    <AdSlideshow onClose={() => setIsIdle(false)} />
-                </React.Suspense>
-            )}
-
-            {showRenewConfirm && client && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(20px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-                    <div style={{ background: '#111', padding: '2rem', borderRadius: '32px', border: '1px solid rgba(255,255,255,0.1)', width: '100%', maxWidth: '400px', boxShadow: '0 40px 100px rgba(0,0,0,1)' }}>
-                        <h2 style={{ fontSize: '1.5rem', margin: '0 0 1.5rem 0', textAlign: 'center' }}>ПОДНОВЯВАНЕ</h2>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
-                             <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '16px' }}>
-                                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '8px' }}>МАРШРУТ</div>
-                                <select value={renewRoute} onChange={(e) => setRenewRoute(e.target.value)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '1rem', fontWeight: 700, padding: '0.5rem', borderRadius: '8px', width: '100%' }}>
-                                    {ROUTES.map(r => <option key={r} value={r} style={{ background: '#222' }}>{r}</option>)}
-                                </select>
-                            </div>
-                            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '16px' }}>
-                                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '8px' }}>МЕСЕЦ</div>
-                                <input type="month" value={renewMonth} onChange={(e) => setRenewMonth(e.target.value)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '1rem', fontWeight: 700, width: '100%', colorScheme: 'dark' }} />
-                            </div>
-                            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '16px' }}>
-                                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '8px' }}>СУМА (EUR)</div>
-                                <input type="number" value={renewAmount} onChange={(e) => setRenewAmount(Number(e.target.value))} style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '1.5rem', fontWeight: 900, width: '100%', textAlign: 'center', outline: 'none' }} />
-                            </div>
-                        </div>
-                        {renewError && <div style={{ color: '#ff1744', textAlign: 'center', marginBottom: '1rem', fontSize: '0.8rem' }}>{renewError}</div>}
-                        <button onClick={handleConfirmRenew} style={{ width: '100%', background: '#00e676', color: '#000', padding: '1.2rem', borderRadius: '16px', border: 'none', fontWeight: 900, fontSize: '1.1rem', cursor: 'pointer' }}>ПОТВЪРДИ</button>
-                        <button onClick={() => setShowRenewConfirm(false)} style={{ width: '100%', background: 'transparent', color: 'rgba(255,255,255,0.4)', padding: '1rem', border: 'none', fontSize: '0.9rem', cursor: 'pointer', marginTop: '0.5rem' }}>ОТКАЗ</button>
-                    </div>
-                </div>
-            )}
-
-            {showOnlinePayment && client && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(24px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-                    <div className="payment-modal" style={{ background: '#fff', color: '#000', padding: '0', borderRadius: '24px', width: '100%', maxWidth: '440px', boxShadow: '0 40px 100px rgba(0,0,0,0.5)', overflow: 'hidden', animation: 'cardEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                {/* Admin Quick Actions */}
+                {currentUser && (currentUser.role === 'admin' || currentUser.role === 'moderator') && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         
-                        {/* Header */}
-                        <div className="payment-header" style={{ background: '#09090b', padding: '2.5rem 2rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                            <button onClick={() => setShowOnlinePayment(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}>
-                                <XCircle size={24} />
-                            </button>
-                            <div style={{ fontSize: '1.5rem', fontWeight: 900, letterSpacing: '3px', marginBottom: '1rem', textAlign: 'center' }}>
-                                <span style={{ color: 'var(--primary-color)' }}>TRANSIT</span> <span style={{ color: '#fff' }}>FLOW</span>
-                            </div>
-                            <div style={{ fontSize: '0.85rem', color: '#00e676', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <ShieldCheck size={18} /> СИГУРНО ПЛАЩАНЕ
-                            </div>
-                        </div>
-
-                        {/* Body */}
-                        <div className="payment-body" style={{ padding: '2rem' }}>
-                            {!paymentComplete ? (
-                                <>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                                        <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#111' }}>Обща сума:</div>
-                                        <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#0072ff' }}>50.80 €</div>
-                                    </div>
-
-                                    <div className="payment-fields" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginBottom: '2rem' }}>
-                                        {/* Month */}
-                                        <div>
-                                            <div style={{ color: '#666', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 700 }}>Дължим Месец</div>
-                                            <div style={{ background: '#f5f5f7', borderRadius: '12px', padding: '2px', border: '1px solid #e5e5ea', transition: 'border 0.3s' }}>
-                                                <input type="month" value={paymentMonth} onChange={(e) => setPaymentMonth(e.target.value)} style={{ background: 'transparent', border: 'none', color: '#111', fontSize: '1.1rem', fontWeight: 700, width: '100%', padding: '12px 16px', outline: 'none' }} />
-                                            </div>
-                                        </div>
-
-                                        {/* Cardholder */}
-                                        <div>
-                                            <div style={{ color: '#666', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 700 }}>Имена на картодържател</div>
-                                            <div style={{ background: '#f5f5f7', borderRadius: '12px', padding: '2px', border: '1px solid #e5e5ea', transition: 'border 0.3s' }}>
-                                                <input type="text" placeholder="ИМЕ ФАМИЛИЯ" style={{ background: 'transparent', border: 'none', color: '#111', fontSize: '1.1rem', fontWeight: 700, width: '100%', padding: '12px 16px', outline: 'none', textTransform: 'uppercase' }} />
-                                            </div>
-                                        </div>
-
-                                        {/* Card Number */}
-                                        <div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                                <div style={{ color: '#666', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700 }}>Номер на Карта</div>
-                                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                                    <div style={{ fontStyle: 'italic', fontWeight: 900, color: '#1434CB', fontSize: '1rem', letterSpacing: '-0.5px' }}>VISA</div>
-                                                    <div style={{ display: 'flex', position: 'relative', width: '28px', height: '18px', alignItems: 'center' }}>
-                                                        <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#eb001b', position: 'absolute', left: 0 }} />
-                                                        <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#f79e1b', position: 'absolute', left: '10px', mixBlendMode: 'multiply' }} />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div style={{ background: '#f5f5f7', borderRadius: '12px', padding: '2px', border: '1px solid #e5e5ea', display: 'flex', alignItems: 'center', transition: 'border 0.3s' }}>
-                                                <div style={{ padding: '0 0 0 16px', color: '#999' }}><CreditCard size={20} /></div>
-                                                <input type="text" placeholder="0000 0000 0000 0000" style={{ background: 'transparent', border: 'none', color: '#111', fontSize: '1.2rem', fontWeight: 700, width: '100%', padding: '12px 16px', letterSpacing: '2px', outline: 'none' }} />
-                                            </div>
-                                        </div>
-
-                                        {/* Expiry & CVC */}
-                                        <div style={{ display: 'flex', gap: '1rem' }}>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ color: '#666', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 700 }}>Вал. до</div>
-                                                <div style={{ background: '#f5f5f7', borderRadius: '12px', padding: '2px', border: '1px solid #e5e5ea' }}>
-                                                    <input type="text" placeholder="MM/YY" style={{ background: 'transparent', border: 'none', color: '#111', fontSize: '1.2rem', fontWeight: 700, width: '100%', padding: '12px 16px', outline: 'none', letterSpacing: '1px', textAlign: 'center' }} />
-                                                </div>
-                                            </div>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ color: '#666', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 700 }}>CVC</div>
-                                                <div style={{ background: '#f5f5f7', borderRadius: '12px', padding: '2px', border: '1px solid #e5e5ea' }}>
-                                                    <input type="password" placeholder="***" maxLength={3} style={{ background: 'transparent', border: 'none', color: '#111', fontSize: '1.2rem', fontWeight: 700, width: '100%', padding: '12px 16px', outline: 'none', letterSpacing: '4px', textAlign: 'center' }} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div style={{ fontSize: '0.75rem', color: '#666', textAlign: 'center', marginBottom: '1.5rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                        <Lock size={14} /> Сигурна транзакция. *Включена такса 0.80 €.
-                                    </div>
-                                    
-                                    <button 
-                                        onClick={() => {
-                                            setIsPaying(true);
-                                            setTimeout(() => {
-                                                setIsPaying(false);
-                                                setPaymentComplete(true);
-                                            }, 2000);
-                                        }} 
-                                        disabled={isPaying}
-                                        style={{ width: '100%', background: '#000', color: '#fff', padding: '1.2rem', borderRadius: '16px', border: 'none', fontWeight: 900, fontSize: '1.1rem', cursor: isPaying ? 'not-allowed' : 'pointer', opacity: isPaying ? 0.8 : 1, transition: 'all 0.3s', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', boxShadow: '0 10px 20px rgba(0,0,0,0.1)' }}
-                                    >
-                                        {isPaying ? <RefreshCw size={20} className="spin" /> : <Lock size={20} />}
-                                        {isPaying ? 'ОБРАБОТКА...' : 'ПЛАТИ 50.80 €'}
-                                    </button>
-                                </>
+                        {/* Quick Renewal Panel */}
+                        <div ref={quickRenewRef} style={{ background: '#18181b', borderRadius: '28px', border: '1px solid #00e67633', overflow: 'hidden' }}>
+                            {!showQuickRenew ? (
+                                <button 
+                                    onClick={() => setShowQuickRenew(true)}
+                                    style={{ 
+                                        width: '100%', 
+                                        background: 'linear-gradient(135deg, #00e676 0%, #009688 100%)', 
+                                        color: '#ffffff', 
+                                        padding: '1.2rem', 
+                                        borderRadius: '16px', 
+                                        border: 'none', 
+                                        fontWeight: 800, 
+                                        fontSize: '1.05rem', 
+                                        letterSpacing: '1px',
+                                        textTransform: 'uppercase',
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center', 
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        boxShadow: '0 8px 24px rgba(0, 230, 118, 0.25)'
+                                    }}
+                                    onMouseOver={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                        e.currentTarget.style.boxShadow = '0 12px 30px rgba(0, 230, 118, 0.4)';
+                                        e.currentTarget.style.filter = 'brightness(1.05)';
+                                    }}
+                                    onMouseOut={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 230, 118, 0.25)';
+                                        e.currentTarget.style.filter = 'brightness(1)';
+                                    }}
+                                >
+                                    БЪРЗО ПОДНОВЯВАНЕ
+                                </button>
                             ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', padding: '1rem 0 2rem' }}>
-                                    <div style={{ width: '90px', height: '90px', borderRadius: '50%', background: 'rgba(0, 230, 118, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
-                                        <CheckCircle size={50} color="#00e676" />
+                                <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', animation: 'fadeIn 0.3s ease' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                        <div style={{ fontWeight: 900, fontSize: '0.9rem', color: '#00e676' }}>БЪРЗО ПЛАЩАНЕ</div>
+                                        <button onClick={() => setShowQuickRenew(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontWeight: 900, cursor: 'pointer' }}>ОТКАЗ</button>
                                     </div>
-                                    <h3 style={{ margin: 0, color: '#111', fontSize: '1.8rem', fontWeight: 900 }}>ОДОБРЕНО</h3>
-                                    <p style={{ color: '#666', textAlign: 'center', fontSize: '1rem', lineHeight: '1.5', fontWeight: 500 }}>
-                                        Успешно плащане.<br/> В момента системата е в тестов период и картата ви не е таксувана.
-                                    </p>
-                                    <button onClick={() => { setShowOnlinePayment(false); setPaymentComplete(false); setPaymentMonth(''); }} style={{ marginTop: '2rem', width: '100%', background: '#f5f5f7', color: '#111', padding: '1.2rem', borderRadius: '16px', border: '1px solid #e0e0e0', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', transition: 'all 0.2s' }}>ЗАТВОРИ</button>
+                                    
+                                    {client?.cardType === 'Служебна карта' ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                            <label style={{ fontSize: '0.6rem', color: '#4dd0e1', fontWeight: 900 }}>АБОНАМЕНТ ЗА ЦЯЛАТА ГОДИНА</label>
+                                            <select
+                                                value={renewServiceYear}
+                                                onChange={(e) => setRenewServiceYear(Number(e.target.value))}
+                                                style={{ background: '#111', border: '1px solid rgba(77,208,225,0.4)', color: '#fff', padding: '10px', borderRadius: '12px', fontSize: '1rem', fontWeight: 700, outline: 'none', colorScheme: 'dark', width: '100%', boxSizing: 'border-box' }}
+                                            >
+                                                {getServiceYearOptions().map(y => <option key={y} value={y}>{y} г. (Януари – Декември)</option>)}
+                                            </select>
+                                            <div style={{ fontSize: '0.68rem', opacity: 0.5, marginTop: '2px' }}>Служебната карта е безплатна – валидна за всичките 12 месеца.</div>
+                                        </div>
+                                    ) : (
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                            <label style={{ fontSize: '0.6rem', opacity: 0.5, fontWeight: 900 }}>МЕСЕЦ</label>
+                                            <input
+                                                type="month"
+                                                value={renewalMonth}
+                                                onChange={(e) => setRenewalMonth(e.target.value)}
+                                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px', borderRadius: '12px', fontSize: '1rem', fontWeight: 700, colorScheme: 'dark', width: '100%', boxSizing: 'border-box' }}
+                                            />
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                            <label style={{ fontSize: '0.6rem', opacity: 0.5, fontWeight: 900 }}>СУМА (€)</label>
+                                            <input
+                                                type="number"
+                                                value={renewalAmount}
+                                                onChange={(e) => setRenewalAmount(Number(e.target.value))}
+                                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px', borderRadius: '12px', fontSize: '1rem', fontWeight: 700, width: '100%', boxSizing: 'border-box' }}
+                                            />
+                                        </div>
+                                    </div>
+                                    )}
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                        <label style={{ fontSize: '0.6rem', opacity: 0.5, fontWeight: 900 }}>МАРШРУТ</label>
+                                        <select
+                                            value={renewalRoute}
+                                            onChange={(e) => setRenewalRoute(e.target.value)}
+                                            style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px', borderRadius: '12px', fontSize: '1rem', fontWeight: 700, outline: 'none', colorScheme: 'dark', width: '100%', boxSizing: 'border-box' }}
+                                        >
+                                            <option value="">Избери маршрут...</option>
+                                            {ROUTES.map(r => <option key={r} value={r}>{r}</option>)}
+                                        </select>
+                                    </div>
+
+                                    {client?.cardType !== 'Служебна карта' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                        <label style={{ fontSize: '0.6rem', opacity: 0.5, fontWeight: 900 }}>НАЧИН НА ПЛАЩАНЕ</label>
+                                        <PaymentMethodSelector
+                                            value={renewalPaymentMethod}
+                                            onChange={(m) => { setRenewalPaymentMethod(m); if (m === MIXED_METHOD && !renewalBankAmount && !renewalCashAmount) { setRenewalBankAmount(String(renewalAmount || '')); setRenewalCashAmount('0'); } }}
+                                            bankAmount={renewalBankAmount}
+                                            cashAmount={renewalCashAmount}
+                                            onBankAmountChange={setRenewalBankAmount}
+                                            onCashAmountChange={setRenewalCashAmount}
+                                            activeColor="#00e676"
+                                            surface="rgba(255,255,255,0.03)"
+                                        />
+                                    </div>
+                                    )}
+
+                                    <button
+                                        disabled={isUpdating}
+                                        onClick={async () => {
+                                            setIsUpdating(true);
+                                            try {
+                                                if (client?.cardType === 'Служебна карта') {
+                                                    if (!renewalRoute) { playErrorSound(); setIsUpdating(false); return; }
+                                                    const svcIso = new Date().toISOString();
+                                                    const svcCur = getClientRoutes(client || { route: '' });
+                                                    const svcNew = svcCur.includes(renewalRoute) ? svcCur : [...svcCur, renewalRoute];
+                                                    const svcEntries = buildYearMonths(renewServiceYear).map(m => ({ date: svcIso, amount: 0, month: m, route: renewalRoute, paymentMethod: 'Служебна' }));
+                                                    const clientRefSvc = doc(db, 'clients', client?.id || '');
+                                                    await updateDoc(clientRefSvc, {
+                                                        expiryDate: `${renewServiceYear}-12`,
+                                                        route: svcNew.join(', '),
+                                                        routes: svcNew,
+                                                        isCanceled: false,
+                                                        renewalHistory: arrayUnion(...svcEntries),
+                                                        history: arrayUnion({
+                                                            date: svcIso,
+                                                            action: 'БЪРЗО ПОДНОВЯВАНЕ (PROFILE)',
+                                                            amount: 0,
+                                                            month: `${renewServiceYear}-12`,
+                                                            route: renewalRoute,
+                                                            details: `Служебна карта за цялата ${renewServiceYear} г. (без плащане)`,
+                                                            performedBy: currentUser?.username
+                                                        })
+                                                    });
+                                                    try {
+                                                        await addDoc(collection(db, 'activity_logs'), {
+                                                            timestamp: svcIso,
+                                                            performedBy: currentUser?.username || 'Admin',
+                                                            action: 'Подновяване',
+                                                            targetName: client?.name || 'Клиент',
+                                                            details: `Служебна карта за цялата ${renewServiceYear} г. Маршрут: ${renewalRoute}`,
+                                                            amount: 0
+                                                        });
+                                                    } catch (logErr) { console.error("Log error", logErr); }
+                                                    setHasMadeChange(true);
+                                                    setShowInactivityModal(false);
+                                                    playSuccessSound();
+                                                    setShowQuickRenew(false);
+                                                    setShowSuccessModal(true);
+                                                    setIsUpdating(false);
+                                                    return;
+                                                }
+                                                const qrDirs = getClientRoutes(client || { route: '' });
+                                                const qrAlreadyPaid = (client?.renewalHistory || []).some(rh =>
+                                                    rh.month === renewalMonth && (rh.route ? rh.route === renewalRoute : renewalRoute === qrDirs[0])
+                                                );
+                                                if (qrAlreadyPaid) {
+                                                    playErrorSound();
+                                                    alert(`Вече има платен абонамент за „${renewalRoute}" за месец ${renewalMonth}. Второ плащане за същия месец не е разрешено.`);
+                                                    setIsUpdating(false);
+                                                    return;
+                                                }
+                                                const isMixedQR = renewalPaymentMethod === MIXED_METHOD;
+                                                const qrBank = Number(renewalBankAmount) || 0;
+                                                const qrCash = Number(renewalCashAmount) || 0;
+                                                const qrAmount = isMixedQR ? (qrBank + qrCash) : renewalAmount;
+                                                const qrPaymentFields = isMixedQR
+                                                    ? { paymentMethod: renewalPaymentMethod, bankAmount: qrBank, cashAmount: qrCash }
+                                                    : { paymentMethod: renewalPaymentMethod };
+                                                const qrPaymentLabel = isMixedQR ? `Смесено (Банка: ${qrBank.toFixed(2)} / Кеш: ${qrCash.toFixed(2)})` : renewalPaymentMethod;
+                                                if (isMixedQR && qrAmount <= 0) {
+                                                    playErrorSound();
+                                                    setIsUpdating(false);
+                                                    return;
+                                                }
+                                                const clientRef = doc(db, 'clients', client?.id || '');
+                                                const qrCur = getClientRoutes(client || { route: '' });
+                                                const qrNew = qrCur.includes(renewalRoute) ? qrCur : [...qrCur, renewalRoute];
+                                                const qrExpiry = renewalMonth > (client?.expiryDate || '') ? renewalMonth : (client?.expiryDate || renewalMonth);
+                                                await updateDoc(clientRef, {
+                                                    expiryDate: qrExpiry,
+                                                    route: qrNew.join(', '),
+                                                    routes: qrNew,
+                                                    renewalHistory: arrayUnion({
+                                                        date: new Date().toISOString(),
+                                                        amount: qrAmount,
+                                                        month: renewalMonth,
+                                                        route: renewalRoute,
+                                                        ...qrPaymentFields
+                                                    }),
+                                                    history: arrayUnion({
+                                                        date: new Date().toISOString(),
+                                                        action: 'БЪРЗО ПОДНОВЯВАНЕ (PROFILE)',
+                                                        amount: qrAmount,
+                                                        month: renewalMonth,
+                                                        route: renewalRoute,
+                                                        ...qrPaymentFields,
+                                                        performedBy: currentUser?.username
+                                                    })
+                                                });
+
+                                                try {
+                                                    await addDoc(collection(db, 'activity_logs'), {
+                                                        timestamp: new Date().toISOString(),
+                                                        performedBy: currentUser?.username || 'Admin',
+                                                        action: 'Подновяване',
+                                                        targetName: client?.name || 'Клиент',
+                                                        details: `Бързо подновяване за месец ${renewalMonth}. Сума: ${qrAmount.toFixed(2)} €. Маршрут: ${renewalRoute} | Начин на плащане: ${qrPaymentLabel}`,
+                                                        amount: qrAmount
+                                                    });
+                                                    const cardNum = client ? (client.cardNumber || CARDS_MAPPING[client.id] || '') : '';
+                                                    const nameWithCard = cardNum ? `${client?.name} (Карта № ${cardNum})` : (client?.name || 'Клиент');
+                                                    console.log(`[TRANSITFLOW_BRIDGE_LOG]: Подновяване на ${nameWithCard} за месец ${renewalMonth} - Сума: ${qrAmount.toFixed(2)} €`);
+                                                } catch (logErr) { console.error("Log error", logErr); }
+
+                                                setHasMadeChange(true);
+                                                setShowInactivityModal(false);
+                                                playSuccessSound();
+                                                setShowQuickRenew(false);
+                                                setShowSuccessModal(true);
+                                            } catch (err) {
+                                                console.error(err);
+                                                playErrorSound();
+                                            } finally {
+                                                setIsUpdating(false);
+                                            }
+                                        }}
+                                        style={{ 
+                                            width: '100%', 
+                                            background: 'linear-gradient(135deg, #00e676 0%, #009688 100%)', 
+                                            color: '#ffffff', 
+                                            padding: '1.1rem', 
+                                            borderRadius: '14px', 
+                                            border: 'none', 
+                                            fontWeight: 800, 
+                                            fontSize: '1rem', 
+                                            letterSpacing: '1px',
+                                            textTransform: 'uppercase',
+                                            marginTop: '0.5rem', 
+                                            cursor: 'pointer',
+                                            transition: 'all 0.3s ease',
+                                            boxShadow: '0 6px 20px rgba(0, 230, 118, 0.2)'
+                                        }}
+                                        onMouseOver={(e) => {
+                                            e.currentTarget.style.transform = 'translateY(-1px)';
+                                            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 230, 118, 0.3)';
+                                            e.currentTarget.style.filter = 'brightness(1.05)';
+                                        }}
+                                        onMouseOut={(e) => {
+                                            e.currentTarget.style.transform = 'translateY(0)';
+                                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 230, 118, 0.2)';
+                                            e.currentTarget.style.filter = 'brightness(1)';
+                                        }}
+                                    >
+                                        {isUpdating ? 'ОБРАБОТКА...' : 'ПОДНОВИ СЕГА'}
+                                    </button>
                                 </div>
                             )}
                         </div>
-                    </div>
-                </div>
-            )}
 
+                        <button 
+                            onClick={() => handleModeratorGuardedAction(() => navigate(`/admin?edit=${client?.id}`))}
+                            style={{ 
+                                background: 'rgba(255,255,255,0.05)', 
+                                color: '#fff', 
+                                padding: '1.2rem', 
+                                borderRadius: '20px', 
+                                border: '1px solid rgba(255,255,255,0.1)', 
+                                fontWeight: 800, 
+                                fontSize: '0.9rem', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                gap: '8px', 
+                                cursor: 'pointer',
+                                width: '100%'
+                            }}
+                        >
+                            <Settings size={18} /> УПРАВЛЕНИЕ В АДМИН ПАНЕЛ
+                        </button>
+                    </div>
+                )}
+
+                {/* Success Modal */}
+                {showSuccessModal && (
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(30px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+                        <div style={{ background: '#18181b', borderRadius: '32px', padding: '3rem 2rem', width: '100%', maxWidth: '400px', textAlign: 'center', border: '1px solid #00e67644', boxShadow: '0 30px 60px rgba(0,0,0,0.5)' }}>
+                            <div style={{ background: 'rgba(0,230,118,0.1)', width: '100px', height: '100px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem' }}>
+                                <CheckCircle size={60} color="#00e676" />
+                            </div>
+                            <h2 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '1rem' }}>ГОТОВО!</h2>
+                            <p style={{ opacity: 0.6, marginBottom: '2rem', lineHeight: '1.6' }}>Абонаментът на <b>{client?.name}</b> бе подновен успешно за <b>{client?.cardType === 'Служебна карта' ? `цялата ${renewServiceYear} г.` : renewalMonth}</b>.</p>
+                            <button 
+                                onClick={() => setShowSuccessModal(false)}
+                                style={{ width: '100%', background: '#fff', color: '#000', padding: '1.2rem', borderRadius: '18px', border: 'none', fontWeight: 900, fontSize: '1.1rem', cursor: 'pointer' }}
+                            >
+                                РАЗБРАХ
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+            </div>{/* /.profile-layout */}
+
+            {/* Moderator Inactivity & Renewal Warning Modal */}
+            <ModeratorInactivityWarningModal
+                isOpen={showInactivityModal}
+                reason={inactivityModalReason}
+                clientName={client?.name || 'Клиент'}
+                clientRoute={client?.route}
+                cardNumber={client?.cardNumber || (client ? CARDS_MAPPING[client.id] : '')}
+                lastPaidMonth={lastPaidMonth ? formatBGMonth(lastPaidMonth) : undefined}
+                isPaidCurrentMonth={hasPaidCurrentMonth}
+                onStayAndRenew={handleStayAndRenew}
+                onContinueWithoutChange={handleContinueWithoutChange}
+            />
+
+            <div style={{ marginTop: '2rem', textAlign: 'center', opacity: 0.2, fontSize: '0.7rem', fontWeight: 700 }}>
+                {scanTime} • {client.id.toUpperCase()}
+            </div>
+                
+
+            {/* Photo Fullscreen Modal */}
             {showPhotoModal && client && (
-                <div onClick={() => setShowPhotoModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(30px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', cursor: 'zoom-out' }}>
-                    <img src={client.photo} style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '24px', boxShadow: '0 0 100px rgba(0,0,0,1)', border: `2px solid ${themeColor}` }} alt="Zoomed" />
+                <div onClick={() => setShowPhotoModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.98)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', cursor: 'zoom-out' }}>
+                    <img src={client.photo} style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '24px', boxShadow: '0 0 100px rgba(0,0,0,1)', border: `3px solid ${themeColor}` }} alt="Zoomed" />
                 </div>
             )}
 
             <style>{`
-                @media (max-width: 480px) {
-                    .payment-modal {
-                        max-height: 90vh;
-                        overflow-y: auto;
-                        border-radius: 20px !important;
-                    }
-                    .payment-header {
-                        padding: 1.5rem 1rem 1rem !important;
-                    }
-                    .payment-header > div:nth-of-type(1) {
-                        font-size: 1.2rem !important;
-                    }
-                    .payment-body {
-                        padding: 1.2rem !important;
-                    }
-                    .payment-fields {
-                        gap: 0.8rem !important;
-                        margin-bottom: 1.2rem !important;
-                    }
-                    .payment-body input {
-                        font-size: 1rem !important;
-                        padding: 10px 12px !important;
-                    }
-                }
-                @media (min-width: 1024px) {
-                    .id-card-container, .action-area {
-                        max-width: 700px !important;
-                        padding: 1rem !important;
-                    }
-                    .photo-frame {
-                        width: 190px !important;
-                        height: 230px !important;
-                    }
-                    .holder-name {
-                        font-size: 2.5rem !important;
-                    }
-                    .route-text {
-                        font-size: 1.6rem !important;
-                    }
-                    .valid-month {
-                        font-size: 2.2rem !important;
-                    }
-                }
                 @keyframes cardEnter {
-                    from { opacity: 0; transform: translateY(30px) scale(0.95); rotate: 1deg; }
-                    to { opacity: 1; transform: translateY(0) scale(1); rotate: 0deg; }
+                    from { opacity: 0; transform: translateY(40px) scale(0.95); }
+                    to { opacity: 1; transform: translateY(0) scale(1); }
                 }
                 @keyframes hologram {
                     0% { background-position: 0% 0%; }
                     100% { background-position: 200% 200%; }
                 }
-                .id-card-container::after {
-                    content: '';
-                    position: absolute;
-                    top: -50%;
-                    left: -50%;
-                    width: 200%;
-                    height: 200%;
-                    background: radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, transparent 40%);
-                    pointer-events: none;
-                    opacity: 0.3;
-                    mix-blend-mode: soft-light;
-                    transform: rotate(45deg);
+                @keyframes pulse {
+                    0% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.8; transform: scale(0.98); }
+                    100% { opacity: 1; transform: scale(1); }
                 }
-                @media (max-width: 600px) {
-                    .card-header {
-                        padding: 0.8rem 1rem 0.6rem !important;
-                    }
-                    .card-subtitle {
-                        font-size: 0.65rem !important;
-                    }
-                    .id-card-body {
-                        flex-direction: column;
-                        align-items: center;
-                        text-align: center;
-                        gap: 1.5rem !important;
-                    }
+                .spin {
+                    animation: spin 1s linear infinite;
                 }
-                @media (max-width: 480px) {
-                    .id-card-body {
-                        flex-direction: column;
-                        align-items: center;
-                        text-align: center;
-                        gap: 1.5rem !important;
-                        padding: 1.5rem 1rem !important;
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                /* Profile layout: stacked by default (mobile / APK untouched). */
+                .profile-layout {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    width: 100%;
+                    position: relative;
+                    z-index: 10;
+                }
+                /* Desktop only: card on the left, action panels on the right, top-aligned
+                   so "Последни плащания", "Бързо подновяване" and "Управление" sit next
+                   to the card without scrolling. */
+                @media (min-width: 1024px) {
+                    .profile-layout {
+                        flex-direction: row;
+                        align-items: flex-start;
+                        justify-content: center;
+                        gap: 2rem;
+                        max-width: 960px;
+                        margin: 0 auto;
                     }
-                    .photo-frame {
-                        width: 180px !important;
-                        height: 210px !important;
-                    }
-                    .holder-name {
-                        font-size: 1.8rem !important;
-                    }
-                    .route-text {
-                        font-size: 1.3rem !important;
-                    }
-                    .date-text {
-                        font-size: 1.1rem !important;
-                    }
-                    .validity-content {
-                        align-items: center;
-                    }
-                    .valid-month {
-                        font-size: 1.8rem !important;
-                    }
-                    .status-badge {
-                        font-size: 1rem !important;
-                        margin-top: 4px !important;
-                    }
-                    .id-card-container {
-                        backdrop-filter: none !important;
-                        -webkit-backdrop-filter: none !important;
-                        background: rgba(30,30,35,0.8) !important;
+                    .profile-layout .profile-actions {
+                        margin-top: 0 !important;
                     }
                 }
             `}</style>
         </div>
-
-
     );
 };
 

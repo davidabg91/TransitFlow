@@ -216,7 +216,7 @@ const StaffPortal: React.FC = () => {
                 letterSpacing: '1px',
                 textTransform: 'uppercase'
             }}>
-                &copy; {new Date().getFullYear()} TransitFlow &bull; SMART TRANSIT INTERFACE &bull; ПЛЕВЕН
+                &copy; {new Date().getFullYear()} TRANSITFLOW &bull; SMART TRANSIT INTERFACE &bull; ПЛЕВЕН
             </footer>
         </div>
     );

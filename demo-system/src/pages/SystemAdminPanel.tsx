@@ -3,12 +3,15 @@ import {
     BarChart, Users as UsersIcon, History as HistoryIcon,
     TrendingUp, DollarSign,
     RefreshCw, Search, Clock, Shield,
-    UserPlus, Trash2
+    UserPlus, Trash2, AlertTriangle
 } from 'lucide-react';
-import { collection, query, onSnapshot, updateDoc, doc } from '../firebase';
+import { collection, collectionGroup, query, where, orderBy, limit, onSnapshot, updateDoc, doc, writeBatch, deleteField } from '../firebase';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/Card';
+import AdminAlertsButton from '../components/AdminAlertsButton';
+import SecurityLog from '../components/SecurityLog';
+import CloneAlertsLog from '../components/CloneAlertsLog';
 import type { UserRole } from '../types/auth';
 
 // Custom icons since they weren't in common lists or were problematic in older versions
@@ -28,12 +31,20 @@ interface Client {
     amountPaid: number;
     expiryDate: string;
     isCanceled?: boolean;
-    renewalHistory?: { date: string, amount: number, month: string }[];
+    renewalHistory?: { date: string, amount: number, month: string, paymentMethod?: string }[];
     scanCount?: number;
     lastScanAt?: string;
-    scanHistory?: string[];
     createdAt: string;
     abuseReviewedAt?: string;
+    cardNumber?: string;
+}
+
+// One scan record from the clients/{id}/scans subcollection, flattened with its
+// parent client id for in-memory grouping.
+interface ScanRecord {
+    clientId: string;
+    at: string;
+    route: string;
 }
 
 interface GlobalLog {
@@ -51,18 +62,34 @@ const ROUTES = [
     "Рибен", "Садовец", "Славовица", "Байкал", "Гиген",
     "Долна Митрополия", "Ясен", "Крушовица", "Дисевица", "Търнене", "Градина",
     "Петърница", "Опанец", "Победа", "Подем", "Божурица",
-    "Горни Дъбник",
-    "Долни Дъбник - Садовец", "Долна Митрополия - Тръстеник", "Долна Митрополия - Славовица"
+    "Горни Дъбник", "Ясен-Дисевица", "Ясен-Долни Дъбник", "Ореховица", "Брегаре", "Крушовене",
+    "Гривица", "Згалево", "Пордим", "Одърне", "Каменец", "Вълчитрън", "Катерица", "Борислав",
+    "Долни Дъбник - Садовец", "Долна Митрополия - Тръстеник", "Долна Митрополия - Славовица",
+    "Пордим - Каменец", "Пордим - Згалево"
 ];
 
 const ROLE_LABELS: Record<UserRole, string> = {
     admin: 'Администратор',
     moderator: 'Модератор',
+    inspector: 'Проверяващ',
 };
 
 const ROLE_COLORS: Record<UserRole, string> = {
     admin: '#ff5252',
     moderator: '#00ADB5',
+    inspector: '#ffab00',
+};
+
+// Compact "last seen" label: relative for recent, absolute date+time otherwise.
+const formatLastSeen = (iso?: string): string => {
+    if (!iso) return 'няма данни';
+    const t = new Date(iso).getTime();
+    if (isNaN(t)) return 'няма данни';
+    const secs = Math.floor((Date.now() - t) / 1000);
+    if (secs < 60) return 'преди малко';
+    if (secs < 3600) return `преди ${Math.floor(secs / 60)} мин.`;
+    if (secs < 86400) return `преди ${Math.floor(secs / 3600)} ч.`;
+    return new Date(iso).toLocaleString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
 // --- Main Component ---
@@ -72,9 +99,17 @@ const SystemAdminPanel: React.FC = () => {
 
     // Global Data
     const [clients, setClients] = useState<Client[]>([]);
+    const [scans, setScans] = useState<ScanRecord[]>([]);
+
     const [globalLogs, setGlobalLogs] = useState<GlobalLog[]>([]);
+    const [fines, setFines] = useState<{ amount: number; month: string; date: string }[]>([]);
+    const [logLimit, setLogLimit] = useState(20);
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    // One-off maintenance (delete legacy scanHistory arrays)
+    const [cleanupRunning, setCleanupRunning] = useState(false);
+    const [cleanupMsg, setCleanupMsg] = useState<string | null>(null);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -100,29 +135,60 @@ const SystemAdminPanel: React.FC = () => {
     // Audit State
     const [auditSearch, setAuditSearch] = useState('');
 
+    // Clients — loaded in full because the dashboard aggregates (revenue, route
+    // stats, abuse) need every client.
     useEffect(() => {
-        // Listen for Clients
-        const qClients = query(collection(db, 'clients'));
-        const unsubClients = onSnapshot(qClients, (snap) => {
+        const unsub = onSnapshot(query(collection(db, 'clients')), (snap) => {
             const list: Client[] = [];
-            snap.forEach(doc => list.push({ id: doc.id, ...doc.data() } as Client));
+            snap.forEach(d => list.push({ id: d.id, ...d.data() } as Client));
             setClients(list);
-        });
-
-        // Listen for Audit Logs
-        const qLogs = query(collection(db, 'activity_logs'));
-        const unsubLogs = onSnapshot(qLogs, (snap) => {
-            const logs: GlobalLog[] = [];
-            snap.forEach(doc => logs.push({ id: doc.id, ...doc.data() } as GlobalLog));
-            setGlobalLogs(() => {
-                const newList = [...logs];
-                return newList.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-            });
             setLoading(false);
         });
-
-        return () => { unsubClients(); unsubLogs(); };
+        return () => unsub();
     }, []);
+
+    // Scans — read from the clients/{id}/scans subcollection via a collection-group
+    // query, bounded to a recent window (covers the abuse detector's ~60 days and
+    // the selected day for the hourly chart). Requires the scans.at collection-group
+    // index in firestore.indexes.json.
+    useEffect(() => {
+        const sixtyDaysAgo = new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0];
+        const windowStart = selectedDate < sixtyDaysAgo ? selectedDate : sixtyDaysAgo;
+
+        const qScans = query(collectionGroup(db, 'scans'), where('at', '>=', windowStart));
+        const unsub = onSnapshot(qScans, (snap) => {
+            const list: ScanRecord[] = snap.docs.map(d => ({
+                clientId: d.ref.parent.parent?.id ?? '',
+                at: (d.data().at as string) ?? '',
+                route: (d.data().route as string) ?? '',
+            }));
+            setScans(list);
+        }, (err) => console.error('Scans listener error:', err));
+        return () => unsub();
+    }, [selectedDate]);
+
+    // Fines (Глоби) — standalone charges (e.g. lost-card fee) that count toward
+    // revenue but live outside renewalHistory so they don't affect card validity.
+    useEffect(() => {
+        const unsub = onSnapshot(collection(db, 'fines'), (snap) => {
+            setFines(snap.docs.map(d => {
+                const data = d.data();
+                return { amount: Number(data.amount) || 0, month: (data.month as string) || '', date: (data.date as string) || '' };
+            }));
+        }, (err) => console.error('Fines listener error:', err));
+        return () => unsub();
+    }, []);
+
+    // Audit logs — newest first, paginated in batches of 20.
+    useEffect(() => {
+        const qLogs = query(collection(db, 'activity_logs'), orderBy('timestamp', 'desc'), limit(logLimit));
+        const unsub = onSnapshot(qLogs, (snap) => {
+            const logs: GlobalLog[] = [];
+            snap.forEach(d => logs.push({ id: d.id, ...d.data() } as GlobalLog));
+            setGlobalLogs(logs);
+        });
+        return () => unsub();
+    }, [logLimit]);
 
     // --- Helper Functions ---
     const isExpired = (monthStr: string | undefined, client?: Client) => {
@@ -148,12 +214,17 @@ const SystemAdminPanel: React.FC = () => {
 
     // --- Dashboard Calculations ---
     const isAll = statsMonth === 'all';
-    const totalRevenue = isAll
+    // Fines counted for the selected period (all / a given month).
+    const finesForPeriod = isAll
+        ? fines.reduce((acc, f) => acc + f.amount, 0)
+        : fines.filter(f => f.month === statsMonth).reduce((acc, f) => acc + f.amount, 0);
+    const subscriptionRevenue = isAll
         ? clients.reduce((acc, c) => acc + (c.amountPaid || 0), 0)
         : clients.reduce((acc, c) => {
             const monthlyRenewal = (c.renewalHistory || []).find(r => r.month === statsMonth);
             return acc + (monthlyRenewal ? monthlyRenewal.amount : 0);
         }, 0);
+    const totalRevenue = subscriptionRevenue + finesForPeriod;
 
     const activeClientsCount = isAll
         ? clients.filter(c => !c.isCanceled && !isExpired(c.expiryDate, c)).length
@@ -170,24 +241,21 @@ const SystemAdminPanel: React.FC = () => {
 
     const todayIso = new Date().toISOString().split('T')[0];
 
-    // Revenue for selected day
+    // Revenue for selected day (subscription renewals + fines booked that day)
     const revenueSelectedDay = clients.reduce((acc, c) => {
         const payments = (c.renewalHistory || []).filter(r => r.date?.startsWith(selectedDate));
         return acc + payments.reduce((sum, p) => sum + p.amount, 0);
-    }, 0);
+    }, 0) + fines.filter(f => f.date?.startsWith(selectedDate)).reduce((sum, f) => sum + f.amount, 0);
     const registrationsSelectedDay = clients.filter(c => c.createdAt?.startsWith(selectedDate)).length;
 
     const hourlyDistribution = (() => {
         const dist = Array(24).fill(0);
-        clients.forEach(c => {
-            (c.scanHistory || []).forEach(ts => {
-                if (ts.startsWith(selectedDate)) {
-                    if (chartRoute === 'all_routes' || c.route === chartRoute) {
-                        const hr = new Date(ts).getHours();
-                        dist[hr]++;
-                    }
+        scans.forEach(s => {
+            if (s.at.startsWith(selectedDate)) {
+                if (chartRoute === 'all_routes' || s.route === chartRoute) {
+                    dist[new Date(s.at).getHours()]++;
                 }
-            });
+            }
         });
         return dist;
     })();
@@ -217,14 +285,26 @@ const SystemAdminPanel: React.FC = () => {
         return { route, count, revenue };
     }).sort((a, b) => b.revenue - a.revenue);
 
-    // Suspicious Activity (Abuse detection)
+    // Suspicious Activity (Abuse detection) — group the recent-window scans by
+    // client, then flag days with more than 3 scans on the same card.
+    const scansByClient = (() => {
+        const map: Record<string, string[]> = {};
+        scans.forEach(s => {
+            if (!s.clientId) return;
+            if (!map[s.clientId]) map[s.clientId] = [];
+            map[s.clientId].push(s.at);
+        });
+        return map;
+    })();
+
     const suspiciousClientsData = clients.map(c => {
-        if (!c.scanHistory) return null;
+        const allScans = scansByClient[c.id];
+        if (!allScans || allScans.length === 0) return null;
 
         // Filter out scans before last review
         const relevantScans = c.abuseReviewedAt
-            ? c.scanHistory.filter(ts => ts > c.abuseReviewedAt!)
-            : c.scanHistory;
+            ? allScans.filter(ts => ts > c.abuseReviewedAt!)
+            : allScans;
 
         if (relevantScans.length === 0) return null;
 
@@ -236,7 +316,7 @@ const SystemAdminPanel: React.FC = () => {
         }, {} as Record<string, string[]>);
 
         const abuseDays = Object.entries(byDate)
-            .filter(([, scans]) => scans.length > 3)
+            .filter(([, dayScans]) => dayScans.length > 3)
             .sort((a, b) => b[0].localeCompare(a[0]));
 
         if (abuseDays.length === 0) return null;
@@ -252,6 +332,31 @@ const SystemAdminPanel: React.FC = () => {
             });
         } catch (err) {
             console.error("Error clearing abuse:", err);
+        }
+    };
+
+    // One-off maintenance: scans now live in the clients/{id}/scans subcollection,
+    // so the legacy inline scanHistory arrays are dead weight. This deletes them in
+    // write batches. Safe to remove this button once it has been run.
+    const handleCleanupScanHistory = async () => {
+        if (!window.confirm('Изтриване на старите scanHistory масиви от всички клиенти? Това освобождава място и не може да се върне.')) return;
+        setCleanupRunning(true);
+        setCleanupMsg(null);
+        try {
+            const targets = clients.filter(c => Array.isArray((c as { scanHistory?: unknown }).scanHistory));
+            for (let i = 0; i < targets.length; i += 400) {
+                const batch = writeBatch(db);
+                targets.slice(i, i + 400).forEach(c => {
+                    batch.update(doc(db, 'clients', c.id), { scanHistory: deleteField() });
+                });
+                await batch.commit();
+            }
+            setCleanupMsg(`Готово. Изчистени ${targets.length} клиента.`);
+        } catch (err) {
+            console.error('Cleanup error:', err);
+            setCleanupMsg('Грешка при изчистване.');
+        } finally {
+            setCleanupRunning(false);
         }
     };
 
@@ -339,6 +444,7 @@ const SystemAdminPanel: React.FC = () => {
                                     <StatCard icon={RefreshCw} label="Обновени" value={renewedCount} color="#4caf50" isMobile={isMobile} />
                                     <StatCard icon={Percent} label="На Карта" value={`${avgProfit} €`} color="#e91e63" isMobile={isMobile} />
                                     <StatCard icon={Shield} label="Липсващи" value={pendingTotal} color="#ff5252" isMobile={isMobile} />
+                                    <StatCard icon={AlertTriangle} label="Глоби" value={`${finesForPeriod.toFixed(2)} €`} color="#ff9800" isMobile={isMobile} />
                                 </div>
                             </section>
 
@@ -369,6 +475,7 @@ const SystemAdminPanel: React.FC = () => {
                                                 </select>
                                             </div>
                                         </div>
+
 
                                         <div style={{ width: '100%', overflowX: 'auto', paddingBottom: '1rem', scrollbarWidth: 'thin' }}>
                                             <div style={{ height: '240px', display: 'flex', alignItems: 'flex-end', gap: isMobile ? '3px' : '6px', padding: '1rem 0', minWidth: isMobile ? '600px' : 'auto' }}>
@@ -453,46 +560,54 @@ const SystemAdminPanel: React.FC = () => {
                                         </Card>
                                     </div>
 
-                                    {/* Suspicious Activity */}
-                                    <div>
-                                        <h2 style={{ fontSize: isMobile ? '1.1rem' : '1.4rem', fontWeight: 800, color: '#ff5252', display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.5rem' }}>
-                                            <Shield size={20} /> КОНТРОЛ НА ЗЛОУПОТРЕБИ
-                                        </h2>
-                                        <Card style={{ padding: isMobile ? '1rem' : '2.5rem', background: 'rgba(255,82,82,0.02)' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                                {suspiciousClients.length > 0 ? suspiciousClients.map(c => (
-                                                    <div key={c.id} style={{ padding: '1rem', background: 'rgba(255,82,82,0.05)', borderRadius: '16px', border: '1px solid rgba(255,82,82,0.1)', position: 'relative' }}>
-                                                        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: '1rem', marginBottom: '1.25rem' }}>
-                                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                                <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff' }}>{c.name}</div>
-                                                                <div style={{ color: '#ff5252', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase' }}>{c.abuseDays.length} дни с аномалии</div>
-                                                            </div>
-                                                            <button
-                                                                onClick={() => handleClearAbuse(c.id)}
-                                                                style={{ background: '#ff5252', color: '#fff', padding: '0.6rem 1.25rem', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: 900, border: 'none', boxShadow: '0 4px 12px rgba(255,82,82,0.2)' }}
-                                                            >
-                                                                <Trash2 size={14} /> ИЗЧИСТИ
-                                                            </button>
-                                                        </div>
-
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                                                            {c.abuseDays.slice(0, 3).map(([date, scans], idx) => (
-                                                                <div key={idx} style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: '10px' }}>
-                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.5rem', opacity: 0.8 }}>{date}</div>
-                                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                                                        {scans.map((ts, sIdx) => (
-                                                                            <span key={sIdx} style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(255,82,82,0.15)', borderRadius: '6px', color: '#ff8a80', border: '1px solid rgba(255,82,82,0.1)' }}>
-                                                                                {new Date(ts).toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' })}
-                                                                            </span>
-                                                                        ))}
-                                                                    </div>
+                                    {/* Suspicious Activity & Clone Alerts */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                                        <div>
+                                            <h2 style={{ fontSize: isMobile ? '1.1rem' : '1.4rem', fontWeight: 800, color: '#ff5252', display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.5rem' }}>
+                                                <Shield size={20} /> КОНТРОЛ НА ЗЛОУПОТРЕБИ
+                                            </h2>
+                                            <Card style={{ padding: isMobile ? '1rem' : '2.5rem', background: 'rgba(255,82,82,0.02)' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                                    {suspiciousClients.length > 0 ? suspiciousClients.map(c => (
+                                                        <div key={c.id} style={{ padding: '1rem', background: 'rgba(255,82,82,0.05)', borderRadius: '16px', border: '1px solid rgba(255,82,82,0.1)', position: 'relative' }}>
+                                                            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+                                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                                    <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff' }}>{c.name}</div>
+                                                                    <div style={{ color: '#ff5252', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase' }}>{c.abuseDays.length} дни с аномалии</div>
                                                                 </div>
-                                                            ))}
+                                                                <button
+                                                                    onClick={() => handleClearAbuse(c.id)}
+                                                                    style={{ background: '#ff5252', color: '#fff', padding: '0.6rem 1.25rem', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: 900, border: 'none', boxShadow: '0 4px 12px rgba(255,82,82,0.2)' }}
+                                                                >
+                                                                    <Trash2 size={14} /> ИЗЧИСТИ
+                                                                </button>
+                                                            </div>
+
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                                                                {c.abuseDays.slice(0, 3).map(([date, scans], idx) => (
+                                                                    <div key={idx} style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: '10px' }}>
+                                                                        <div style={{ fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.5rem', opacity: 0.8 }}>{date}</div>
+                                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                                            {scans.map((ts, sIdx) => (
+                                                                                <span key={sIdx} style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(255,82,82,0.15)', borderRadius: '6px', color: '#ff8a80', border: '1px solid rgba(255,82,82,0.1)' }}>
+                                                                                    {new Date(ts).toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' })}
+                                                                                </span>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                )) : <div style={{ textAlign: 'center', padding: '3rem', opacity: 0.3, fontWeight: 700 }}>Няма засечени нарушения към момента.</div>}
-                                            </div>
-                                        </Card>
+                                                    )) : <div style={{ textAlign: 'center', padding: '3rem', opacity: 0.3, fontWeight: 700 }}>Няма засечени нарушения към момента.</div>}
+                                                </div>
+                                            </Card>
+                                        </div>
+
+                                        <div>
+                                            <Card style={{ padding: isMobile ? '1rem' : '2.5rem', background: 'rgba(255,23,68,0.02)', border: '1px solid rgba(255,23,68,0.15)' }}>
+                                                <CloneAlertsLog />
+                                            </Card>
+                                        </div>
                                     </div>
                                 </div>
                             </section>
@@ -504,6 +619,10 @@ const SystemAdminPanel: React.FC = () => {
             {/* Users Tab */}
             {activeTab === 'users' && (
                 <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem', animation: 'fadeIn 0.3s ease' }}>
+                    <AdminAlertsButton />
+                    <Card style={{ padding: isMobile ? '1.25rem' : '2rem' }}>
+                        <SecurityLog />
+                    </Card>
                     <Card style={{ padding: isMobile ? '1.25rem' : '2rem' }}>
                         <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: isMobile ? '1.2rem' : '1.5rem' }}><UserPlus size={isMobile ? 20 : 24} color="var(--primary-color)" /> Добави Нов Персонал</h3>
                         <form onSubmit={handleAddUser} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -521,6 +640,7 @@ const SystemAdminPanel: React.FC = () => {
                                         <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Роля</label>
                                         <select value={newRole} onChange={e => setNewRole(e.target.value as UserRole)} style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', background: '#333', border: '1px solid var(--surface-border)', color: '#fff', outline: 'none' }}>
                                             <option value="moderator">Модератор</option>
+                                            <option value="inspector">Проверяващ</option>
                                             <option value="admin">Администратор</option>
                                         </select>
                                     </div>
@@ -532,6 +652,7 @@ const SystemAdminPanel: React.FC = () => {
                                     <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Роля</label>
                                     <select value={newRole} onChange={e => setNewRole(e.target.value as UserRole)} style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', background: '#333', border: '1px solid var(--surface-border)', color: '#fff', outline: 'none' }}>
                                         <option value="moderator">Модератор</option>
+                                        <option value="inspector">Проверяващ</option>
                                         <option value="admin">Администратор</option>
                                     </select>
                                 </div>
@@ -552,6 +673,9 @@ const SystemAdminPanel: React.FC = () => {
                                         <div style={{ flex: 1 }}>
                                             <div style={{ fontWeight: 700, fontSize: isMobile ? '1rem' : '1.1rem' }}>{user.username}</div>
                                             <div style={{ fontSize: '0.75rem', color: ROLE_COLORS[user.role], fontWeight: 800 }}>{ROLE_LABELS[user.role]}</div>
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                                                Последно активен: {formatLastSeen(user.lastSeen)}
+                                            </div>
                                         </div>
                                         {user.id === currentUser?.id && isMobile && <span style={{ fontSize: '0.6rem', padding: '0.25rem 0.6rem', borderRadius: '50px', background: 'rgba(0,173,181,0.1)', color: 'var(--primary-color)', fontWeight: 800 }}>АЗ</span>}
                                     </div>
@@ -564,6 +688,7 @@ const SystemAdminPanel: React.FC = () => {
                                                     style={{ padding: '0.45rem 0.6rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', borderRadius: '8px', color: 'white', fontSize: '0.8rem', flex: isMobile ? 1 : 'none' }}
                                                 >
                                                     <option value="moderator">Модератор</option>
+                                                    <option value="inspector">Проверяващ</option>
                                                     <option value="admin">Администратор</option>
                                                 </select>
                                                 <button onClick={() => window.confirm('Наистина ли искате да изтриете този потребител?') && deleteUser(user.id)} style={{ padding: '0.65rem', color: '#ff5252', background: 'rgba(255,82,82,0.1)', border: '1px solid rgba(255,82,82,0.2)', borderRadius: '8px', cursor: 'pointer' }}><Trash2 size={18} /></button>
@@ -574,6 +699,22 @@ const SystemAdminPanel: React.FC = () => {
                                 </div>
                             ))}
                         </div>
+                    </Card>
+
+                    {/* One-off maintenance — remove after running once */}
+                    <Card style={{ padding: isMobile ? '1.25rem' : '2rem' }}>
+                        <h3 style={{ marginBottom: '0.75rem', fontSize: isMobile ? '1.1rem' : '1.3rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Trash2 size={isMobile ? 18 : 22} color="#ff9800" /> Поддръжка</h3>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
+                            Сканиранията вече се пазят в отделна подколекция. Този бутон изтрива старите <code>scanHistory</code> масиви от документите на клиентите, за да освободи място. Изпълнява се еднократно.
+                        </p>
+                        <button
+                            onClick={handleCleanupScanHistory}
+                            disabled={cleanupRunning}
+                            style={{ background: 'rgba(255,152,0,0.12)', color: '#ff9800', border: '1px solid rgba(255,152,0,0.3)', borderRadius: '10px', padding: '0.75rem 1.5rem', fontWeight: 800, cursor: cleanupRunning ? 'default' : 'pointer', opacity: cleanupRunning ? 0.6 : 1 }}
+                        >
+                            {cleanupRunning ? 'Изчистване...' : 'Изчисти стари scanHistory данни'}
+                        </button>
+                        {cleanupMsg && <div style={{ marginTop: '1rem', fontSize: '0.85rem', fontWeight: 700, color: '#00c853' }}>{cleanupMsg}</div>}
                     </Card>
                 </div>
             )}
@@ -602,7 +743,7 @@ const SystemAdminPanel: React.FC = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredLogs.slice(0, 100).map(log => (
+                                        {filteredLogs.map(log => (
                                             <tr key={log.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s' }}>
                                                 <td style={{ padding: '1.25rem', fontSize: '0.8rem', opacity: 0.5 }}>{new Date(log.timestamp).toLocaleString('bg-BG', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
                                                 <td style={{ padding: '1.25rem' }}><span style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', fontSize: '0.85rem' }}>{log.performedBy.split('@')[0]}</span></td>
@@ -617,7 +758,7 @@ const SystemAdminPanel: React.FC = () => {
                             </div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'rgba(255,255,255,0.05)' }}>
-                                {filteredLogs.slice(0, 50).map(log => (
+                                {filteredLogs.map(log => (
                                     <div key={log.id} style={{ padding: '1rem', background: '#1a1a1a', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <span style={{ fontSize: '0.75rem', opacity: 0.5 }}>{new Date(log.timestamp).toLocaleString('bg-BG', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
@@ -641,6 +782,16 @@ const SystemAdminPanel: React.FC = () => {
                             </div>
                         )}
                     </Card>
+                    {globalLogs.length >= logLimit && (
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <button
+                                onClick={() => setLogLimit(n => n + 20)}
+                                style={{ background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid var(--surface-border)', borderRadius: '50px', padding: '0.8rem 2rem', fontWeight: 800, cursor: 'pointer' }}
+                            >
+                                Зареди още
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

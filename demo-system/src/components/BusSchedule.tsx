@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Bus } from 'lucide-react';
-import { SCHEDULES } from '../data/schedules';
+import { SCHEDULES, type ScheduleTime } from '../data/schedules';
 import { abbreviate } from '../data/routeMetadata';
+import { getHoliday } from '../utils/holidays';
 
 interface BusScheduleProps {
     route: string;
@@ -22,9 +23,17 @@ const BusSchedule: React.FC<BusScheduleProps> = ({ route }) => {
     const day = currentTime.getDay();
     const isSunday = day === 0;
     const isSaturday = day === 6;
+
+    const holiday = getHoliday(currentTime);
+    const isHoliday = !!holiday;
     
-    let activeSchedule = scheduleData;
-    if (isSunday && scheduleData.sunday) {
+    // Some lines publish a dedicated holiday schedule; otherwise holidays fall
+    // back to the Sunday times.
+    const hasHolidaySched = isHoliday && !!scheduleData.holiday;
+    let activeSchedule: ScheduleTime = scheduleData;
+    if (hasHolidaySched) {
+        activeSchedule = scheduleData.holiday!;
+    } else if ((isSunday || isHoliday) && scheduleData.sunday) {
         activeSchedule = scheduleData.sunday;
     } else if (isSaturday && scheduleData.saturday) {
         activeSchedule = scheduleData.saturday;
@@ -42,7 +51,24 @@ const BusSchedule: React.FC<BusScheduleProps> = ({ route }) => {
     // Determine labels based on route name
     let fromLabel = 'ПЛЕВЕН';
     let toLabel = route.toUpperCase();
-    if (route.includes(' - ')) {
+
+    const originMapping: Record<string, string> = {
+        "Божурица": "РИБЕН",
+        "Победа": "РИБЕН",
+        "Биволаре": "РИБЕН",
+        "Градина": "БЪРКАЧ",
+        "Дисевица": "БЪРКАЧ",
+        "Търнене": "БЪРКАЧ",
+        "Петърница": "БЪРКАЧ",
+        "Крушовица": "САДОВЕЦ",
+        "Ореховица": "БАЙКАЛ",
+        "Брегаре": "БАЙКАЛ",
+        "Крушовене": "БАЙКАЛ"
+    };
+
+    if (originMapping[route]) {
+        toLabel = originMapping[route];
+    } else if (route.includes(' - ')) {
         const parts = route.split(' - ');
         fromLabel = parts[0].toUpperCase();
         toLabel = parts[1].toUpperCase();
@@ -64,10 +90,11 @@ const BusSchedule: React.FC<BusScheduleProps> = ({ route }) => {
                     <Bus size={20} />
                     <span style={{ fontWeight: 800, fontSize: '1rem', letterSpacing: '1px' }}>РАЗПИСАНИЕ АВТОБУСИ</span>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
-                    ({isSunday ? 'неделя' : 
-                      isSaturday ? 'събота' : 
-                      (route === 'Тръстеник' ? 'понеделник-събота' : 'делнични дни')})
+                <div style={{ fontSize: '0.75rem', color: isHoliday ? '#ff5252' : 'rgba(255,255,255,0.4)', fontWeight: 800 }}>
+                    ({isHoliday ? `${holiday.name.toUpperCase()}: ${hasHolidaySched ? 'Празнично разписание' : 'Важи неделно разписание'}` :
+                      (isSunday ? 'неделя' : 
+                       isSaturday ? 'събота' : 
+                       (route === 'Тръстеник' ? 'понеделник-събота' : 'делнични дни'))})
                 </div>
                 {isBarkachRoute && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
@@ -86,7 +113,7 @@ const BusSchedule: React.FC<BusScheduleProps> = ({ route }) => {
                             borderRadius: '100px',
                             border: '1px solid rgba(0, 230, 118, 0.1)'
                         }}>
-                             ВАЖНО: Има промяна в разписанието за делнични дни (отбелязани с "ново").
+                             ВАЖНО: Има промяна в разписанието (отбелязани с "ново").
                         </div>
                     </div>
                 )}

@@ -1,6 +1,28 @@
-// We mock the Firebase App structure
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * TransitFlow demo — in-browser Firebase stand-in.
+ *
+ * The production system talks to Firestore / Firebase Auth / Storage / Callable
+ * Functions. The public demo has no backend: this module re-implements the slice
+ * of those SDKs that the app actually uses, on top of localStorage, so every
+ * screen, listener and write path behaves exactly as it does in production —
+ * including sub-collections, collection-group queries, batched writes and
+ * real-time `onSnapshot` updates.
+ *
+ * Every page imports these names instead of `firebase/firestore` & friends;
+ * nothing else in the app knows the difference.
+ *
+ * Seed data lives in `./demo/seed.ts`.
+ */
+
+import { SEED_COLLECTIONS, SEED_AUTH_USERS } from './demo/seed';
+
 const app = {};
 export default app;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface MockSnapshot {
     id: string;
@@ -9,765 +31,664 @@ export interface MockSnapshot {
     empty: boolean;
     docs: MockSnapshot[];
     size: number;
+    ref?: any;
+    metadata: { fromCache: boolean; hasPendingWrites: boolean };
     forEach(callback: (doc: MockSnapshot) => void): void;
 }
 
 export type User = any;
 
-export const getToken = async (_messaging?: any, _options?: any) => {
-    return 'mock-fcm-token-12345';
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// Storage engine — one localStorage key per collection path
+// ─────────────────────────────────────────────────────────────────────────────
 
-// --- Mock Database Core & Initial Data ---
-const STORAGE_KEYS = {
-    USERS: 'transitflow_demo_users',
-    CLIENTS: 'transitflow_demo_clients',
-    SIGNALS: 'transitflow_demo_signals',
-    RENTALS: 'transitflow_demo_rentals',
-    NOTIFICATIONS: 'transitflow_demo_notifications',
-    SUBSCRIPTIONS: 'transitflow_demo_subscriptions',
-    LOGS: 'transitflow_demo_logs',
-    CURRENT_USER: 'transitflow_demo_current_user'
-};
+const PREFIX = 'transitflow_demo:';
+const PATH_INDEX_KEY = `${PREFIX}__paths__`;
+const CURRENT_USER_KEY = `${PREFIX}__session__`;
+const SEED_VERSION_KEY = `${PREFIX}__seed_version__`;
 
-// Simple helper to generate unique IDs
-const generateId = () => Math.random().toString(36).substr(2, 9).toUpperCase();
+/** Bump to force a re-seed for returning visitors after the demo data changes. */
+const SEED_VERSION = '2026.08.18.1';
 
-// Helper to format date relative to today (e.g. YYYY-MM)
-const getRelativeMonth = (offsetMonths: number) => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + offsetMonths);
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-};
+const keyFor = (path: string) => `${PREFIX}${path}`;
 
-const getRelativeDateString = (offsetDays: number, timeStr = "12:00:00") => {
-    const d = new Date();
-    d.setDate(d.getDate() + offsetDays);
-    const datePart = d.toISOString().split('T')[0];
-    return `${datePart}T${timeStr}`;
-};
-
-// Initial Seed Datasets
-const INITIAL_USERS = [
-    { id: 'u-admin', username: 'admin@transitflow.bg', role: 'admin', createdAt: new Date().toISOString() },
-    { id: 'u-staff', username: 'staff@transitflow.bg', role: 'moderator', createdAt: new Date().toISOString() },
-    { id: 'u-driver', username: 'driver@transitflow.bg', role: 'moderator', createdAt: new Date().toISOString() }
-];
-
-const INITIAL_CLIENTS = [
-    {
-        id: 'TF-89A2C',
-        rfid: '12498203',
-        name: 'Иван Георгиев Димитров',
-        route: 'Тръстеник',
-        cardType: 'Студентска карта',
-        amountPaid: 20,
-        expiryDate: getRelativeMonth(1), // Active
-        photo: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=120',
-        createdAt: getRelativeDateString(-45, "10:30:15"),
-        scanCount: 48,
-        lastScanAt: getRelativeDateString(0, "18:45:12"),
-        school: 'МГ ГЕО МИЛЕВ',
-        address: 'гр. Тръстеник, ул. Иван Вазов 12',
-        scanHistory: [
-            getRelativeDateString(0, "18:45:12"),
-            getRelativeDateString(0, "07:32:10"),
-            getRelativeDateString(-1, "18:30:44"),
-            getRelativeDateString(-1, "07:29:15"),
-            getRelativeDateString(-2, "17:15:00")
-        ]
-    },
-    {
-        id: 'TF-45B9X',
-        rfid: '83920184',
-        name: 'Мария Иванова Николова',
-        route: 'Долни Дъбник',
-        cardType: 'Нормална карта',
-        amountPaid: 40,
-        expiryDate: getRelativeMonth(2), // Active
-        photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=120',
-        createdAt: getRelativeDateString(-30, "09:15:00"),
-        scanCount: 22,
-        lastScanAt: getRelativeDateString(-1, "08:12:45"),
-        address: 'гр. Долни Дъбник, ул. България 45',
-        scanHistory: [
-            getRelativeDateString(-1, "08:12:45"),
-            getRelativeDateString(-3, "17:05:10"),
-            getRelativeDateString(-4, "08:00:22")
-        ]
-    },
-    {
-        id: 'TF-12K3R',
-        rfid: '92048572',
-        name: 'Георги Тодоров Петров',
-        route: 'Биволаре',
-        cardType: 'Пенсионерска карта',
-        amountPaid: 10,
-        expiryDate: getRelativeMonth(-1), // Expired
-        photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=120',
-        createdAt: getRelativeDateString(-120, "14:20:00"),
-        scanCount: 114,
-        lastScanAt: getRelativeDateString(-3, "10:14:02"),
-        address: 'с. Биволаре, ул. Христо Ботев 4',
-        scanHistory: [
-            getRelativeDateString(-3, "10:14:02"),
-            getRelativeDateString(-4, "15:22:11"),
-            getRelativeDateString(-6, "09:30:15")
-        ]
-    },
-    {
-        id: 'TF-67V2P',
-        rfid: '30491823',
-        name: 'Стефан Василев Иванов',
-        route: 'Горна Митрополия',
-        cardType: 'Нормална карта',
-        amountPaid: 40,
-        expiryDate: getRelativeMonth(1),
-        isCanceled: true,
-        cancelReason: 'Загубена карта - преиздадена на нов носител',
-        photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=120',
-        createdAt: getRelativeDateString(-60, "11:45:00"),
-        scanCount: 12,
-        lastScanAt: getRelativeDateString(-25, "16:20:00"),
-        address: 'гр. Долна Митрополия, ул. Дунав 8',
-        scanHistory: [
-            getRelativeDateString(-25, "16:20:00")
-        ]
-    },
-    {
-        id: 'TF-38D5S',
-        rfid: '50293841',
-        name: 'Елена Петрова Колева',
-        route: 'Ясен',
-        cardType: 'Ученическа карта',
-        amountPaid: 20,
-        expiryDate: getRelativeMonth(3), // Active
-        photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=120',
-        createdAt: getRelativeDateString(-15, "08:30:00"),
-        scanCount: 31,
-        lastScanAt: getRelativeDateString(0, "14:15:30"),
-        school: 'МГ ГЕО МИЛЕВ',
-        address: 'с. Ясен, ул. Кирил и Методий 5',
-        scanHistory: [
-            getRelativeDateString(0, "14:15:30"),
-            getRelativeDateString(0, "07:45:10"),
-            getRelativeDateString(-1, "14:10:22"),
-            getRelativeDateString(-1, "07:44:00")
-        ]
-    },
-    {
-        id: 'TF-99P4A',
-        rfid: '49204859',
-        name: 'Димитър Христов Стоянов',
-        route: 'Садовец',
-        cardType: 'Нормална карта',
-        amountPaid: 40,
-        expiryDate: getRelativeMonth(1),
-        photo: '', // No photo
-        createdAt: getRelativeDateString(-2, "16:10:00"),
-        scanCount: 0,
-        lastScanAt: '',
-        address: 'с. Садовец, ул. Плевен 17'
-    },
-    {
-        id: 'TF-22Y8Q',
-        rfid: '20938402',
-        name: 'Петър Василев Стоянов',
-        route: 'Крушовица',
-        cardType: 'Ученическа карта',
-        amountPaid: 20,
-        expiryDate: getRelativeMonth(2),
-        photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=120',
-        createdAt: getRelativeDateString(-80, "10:15:00"),
-        scanCount: 88,
-        lastScanAt: getRelativeDateString(0, "14:22:10"),
-        school: 'ДФСГ',
-        address: 'с. Крушовица, ул. Асен I 23',
-        scanHistory: [
-            getRelativeDateString(0, "14:22:10"),
-            getRelativeDateString(-1, "14:25:00")
-        ]
-    },
-    {
-        id: 'TF-77L1M',
-        rfid: '88203940',
-        name: 'Йордан Атанасов Попов',
-        route: 'Славовица',
-        cardType: 'Пенсионерска карта',
-        amountPaid: 10,
-        expiryDate: getRelativeMonth(2),
-        photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=120',
-        createdAt: getRelativeDateString(-150, "09:00:00"),
-        scanCount: 164,
-        lastScanAt: getRelativeDateString(-2, "11:15:44"),
-        address: 'с. Славовица, ул. Мир 3'
-    }
-];
-
-const INITIAL_SIGNALS = [
-    {
-        id: 'sig-1',
-        type: 'complaint',
-        name: 'Васил Кирилов',
-        phone: '0878123456',
-        email: 'vasil@kirilov.net',
-        message: 'Автобусът по линия Плевен-Тръстеник в 17:30 закъсня с 15 минути на дата 08.07. Моля да обърнете внимание на спазването на графиците.',
-        timestamp: getRelativeDateString(-1, "18:10:00"),
-        status: 'new'
-    },
-    {
-        id: 'sig-2',
-        type: 'suggestion',
-        name: 'Гергана Цветкова',
-        phone: '0899887766',
-        email: 'geri_cvetkova@abv.bg',
-        message: 'Моля да добавите допълнителен курс в събота сутрин за линия Плевен-Долни Дъбник, тъй като тогава има много хора за пазара.',
-        timestamp: getRelativeDateString(-4, "10:30:00"),
-        status: 'resolved'
-    },
-    {
-        id: 'sig-3',
-        type: 'complaint',
-        name: 'Ангел Димитров',
-        phone: '0887332211',
-        email: 'angel.d@gmail.com',
-        message: 'Шофьорът на курс в 14:00 за Гиген беше изключително груб при проверка на картата. Твърдеше, че картата ми не се чете, въпреки че накрая светна в зелено.',
-        timestamp: getRelativeDateString(-2, "15:20:00"),
-        status: 'read'
-    }
-];
-
-const INITIAL_RENTALS = [
-    {
-        id: 'rent-1',
-        name: 'Димитър Ангелов',
-        phone: '0878556677',
-        date: getRelativeDateString(10).split('T')[0],
-        passengers: '45',
-        destination: 'Плевен - Рилски манастир - Плевен',
-        timestamp: getRelativeDateString(-1, "12:00:00"),
-        status: 'new'
-    },
-    {
-        id: 'rent-2',
-        name: 'Силвия Петрова',
-        phone: '0899121212',
-        date: getRelativeDateString(15).split('T')[0],
-        passengers: '20',
-        destination: 'Плевен - София (Летище)',
-        timestamp: getRelativeDateString(-3, "15:45:00"),
-        status: 'contacted'
-    },
-    {
-        id: 'rent-3',
-        name: 'Ивайло Тодоров',
-        phone: '0887009988',
-        date: getRelativeDateString(-5).split('T')[0],
-        passengers: '50',
-        destination: 'Плевен - Велико Търново - Плевен',
-        timestamp: getRelativeDateString(-15, "09:30:00"),
-        status: 'completed'
-    }
-];
-
-const INITIAL_NOTIFICATIONS = [
-    {
-        id: 'notif-1',
-        courseId: 'all',
-        title: 'Планов ремонт в гр. Долни Дъбник',
-        body: 'Поради ремонти на пътната настилка, автобусите по линия Плевен - Долни Дъбник ще се движат по обходен маршрут с 5 минути закъснение.',
-        timestamp: getRelativeDateString(-2, "08:00:00"),
-        sentStatus: 'sent',
-        subscriberCount: 28
-    },
-    {
-        id: 'notif-2',
-        courseId: 'Тръстеник',
-        title: 'Допълнителен извънреден курс',
-        body: 'За линия Тръстеник се пуска допълнителен курс в петък от 19:30 часа от автогара Плевен.',
-        timestamp: getRelativeDateString(-5, "16:22:00"),
-        sentStatus: 'sent',
-        subscriberCount: 14
-    }
-];
-
-const INITIAL_LOGS = [
-    {
-        id: 'log-1',
-        timestamp: getRelativeDateString(0, "18:45:12"),
-        performedBy: 'Шофьор (staff@transitflow.bg)',
-        action: 'Валидиране на карта',
-        targetName: 'Иван Георгиев Димитров',
-        details: 'Успешна NFC заверка на карта TF-89A2C за курс "Тръстеник"',
-        amount: 0
-    },
-    {
-        id: 'log-2',
-        timestamp: getRelativeDateString(0, "15:20:10"),
-        performedBy: 'Администратор (admin@transitflow.bg)',
-        action: 'Преиздаване на карта',
-        targetName: 'Стефан Василев Иванов',
-        details: 'Маркиране на карта TF-67V2P като анулирана. Причина: Загубена карта.',
-        amount: 0
-    },
-    {
-        id: 'log-3',
-        timestamp: getRelativeDateString(-1, "10:30:00"),
-        performedBy: 'Администратор (admin@transitflow.bg)',
-        action: 'Издаване на нова карта',
-        targetName: 'Димитър Христов Стоянов',
-        details: 'Регистрирана нова NFC карта TF-99P4A за маршрут "Садовец". Такса: 40 лв.',
-        amount: 40
-    },
-    {
-        id: 'log-4',
-        timestamp: getRelativeDateString(-2, "08:15:00"),
-        performedBy: 'Администратор (admin@transitflow.bg)',
-        action: 'Изпращане на уведомление',
-        targetName: 'Всички линии',
-        details: 'Изпратено пуш уведомление: "Планов ремонт в гр. Долни Дъбник"',
-        amount: 0
-    },
-    {
-        id: 'log-5',
-        timestamp: getRelativeDateString(-3, "17:10:00"),
-        performedBy: 'Администратор (admin@transitflow.bg)',
-        action: 'Подновяване на карта',
-        targetName: 'Мария Иванова Николова',
-        details: 'Подновяване за месец ' + getRelativeMonth(2) + '. Такса: 40 лв.',
-        amount: 40
-    }
-];
-
-// Initialize Storage Functions
-const getStorageItem = (key: string, defaultValue: any) => {
-    const val = localStorage.getItem(key);
-    if (!val) {
-        localStorage.setItem(key, JSON.stringify(defaultValue));
-        return defaultValue;
-    }
+const readJson = (key: string, fallback: any) => {
     try {
-        return JSON.parse(val);
+        const raw = localStorage.getItem(key);
+        return raw === null ? fallback : JSON.parse(raw);
     } catch {
-        return defaultValue;
+        return fallback;
     }
 };
 
-const setStorageItem = (key: string, data: any) => {
-    localStorage.setItem(key, JSON.stringify(data));
+const writeJson = (key: string, value: any) => {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+        // Quota exceeded — the demo keeps working in memory for this session.
+        console.warn('[demo db] write failed (storage full?)', e);
+    }
 };
 
-// Global initializer
+/** Every collection path that currently holds data (needed for collectionGroup). */
+const knownPaths = (): string[] => readJson(PATH_INDEX_KEY, []);
+
+const rememberPath = (path: string) => {
+    const paths = knownPaths();
+    if (!paths.includes(path)) {
+        paths.push(path);
+        writeJson(PATH_INDEX_KEY, paths);
+    }
+};
+
+const readCollection = (path: string): any[] => readJson(keyFor(path), []);
+
+const writeCollection = (path: string, list: any[]) => {
+    writeJson(keyFor(path), list);
+    rememberPath(path);
+};
+
+const generateId = () => {
+    const c = typeof crypto !== 'undefined' ? crypto : undefined;
+    if (c?.randomUUID) return c.randomUUID().replace(/-/g, '').slice(0, 20).toUpperCase();
+    return (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).toUpperCase().slice(0, 20);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Seeding
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Load the demo dataset. `force` wipes every visitor-made change and restores
+ * the shipped data — that's what the "Нулиране на демо данни" button calls.
+ */
 export const initializeMockDatabase = (force = false) => {
     if (force) {
-        localStorage.removeItem(STORAGE_KEYS.USERS);
-        localStorage.removeItem(STORAGE_KEYS.CLIENTS);
-        localStorage.removeItem(STORAGE_KEYS.SIGNALS);
-        localStorage.removeItem(STORAGE_KEYS.RENTALS);
-        localStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
-        localStorage.removeItem(STORAGE_KEYS.SUBSCRIPTIONS);
-        localStorage.removeItem(STORAGE_KEYS.LOGS);
-        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+        Object.keys(localStorage)
+            .filter(k => k.startsWith(PREFIX))
+            .forEach(k => localStorage.removeItem(k));
     }
-    getStorageItem(STORAGE_KEYS.USERS, INITIAL_USERS);
-    getStorageItem(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS);
-    getStorageItem(STORAGE_KEYS.SIGNALS, INITIAL_SIGNALS);
-    getStorageItem(STORAGE_KEYS.RENTALS, INITIAL_RENTALS);
-    getStorageItem(STORAGE_KEYS.NOTIFICATIONS, INITIAL_NOTIFICATIONS);
-    getStorageItem(STORAGE_KEYS.SUBSCRIPTIONS, []);
-    getStorageItem(STORAGE_KEYS.LOGS, INITIAL_LOGS);
+
+    const seeded = localStorage.getItem(SEED_VERSION_KEY);
+    if (!force && seeded === SEED_VERSION) return;
+
+    // A newer dataset shipped — replace the seeded collections but keep nothing
+    // stale behind, so the demo always shows the current feature set.
+    Object.keys(localStorage)
+        .filter(k => k.startsWith(PREFIX) && k !== CURRENT_USER_KEY)
+        .forEach(k => localStorage.removeItem(k));
+
+    Object.entries(SEED_COLLECTIONS).forEach(([path, docs]) => {
+        writeCollection(path, docs as any[]);
+    });
+
+    localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION);
 };
 
-// Auto-run initial seed
 initializeMockDatabase(false);
 
-// --- Reactive Snapshots & Callbacks ---
-type ListenerCallback = (snapshot: MockSnapshot) => void;
-const listeners: Record<string, { query: any; callback: ListenerCallback }[]> = {};
+// ─────────────────────────────────────────────────────────────────────────────
+// References
+// ─────────────────────────────────────────────────────────────────────────────
 
-const registerListener = (collectionName: string, queryObj: any, callback: ListenerCallback) => {
-    if (!listeners[collectionName]) {
-        listeners[collectionName] = [];
-    }
-    listeners[collectionName].push({ query: queryObj, callback });
-    // Trigger immediately
-    triggerListeners(collectionName);
-};
+export const db: any = { __demo: true };
 
-const unregisterListener = (collectionName: string, callback: ListenerCallback) => {
-    if (listeners[collectionName]) {
-        listeners[collectionName] = listeners[collectionName].filter(l => l.callback !== callback);
-    }
-};
-
-const triggerListeners = (collectionName: string) => {
-    if (!listeners[collectionName]) return;
-    
-    // Fetch current data
-    const storageKey = getStorageKeyForCollection(collectionName);
-    const data = getStorageItem(storageKey, []);
-    
-    listeners[collectionName].forEach(listener => {
-        const queryRef = listener.query;
-        
-        if (queryRef && queryRef.type === 'doc') {
-            // Document listener (e.g. doc(db, 'clients', id))
-            const item = data.find((x: any) => x.id === queryRef.id);
-            const docSnapshot = {
-                id: queryRef.id,
-                exists: () => !!item,
-                data: () => item,
-                empty: !item,
-                docs: [],
-                size: item ? 1 : 0,
-                forEach: (cb: any) => { if (item) cb({ id: queryRef.id, exists: () => true, data: () => item }); }
-            };
-            listener.callback(docSnapshot as any);
-        } else {
-            // Collection / Query listener
-            const docs = data.map((item: any) => ({
-                id: item.id || '',
-                data: () => item,
-                exists: () => true,
-                empty: false,
-                docs: [],
-                size: 0,
-                forEach: () => {}
-            }));
-            
-            const querySnapshot = {
-                id: '',
-                exists: () => false,
-                data: () => null,
-                empty: docs.length === 0,
-                docs: docs as any[],
-                forEach: (cb: (doc: any) => void) => docs.forEach(cb),
-                size: docs.length
-            };
-            
-            listener.callback(querySnapshot as any);
+/** Build the `ref` object a snapshot exposes (`d.ref.parent.parent?.id`). */
+const makeDocRef = (collectionPath: string, id: string) => {
+    const segments = collectionPath.split('/');
+    const parentDoc = segments.length >= 3
+        ? {
+            type: 'doc',
+            id: segments[segments.length - 2],
+            path: segments.slice(0, -2).join('/'),
         }
-    });
+        : null;
+    return {
+        type: 'doc',
+        id,
+        path: collectionPath,
+        parent: { type: 'collection', id: segments[segments.length - 1], path: collectionPath, parent: parentDoc },
+    };
 };
 
-const getStorageKeyForCollection = (colName: string): string => {
-    switch (colName) {
-        case 'users': return STORAGE_KEYS.USERS;
-        case 'clients': return STORAGE_KEYS.CLIENTS;
-        case 'signals': return STORAGE_KEYS.SIGNALS;
-        case 'rentals': return STORAGE_KEYS.RENTALS;
-        case 'push_notifications': return STORAGE_KEYS.NOTIFICATIONS;
-        case 'push_subscriptions': return STORAGE_KEYS.SUBSCRIPTIONS;
-        case 'activity_logs': return STORAGE_KEYS.LOGS;
-        default: return `transitflow_col_${colName}`;
-    }
-};
-
-// --- Firestore Mock Functions ---
-export const db: any = {};
-
-export const collection = (_dbInstance: any, path: string) => {
+export const collection = (_parent: any, ...segments: string[]) => {
+    // collection(db, 'clients') | collection(db, 'clients', id, 'scans') | collection(docRef, 'scans')
+    const base = _parent && _parent.type === 'doc' ? `${_parent.path}/${_parent.id}` : '';
+    const path = [base, ...segments].filter(Boolean).join('/');
     return { type: 'collection', path };
 };
 
-export const doc = (parent: any, childIdOrPath?: string, childId?: string) => {
-    let path = '';
-    let id = '';
-    
-    if (parent.type === 'collection') {
-        path = parent.path;
-        id = childIdOrPath || '';
-    } else {
-        // format is doc(db, 'collectionName', 'id')
-        path = childIdOrPath || '';
-        id = childId || '';
+/** Collection-group query: matches every sub-collection with this id. */
+export const collectionGroup = (_dbInstance: any, groupId: string) => ({ type: 'collectionGroup', groupId, path: `__group__/${groupId}` });
+
+export const doc = (parent: any, ...rest: string[]) => {
+    if (parent && parent.type === 'collection') {
+        // doc(colRef) -> auto id | doc(colRef, id)
+        return makeDocRef(parent.path, rest[0] || generateId());
     }
-    
-    return { type: 'doc', path, id };
+    // doc(db, 'clients', 'ID') | doc(db, 'clients', 'ID', 'scans', 'SCANID')
+    const segments = rest.filter(Boolean);
+    const id = segments.pop() as string;
+    return makeDocRef(segments.join('/'), id);
 };
 
-export const query = (colRef: any, ...constraints: any[]) => {
-    return { ...colRef, constraints };
-};
+export const query = (ref: any, ...constraints: any[]) => ({
+    ...ref,
+    constraints: [...(ref.constraints || []), ...constraints],
+});
 
-// Operators
 export const where = (field: string, op: string, val: any) => ({ type: 'where', field, op, val });
-export const orderBy = (field: string, dir: string = 'asc') => ({ type: 'orderBy', field, dir });
-export const limit = (num: number) => ({ type: 'limit', val: num });
+export const orderBy = (field: string, dir: 'asc' | 'desc' = 'asc') => ({ type: 'orderBy', field, dir });
+export const limit = (val: number) => ({ type: 'limit', val });
 
-// Firestore mutations
-export const addDoc = async (colRef: any, data: any) => {
-    const key = getStorageKeyForCollection(colRef.path);
-    const list = getStorageItem(key, []);
-    const newId = generateId();
-    const newItem = { id: newId, ...data };
-    
-    list.push(newItem);
-    setStorageItem(key, list);
-    
-    // Auto-log admin actions if applicable
-    if (colRef.path !== 'activity_logs' && colRef.path !== 'push_subscriptions') {
-        await logAction('Издаване/регистрация', newItem.name || colRef.path, `Регистриран нов запис в ${colRef.path}`, data.amountPaid || 0);
-    }
-    
-    triggerListeners(colRef.path);
-    return { id: newId };
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// Field modifiers
+// ─────────────────────────────────────────────────────────────────────────────
 
-export const setDoc = async (docRef: any, data: any) => {
-    const key = getStorageKeyForCollection(docRef.path);
-    let list = getStorageItem(key, []);
-    
-    const existingIndex = list.findIndex((item: any) => item.id === docRef.id);
-    const newItem = { id: docRef.id, ...data };
-    
-    if (existingIndex >= 0) {
-        list[existingIndex] = newItem;
-    } else {
-        list.push(newItem);
-    }
-    
-    setStorageItem(key, list);
-    triggerListeners(docRef.path);
-};
+const DELETE_FIELD = { __sentinel: 'deleteField' };
 
-export const updateDoc = async (docRef: any, updateFields: any) => {
-    const key = getStorageKeyForCollection(docRef.path);
-    const list = getStorageItem(key, []);
-    const index = list.findIndex((item: any) => item.id === docRef.id);
-    
-    if (index >= 0) {
-        const item = list[index];
-        // Apply updates, check for special modifiers like increment or arrayUnion
-        Object.keys(updateFields).forEach(f => {
-            const val = updateFields[f];
-            if (val && val.type === 'increment') {
-                item[f] = (item[f] || 0) + val.value;
-            } else if (val && val.type === 'arrayUnion') {
-                if (!Array.isArray(item[f])) {
-                    item[f] = [];
-                }
-                val.values.forEach((v: any) => {
-                    if (!item[f].includes(v)) {
-                        item[f].push(v);
-                    }
-                });
-            } else {
-                item[f] = val;
-            }
-        });
-        
-        list[index] = item;
-        setStorageItem(key, list);
-        
-        // Log scans or edits
-        if (docRef.path === 'clients' && updateFields.lastScanAt) {
-            await logAction('Валидиране на карта', item.name, `NFC заверка на карта ${item.id}`, 0);
+export const increment = (value: number) => ({ __sentinel: 'increment', value });
+export const arrayUnion = (...values: any[]) => ({ __sentinel: 'arrayUnion', values });
+export const arrayRemove = (...values: any[]) => ({ __sentinel: 'arrayRemove', values });
+export const deleteField = () => DELETE_FIELD;
+export const serverTimestamp = () => new Date().toISOString();
+
+const sameValue = (a: any, b: any) => JSON.stringify(a) === JSON.stringify(b);
+
+/** Apply one `updateDoc`/`batch.update` payload onto a stored document. */
+const applyUpdate = (target: any, updates: any) => {
+    Object.entries(updates).forEach(([field, raw]) => {
+        const val: any = raw;
+        if (val === DELETE_FIELD || (val && val.__sentinel === 'deleteField')) {
+            delete target[field];
+            return;
         }
-        
-        triggerListeners(docRef.path);
-    }
-};
-
-export const deleteDoc = async (docRef: any) => {
-    const key = getStorageKeyForCollection(docRef.path);
-    const list = getStorageItem(key, []);
-    const index = list.findIndex((item: any) => item.id === docRef.id);
-    
-    if (index >= 0) {
-        const item = list[index];
-        const newList = list.filter((i: any) => i.id !== docRef.id);
-        setStorageItem(key, newList);
-        
-        if (docRef.path !== 'activity_logs') {
-            await logAction('Изтриване на запис', item.name || docRef.id, `Изтрит запис от ${docRef.path}`, 0);
+        if (val && val.__sentinel === 'increment') {
+            target[field] = (target[field] || 0) + val.value;
+            return;
         }
-        
-        triggerListeners(docRef.path);
+        if (val && val.__sentinel === 'arrayUnion') {
+            if (!Array.isArray(target[field])) target[field] = [];
+            val.values.forEach((v: any) => {
+                if (!target[field].some((existing: any) => sameValue(existing, v))) target[field].push(v);
+            });
+            return;
+        }
+        if (val && val.__sentinel === 'arrayRemove') {
+            if (!Array.isArray(target[field])) return;
+            target[field] = target[field].filter((existing: any) => !val.values.some((v: any) => sameValue(existing, v)));
+            return;
+        }
+        // Dotted field paths ("a.b") update nested objects, as Firestore does.
+        if (field.includes('.')) {
+            const parts = field.split('.');
+            let cursor = target;
+            for (let i = 0; i < parts.length - 1; i++) {
+                if (typeof cursor[parts[i]] !== 'object' || cursor[parts[i]] === null) cursor[parts[i]] = {};
+                cursor = cursor[parts[i]];
+            }
+            cursor[parts[parts.length - 1]] = val;
+            return;
+        }
+        target[field] = val;
+    });
+    return target;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Query evaluation
+// ─────────────────────────────────────────────────────────────────────────────
+
+const fieldValue = (item: any, field: string) =>
+    field.split('.').reduce((acc: any, part: string) => (acc === undefined || acc === null ? undefined : acc[part]), item);
+
+const compare = (a: any, b: any): number => {
+    if (a === b) return 0;
+    if (a === undefined || a === null) return -1;
+    if (b === undefined || b === null) return 1;
+    if (typeof a === 'number' && typeof b === 'number') return a - b;
+    return String(a).localeCompare(String(b));
+};
+
+const matchesWhere = (item: any, c: any): boolean => {
+    const v = fieldValue(item, c.field);
+    switch (c.op) {
+        case '==': return sameValue(v, c.val);
+        case '!=': return !sameValue(v, c.val);
+        case '>': return compare(v, c.val) > 0;
+        case '>=': return compare(v, c.val) >= 0;
+        case '<': return compare(v, c.val) < 0;
+        case '<=': return compare(v, c.val) <= 0;
+        case 'in': return Array.isArray(c.val) && c.val.some((x: any) => sameValue(v, x));
+        case 'not-in': return Array.isArray(c.val) && !c.val.some((x: any) => sameValue(v, x));
+        case 'array-contains': return Array.isArray(v) && v.some((x: any) => sameValue(x, c.val));
+        case 'array-contains-any': return Array.isArray(v) && Array.isArray(c.val) && v.some((x: any) => c.val.some((y: any) => sameValue(x, y)));
+        default: return true;
     }
 };
 
-export const getDoc = async (docRef: any): Promise<MockSnapshot> => {
-    const key = getStorageKeyForCollection(docRef.path);
-    const list = getStorageItem(key, []);
-    const item = list.find((i: any) => i.id === docRef.id);
-    
-    return {
-        id: docRef.id,
-        exists: () => !!item,
-        data: () => item,
-        empty: !item,
-        docs: [],
-        size: item ? 1 : 0,
-        forEach: (cb: any) => { if (item) cb({ id: docRef.id, exists: () => true, data: () => item }); }
-    } as any;
+/** Resolve a ref (collection, sub-collection or collection-group) to rows. */
+const resolveRows = (ref: any): { path: string; item: any }[] => {
+    if (ref.type === 'collectionGroup') {
+        return knownPaths()
+            .filter(p => p.split('/').pop() === ref.groupId && p.includes('/'))
+            .flatMap(p => readCollection(p).map(item => ({ path: p, item })));
+    }
+    return readCollection(ref.path).map(item => ({ path: ref.path, item }));
 };
 
-export const getDocs = async (queryRef: any): Promise<MockSnapshot> => {
-    const key = getStorageKeyForCollection(queryRef.path);
-    let list = getStorageItem(key, []);
-    
-    // Apply basic filter constraints if any
-    if (queryRef.constraints) {
-        queryRef.constraints.forEach((c: any) => {
-            if (c.type === 'where') {
-                list = list.filter((item: any) => {
-                    const itemVal = item[c.field];
-                    if (c.op === '==') return itemVal === c.val;
-                    if (c.op === '!=') return itemVal !== c.val;
-                    return true;
-                });
+const runQuery = (ref: any): { path: string; item: any }[] => {
+    let rows = resolveRows(ref);
+    const constraints = ref.constraints || [];
+
+    constraints.filter((c: any) => c.type === 'where').forEach((c: any) => {
+        rows = rows.filter(r => matchesWhere(r.item, c));
+    });
+
+    const orders = constraints.filter((c: any) => c.type === 'orderBy');
+    if (orders.length) {
+        rows = [...rows].sort((a, b) => {
+            for (const o of orders) {
+                const res = compare(fieldValue(a.item, o.field), fieldValue(b.item, o.field));
+                if (res !== 0) return o.dir === 'desc' ? -res : res;
             }
+            return 0;
         });
     }
-    
-    const docs = list.map((item: any) => ({
-        id: item.id || '',
-        data: () => item,
-        exists: () => true,
-        empty: false,
-        docs: [],
-        size: 0,
-        forEach: () => {}
-    }));
-    
+
+    const lim = constraints.find((c: any) => c.type === 'limit');
+    if (lim) rows = rows.slice(0, lim.val);
+
+    return rows;
+};
+
+const METADATA = { fromCache: false, hasPendingWrites: false };
+
+const makeDocSnapshot = (collectionPath: string, item: any): MockSnapshot => ({
+    id: item.id || '',
+    data: () => item,
+    exists: () => true,
+    empty: false,
+    docs: [],
+    size: 1,
+    ref: makeDocRef(collectionPath, item.id || ''),
+    metadata: METADATA,
+    forEach: () => { /* a document snapshot has no children */ },
+});
+
+const makeQuerySnapshot = (rows: { path: string; item: any }[]): MockSnapshot => {
+    const docs = rows.map(r => makeDocSnapshot(r.path, r.item));
     return {
         id: '',
         exists: () => false,
         data: () => null,
         empty: docs.length === 0,
-        docs: docs as any[],
-        forEach: (cb: (doc: MockSnapshot) => void) => docs.forEach(cb as any),
-        size: docs.length
-    } as any;
-};
-
-export const onSnapshot = (queryRef: any, callback: ListenerCallback, _onError?: (err: any) => void) => {
-    const path = queryRef.path;
-    registerListener(path, queryRef, callback);
-    return () => {
-        unregisterListener(path, callback);
+        docs,
+        size: docs.length,
+        metadata: METADATA,
+        forEach: (cb: (d: MockSnapshot) => void) => docs.forEach(cb),
     };
 };
 
-// Modifiers
-export const increment = (value: number) => ({ type: 'increment', value });
-export const arrayUnion = (...values: any[]) => ({ type: 'arrayUnion', values });
+const makeMissingDocSnapshot = (collectionPath: string, id: string): MockSnapshot => ({
+    id,
+    data: () => undefined,
+    exists: () => false,
+    empty: true,
+    docs: [],
+    size: 0,
+    ref: makeDocRef(collectionPath, id),
+    metadata: METADATA,
+    forEach: () => { /* nothing to iterate */ },
+});
 
-// Helper to write to audit logs
-const logAction = async (action: string, targetName: string, details: string, amount: number) => {
-    const logsKey = STORAGE_KEYS.LOGS;
-    const logs = getStorageItem(logsKey, []);
-    const user = getStorageItem(STORAGE_KEYS.CURRENT_USER, { username: 'Система' });
-    
-    logs.push({
-        id: generateId(),
-        timestamp: new Date().toISOString(),
-        performedBy: user ? `${user.role === 'admin' ? 'Администратор' : 'Водещ'} (${user.username})` : 'Демо сесия',
-        action,
-        targetName,
-        details,
-        amount
-    });
-    
-    setStorageItem(logsKey, logs);
-    triggerListeners('activity_logs');
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// Real-time listeners
+// ─────────────────────────────────────────────────────────────────────────────
 
+type ListenerCallback = (snapshot: MockSnapshot) => void;
 
-// --- Auth Mock Functions ---
-export const auth: any = {
-    // Current user getter
-    get currentUser() {
-        const u = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-        if (!u) return null;
-        try {
-            const data = JSON.parse(u);
-            // Must return FirebaseUser-like shape
-            return {
-                uid: data.id,
-                email: data.username,
-                emailVerified: true
-            } as any;
-        } catch {
-            return null;
+interface Registration { ref: any; callback: ListenerCallback }
+
+const registrations: Registration[] = [];
+
+const emit = (reg: Registration) => {
+    try {
+        if (reg.ref.type === 'doc') {
+            const item = readCollection(reg.ref.path).find((x: any) => x.id === reg.ref.id);
+            reg.callback(item ? makeDocSnapshot(reg.ref.path, item) : makeMissingDocSnapshot(reg.ref.path, reg.ref.id));
+        } else {
+            reg.callback(makeQuerySnapshot(runQuery(reg.ref)));
         }
+    } catch (e) {
+        console.error('[demo db] listener failed', e);
     }
 };
 
-// Auth listeners
-const authListeners: ((user: any) => void)[] = [];
+/** Wake every listener whose ref could be affected by a write to `path`. */
+const notify = (path: string) => {
+    const groupId = path.split('/').pop();
+    registrations
+        .filter(r => {
+            if (r.ref.type === 'collectionGroup') return r.ref.groupId === groupId;
+            return r.ref.path === path;
+        })
+        .forEach(emit);
+};
 
-export const onAuthStateChanged = (authInstance: any, callback: (user: any) => void) => {
-    authListeners.push(callback);
-    // Run immediately
-    callback(authInstance.currentUser);
+export const onSnapshot = (ref: any, callback: ListenerCallback, _onError?: (err: any) => void) => {
+    const reg: Registration = { ref, callback };
+    registrations.push(reg);
+    emit(reg);
     return () => {
-        const idx = authListeners.indexOf(callback);
-        if (idx >= 0) authListeners.splice(idx, 1);
+        const i = registrations.indexOf(reg);
+        if (i >= 0) registrations.splice(i, 1);
     };
 };
 
-export const signInWithEmailAndPassword = async (authInstance: any, email: string, passwordHash: string) => {
-    const users = getStorageItem(STORAGE_KEYS.USERS, INITIAL_USERS);
-    // In our mock, email determines the user. Password matches username prefix (e.g. admin for admin@transitflow.bg)
-    const prefix = email.split('@')[0];
-    const matchedUser = users.find((u: any) => u.username.toLowerCase() === email.toLowerCase());
-    
-    if (matchedUser && passwordHash === prefix) {
-        setStorageItem(STORAGE_KEYS.CURRENT_USER, matchedUser);
-        // Notify
-        authListeners.forEach(cb => cb(authInstance.currentUser));
-        return { user: authInstance.currentUser };
-    } else {
-        throw new Error("Невалидно потребителско име или парола! За демото използвайте: admin@transitflow.bg с парола admin, или staff@transitflow.bg с парола staff.");
+// ─────────────────────────────────────────────────────────────────────────────
+// Reads
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getDoc = async (docRef: any): Promise<MockSnapshot> => {
+    const item = readCollection(docRef.path).find((x: any) => x.id === docRef.id);
+    return item ? makeDocSnapshot(docRef.path, item) : makeMissingDocSnapshot(docRef.path, docRef.id);
+};
+
+export const getDocs = async (ref: any): Promise<MockSnapshot> => makeQuerySnapshot(runQuery(ref));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Writes
+// ─────────────────────────────────────────────────────────────────────────────
+
+const writeAdd = (collectionPath: string, data: any, forcedId?: string) => {
+    const list = readCollection(collectionPath);
+    const id = forcedId || generateId();
+    list.push({ id, ...data });
+    writeCollection(collectionPath, list);
+    return id;
+};
+
+const writeSet = (collectionPath: string, id: string, data: any, merge = false) => {
+    const list = readCollection(collectionPath);
+    const i = list.findIndex((x: any) => x.id === id);
+    const next = merge && i >= 0 ? { ...list[i], ...data, id } : { id, ...data };
+    if (i >= 0) list[i] = next; else list.push(next);
+    writeCollection(collectionPath, list);
+};
+
+const writeUpdate = (collectionPath: string, id: string, updates: any) => {
+    const list = readCollection(collectionPath);
+    const i = list.findIndex((x: any) => x.id === id);
+    if (i < 0) return false;
+    list[i] = applyUpdate({ ...list[i] }, updates);
+    writeCollection(collectionPath, list);
+    return true;
+};
+
+const writeDelete = (collectionPath: string, id: string) => {
+    const list = readCollection(collectionPath);
+    const next = list.filter((x: any) => x.id !== id);
+    if (next.length === list.length) return false;
+    writeCollection(collectionPath, next);
+    return true;
+};
+
+export const addDoc = async (colRef: any, data: any) => {
+    const id = writeAdd(colRef.path, data);
+    notify(colRef.path);
+    return makeDocRef(colRef.path, id);
+};
+
+export const setDoc = async (docRef: any, data: any, options?: { merge?: boolean }) => {
+    writeSet(docRef.path, docRef.id, data, !!options?.merge);
+    notify(docRef.path);
+};
+
+export const updateDoc = async (docRef: any, updates: any) => {
+    writeUpdate(docRef.path, docRef.id, updates);
+    notify(docRef.path);
+};
+
+export const deleteDoc = async (docRef: any) => {
+    writeDelete(docRef.path, docRef.id);
+    notify(docRef.path);
+};
+
+/**
+ * Transactions. The demo is single-threaded against localStorage, so there is
+ * nothing to retry: read the current document, let the callback stage its
+ * writes, then apply them together.
+ */
+export const runTransaction = async <T,>(_dbInstance: any, updateFn: (tx: any) => Promise<T>): Promise<T> => {
+    const staged: { kind: 'set' | 'update' | 'delete'; ref: any; data?: any; merge?: boolean }[] = [];
+    const tx = {
+        async get(ref: any) { return getDoc(ref); },
+        set(ref: any, data: any, options?: { merge?: boolean }) { staged.push({ kind: 'set', ref, data, merge: !!options?.merge }); return tx; },
+        update(ref: any, data: any) { staged.push({ kind: 'update', ref, data }); return tx; },
+        delete(ref: any) { staged.push({ kind: 'delete', ref }); return tx; },
+    };
+    const result = await updateFn(tx);
+    const touched = new Set<string>();
+    staged.forEach(op => {
+        if (op.kind === 'set') writeSet(op.ref.path, op.ref.id, op.data, op.merge);
+        else if (op.kind === 'update') writeUpdate(op.ref.path, op.ref.id, op.data);
+        else writeDelete(op.ref.path, op.ref.id);
+        touched.add(op.ref.path);
+    });
+    touched.forEach(notify);
+    return result;
+};
+
+/** Batched writes — queued, then applied and broadcast together on commit(). */
+export const writeBatch = (_dbInstance: any) => {
+    const ops: { kind: 'set' | 'update' | 'delete'; ref: any; data?: any; merge?: boolean }[] = [];
+    const batch = {
+        set(ref: any, data: any, options?: { merge?: boolean }) { ops.push({ kind: 'set', ref, data, merge: !!options?.merge }); return batch; },
+        update(ref: any, data: any) { ops.push({ kind: 'update', ref, data }); return batch; },
+        delete(ref: any) { ops.push({ kind: 'delete', ref }); return batch; },
+        async commit() {
+            const touched = new Set<string>();
+            ops.forEach(op => {
+                if (op.kind === 'set') writeSet(op.ref.path, op.ref.id, op.data, op.merge);
+                else if (op.kind === 'update') writeUpdate(op.ref.path, op.ref.id, op.data);
+                else writeDelete(op.ref.path, op.ref.id);
+                touched.add(op.ref.path);
+            });
+            touched.forEach(notify);
+        },
+    };
+    return batch;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth
+// ─────────────────────────────────────────────────────────────────────────────
+
+const readSession = () => readJson(CURRENT_USER_KEY, null);
+
+export const auth: any = {
+    get currentUser() {
+        const u = readSession();
+        return u ? { uid: u.id, email: u.username, emailVerified: true } : null;
+    },
+};
+
+const authListeners: ((user: any) => void)[] = [];
+const broadcastAuth = () => authListeners.forEach(cb => cb(auth.currentUser));
+
+export const onAuthStateChanged = (_authInstance: any, callback: (user: any) => void) => {
+    authListeners.push(callback);
+    callback(auth.currentUser);
+    return () => {
+        const i = authListeners.indexOf(callback);
+        if (i >= 0) authListeners.splice(i, 1);
+    };
+};
+
+/**
+ * Mirrors the `reportFailedLogin` Cloud Function: every rejected sign-in is
+ * written to `login_attempts` with the same shape the Security log renders
+ * (IP, geo lookup, user agent, attempts in the current window).
+ */
+const recordFailedLogin = (email: string, errorCode: string) => {
+    const recentWindow = readCollection('login_attempts')
+        .filter((a: any) => Date.now() - new Date(a.timestamp).getTime() < 15 * 60 * 1000).length;
+    writeAdd('login_attempts', {
+        timestamp: new Date().toISOString(),
+        email,
+        errorCode,
+        ip: `188.254.${10 + Math.floor(Math.random() * 200)}.${1 + Math.floor(Math.random() * 250)}`,
+        ua: typeof navigator !== 'undefined' ? navigator.userAgent : 'demo',
+        city: 'Плевен',
+        region: 'Плевен',
+        country: 'България',
+        countryCode: 'BG',
+        isp: 'Демо мрежа',
+        timezone: 'Europe/Sofia',
+        attemptInWindow: recentWindow + 1,
+    });
+    notify('login_attempts');
+};
+
+/**
+ * Demo sign-in. Accounts and their passwords are listed in `demo/seed.ts`;
+ * a failed attempt is recorded in `login_attempts` so the Security log in the
+ * system panel shows real activity.
+ */
+export const signInWithEmailAndPassword = async (_authInstance: any, email: string, password: string) => {
+    const users = readCollection('users');
+    const matched = users.find((u: any) => (u.username || '').toLowerCase() === email.toLowerCase());
+    const expected = SEED_AUTH_USERS[email.toLowerCase()]
+        ?? (matched ? String(matched.username).split('@')[0] : undefined);
+
+    if (matched && password === expected) {
+        writeJson(CURRENT_USER_KEY, matched);
+        writeUpdate('users', matched.id, { lastSeen: new Date().toISOString() });
+        notify('users');
+        broadcastAuth();
+        return { user: auth.currentUser };
     }
+
+    recordFailedLogin(email, matched ? 'auth/wrong-password' : 'auth/user-not-found');
+
+    const err: any = new Error('Грешно потребителско име или парола.');
+    err.code = 'auth/invalid-credential';
+    throw err;
 };
 
 export const signOut = async (_authInstance: any) => {
-    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-    authListeners.forEach(cb => cb(null));
+    localStorage.removeItem(CURRENT_USER_KEY);
+    broadcastAuth();
 };
 
-export const createUserWithEmailAndPassword = async (_authInstance: any, email: string, role: string = 'moderator') => {
-    const users = getStorageItem(STORAGE_KEYS.USERS, INITIAL_USERS);
-    const newId = 'u-' + generateId().toLowerCase();
-    
-    const newUser = {
-        id: newId,
-        username: email,
-        role: role,
-        createdAt: new Date().toISOString()
-    };
-    
-    users.push(newUser);
-    setStorageItem(STORAGE_KEYS.USERS, users);
-    triggerListeners('users');
-    
-    return { user: { uid: newId, email } };
+export const createUserWithEmailAndPassword = async (_authInstance: any, email: string, _password: string) => {
+    const id = 'u-' + generateId().toLowerCase().slice(0, 8);
+    writeAdd('users', { username: email, role: 'moderator', createdAt: new Date().toISOString() }, id);
+    notify('users');
+    return { user: { uid: id, email } };
 };
 
-// Messaging / Analytics placeholders
+// ─────────────────────────────────────────────────────────────────────────────
+// Callable Cloud Functions
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getFunctions = (_app?: any) => ({ __demo: true });
+
+/**
+ * Stand-ins for the deployed callables. `createStaffUser` normally runs on the
+ * Admin SDK (creating an auth account without signing the admin out);
+ * `reportFailedLogin` writes the security-log entry server-side.
+ */
+export const httpsCallable = (_functions: any, name: string) => async (payload: any = {}) => {
+    switch (name) {
+        case 'createStaffUser': {
+            const email = String(payload.email || '').toLowerCase();
+            if (readCollection('users').some((u: any) => (u.username || '').toLowerCase() === email)) {
+                const err: any = new Error('Вече съществува акаунт с този имейл.');
+                err.code = 'already-exists';
+                throw err;
+            }
+            const id = 'u-' + generateId().toLowerCase().slice(0, 8);
+            writeAdd('users', {
+                username: payload.email,
+                role: payload.role || 'moderator',
+                createdAt: new Date().toISOString(),
+            }, id);
+            notify('users');
+            if (payload.password) SEED_AUTH_USERS[email] = payload.password;
+            return { data: { uid: id } };
+        }
+        case 'deleteStaffUser': {
+            writeDelete('users', payload.uid);
+            notify('users');
+            return { data: { ok: true } };
+        }
+        case 'reportFailedLogin': {
+            recordFailedLogin(payload.email || '', payload.errorCode || 'auth/invalid-credential');
+            return { data: { ok: true } };
+        }
+        default:
+            console.warn(`[demo] callable "${name}" is not implemented in the demo build`);
+            return { data: null };
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cloud Storage
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const storage: any = { __demo: true };
+
+export const ref = (_storage: any, path: string) => ({ type: 'storageRef', path });
+
+/**
+ * Photos are kept as data URLs in the demo instead of being uploaded. The
+ * returned "download URL" is the data URL itself, so <img src> works unchanged.
+ */
+export const uploadString = async (storageRef: any, data: string, _format?: string) => {
+    writeJson(`${PREFIX}storage:${storageRef.path}`, data);
+    return { ref: storageRef };
+};
+
+export const getDownloadURL = async (storageRef: any): Promise<string> =>
+    readJson(`${PREFIX}storage:${storageRef.path}`, '') || '';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Messaging / Analytics
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const analytics = null;
 export const messaging = null;
 
-// Cross-tab real-time sync for localStorage mock database
+export const getToken = async (_messaging?: any, _options?: any) => `demo-fcm-token-${generateId().slice(0, 12)}`;
+
+/**
+ * Production returns a Firebase Messaging instance only where the browser
+ * supports it. The demo has no real push channel, so it hands back a stub —
+ * the subscribe buttons still walk their full UI flow and store a token.
+ */
+export const getSafeMessaging = async (): Promise<any> => ({ __demo: true });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cross-tab sync — a write in one tab refreshes listeners in the others
+// ─────────────────────────────────────────────────────────────────────────────
+
 if (typeof window !== 'undefined') {
     window.addEventListener('storage', (e) => {
-        if (!e.key) return;
-        
-        let collectionName: string | null = null;
-        if (e.key === STORAGE_KEYS.CLIENTS) collectionName = 'clients';
-        else if (e.key === STORAGE_KEYS.SIGNALS) collectionName = 'signals';
-        else if (e.key === STORAGE_KEYS.RENTALS) collectionName = 'rentals';
-        else if (e.key === STORAGE_KEYS.LOGS) collectionName = 'activity_logs';
-        else if (e.key === STORAGE_KEYS.NOTIFICATIONS) collectionName = 'push_notifications';
-        else if (e.key === STORAGE_KEYS.SUBSCRIPTIONS) collectionName = 'push_subscriptions';
-        else if (e.key === STORAGE_KEYS.USERS) collectionName = 'users';
-        else if (e.key === 'transitflow_col_admin_actions') collectionName = 'admin_actions';
-
-        if (collectionName) {
-            triggerListeners(collectionName);
-        }
+        if (!e.key || !e.key.startsWith(PREFIX)) return;
+        if (e.key === CURRENT_USER_KEY) { broadcastAuth(); return; }
+        const path = e.key.slice(PREFIX.length);
+        if (path.startsWith('__')) return;
+        notify(path);
     });
 }
+
+/** Exposed for the demo tooling (reset button, NFC simulator). */
+export const __demoInternals = {
+    readCollection,
+    writeCollection,
+    notify,
+    generateId,
+    knownPaths,
+};

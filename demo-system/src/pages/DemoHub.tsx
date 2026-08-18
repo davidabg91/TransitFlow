@@ -1,20 +1,28 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
     Bus, Users, Clock, ShieldAlert, Compass,
     ArrowRight, Settings, Database, RefreshCw,
-    UserCheck, Eye, Calendar, Shield
+    UserCheck, Eye, Calendar, Shield, Nfc, ClipboardCheck, KeyRound
 } from 'lucide-react';
 import { initializeMockDatabase, signInWithEmailAndPassword, auth } from '../firebase';
+import { SEED_AUTH_USERS, DEMO_CARD_IDS } from '../demo/seed';
+
+type DemoRole = 'admin' | 'moderator' | 'inspector';
+
+const ACCOUNTS: Record<DemoRole, string> = {
+    admin: 'admin@transitflow.bg',
+    moderator: 'staff@transitflow.bg',
+    inspector: 'inspector@transitflow.bg',
+};
 
 const DemoHub: React.FC = () => {
     const navigate = useNavigate();
 
-    const handleRoleAccess = async (role: 'admin' | 'moderator', path: string) => {
+    const handleRoleAccess = async (role: DemoRole, path: string) => {
         try {
-            const email = role === 'admin' ? 'admin@transitflow.bg' : 'staff@transitflow.bg';
-            const password = role === 'admin' ? 'admin' : 'staff';
-            await signInWithEmailAndPassword(auth, email, password);
+            const email = ACCOUNTS[role];
+            await signInWithEmailAndPassword(auth, email, SEED_AUTH_USERS[email]);
             navigate(path);
         } catch (e) {
             console.error("Autologin error:", e);
@@ -196,7 +204,7 @@ const DemoHub: React.FC = () => {
                     </div>
 
                     {/* Client NFC Card Simulator */}
-                    <div style={moduleCardStyle} onClick={() => navigate('/client/TF-89A2C')}>
+                    <div style={moduleCardStyle} onClick={() => navigate(`/client/${DEMO_CARD_IDS.active}`)}>
                         <div style={moduleIconContainerStyle('#ffab00')}>
                             <Eye size={32} />
                         </div>
@@ -223,18 +231,88 @@ const DemoHub: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* Inspector module */}
+                    <div style={moduleCardStyle} onClick={() => handleRoleAccess('inspector', '/inspections')}>
+                        <div style={moduleIconContainerStyle('#00b0ff')}>
+                            <ClipboardCheck size={32} />
+                        </div>
+                        <h3 style={moduleTitleStyle}>5. Модул „Контрол на пътници“</h3>
+                        <p style={moduleDescStyle}>
+                            Работното място на контрольора: проверени пътници по дни и месеци, GPS карта на извършените проверки, процент редовни пътници и писмени констативни протоколи.
+                        </p>
+                        <div style={moduleLinkStyle('#00b0ff')}>
+                            Влез като Контрольор <ArrowRight size={16} />
+                        </div>
+                    </div>
+
                     {/* System Admin Panel Card */}
                     <div style={moduleCardStyle} onClick={() => handleRoleAccess('admin', '/system-admin')}>
                         <div style={moduleIconContainerStyle('#ff5252')}>
                             <Shield size={32} />
                         </div>
-                        <h3 style={moduleTitleStyle}>5. Системен Административен Панел</h3>
+                        <h3 style={moduleTitleStyle}>6. Системен Административен Панел</h3>
                         <p style={moduleDescStyle}>
-                            Контролен панел за глобални администратори. Преглед на системното табло, управление на потребителски акаунти/роли и преглед на Глобалния одит лог.
+                            Контролен панел за глобални администратори: системно табло, управление на акаунти и роли, глобален одит лог, дневник на неуспешните опити за вход и сигнали за дублирани карти.
                         </p>
                         <div style={moduleLinkStyle('#ff5252')}>
                             Влез в Системен Панел <ArrowRight size={16} />
                         </div>
+                    </div>
+                </div>
+
+                {/* NFC simulator explainer */}
+                <div style={{
+                    background: 'linear-gradient(135deg, rgba(0,173,181,0.12), rgba(0,173,181,0.02))',
+                    border: '1px solid rgba(0,173,181,0.3)',
+                    borderRadius: '24px',
+                    padding: '2.5rem',
+                    marginBottom: '3rem',
+                    display: 'flex',
+                    gap: '1.5rem',
+                    alignItems: 'flex-start',
+                    flexWrap: 'wrap'
+                }}>
+                    <div style={{ background: 'rgba(0,173,181,0.15)', color: 'var(--primary-color)', padding: '16px', borderRadius: '20px' }}>
+                        <Nfc size={32} />
+                    </div>
+                    <div style={{ flex: '1 1 320px' }}>
+                        <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.6rem' }}>Симулатор на бордовия NFC четец</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: 1.65, margin: 0 }}>
+                            В реалната система пътникът допира картата си до терминала на водача. Тук същото се прави
+                            с бутона <strong style={{ color: '#fff' }}>„Сканирай карта“</strong> долу вдясно — на всяка страница.
+                            Може да пуснете валидна карта, изтекъл абонамент, анулирана карта, опит с клонирано копие,
+                            повторно сканиране (anti-passback) или напълно нова карта, която системата предлага да регистрирате.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Demo accounts */}
+                <div style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: '24px',
+                    padding: '2.5rem',
+                    marginBottom: '3rem'
+                }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--primary-color)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                        <KeyRound size={16} /> Демо акаунти
+                    </div>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: 1.6, marginTop: 0, marginBottom: '1.5rem' }}>
+                        Модулите по-горе влизат автоматично. Ако искате да тествате самия екран за вход и различните нива на достъп,
+                        използвайте някой от тези акаунти на <span style={{ color: '#fff', fontWeight: 700 }}>/login</span>:
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+                        {[
+                            { email: 'admin@transitflow.bg', pass: 'admin', role: 'Администратор — пълен достъп' },
+                            { email: 'staff@transitflow.bg', pass: 'staff', role: 'Модератор — каса и карти' },
+                            { email: 'inspector@transitflow.bg', pass: 'inspector', role: 'Контрольор — само проверки' },
+                        ].map(a => (
+                            <div key={a.email} style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '1rem 1.15rem' }}>
+                                <div style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: '#fff', fontWeight: 700 }}>{a.email}</div>
+                                <div style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--primary-color)', marginTop: '2px' }}>парола: {a.pass}</div>
+                                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>{a.role}</div>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
