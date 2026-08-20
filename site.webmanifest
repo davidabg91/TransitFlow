@@ -1,0 +1,15 @@
+{
+  "name": "TransitFlow — Софтуер за автобусни компании",
+  "short_name": "TransitFlow",
+  "description": "Платформа за дигитализация на автобусни превозвачи: NFC валидиране, приложение за пътници, контрол на билети и финансови отчети.",
+  "lang": "bg",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    { "src": "/assets/favicon.png", "sizes": "any", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/transitflow_logo.png", "sizes": "600x600", "type": "image/png", "purpose": "any" }
+  ]
+}

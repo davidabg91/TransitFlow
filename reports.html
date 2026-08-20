@@ -3,26 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n-title="m-reports-title">Отчети и Анализ | TransitFlow - Финансови справки за транспорт</title>
-    <meta name="description" content="Пълна финансова отчетност за автобусни компании: приход в реално време, месечни и дневни отчети, разбивка по начин на плащане, вид карта, маршрут и община, регистри за субсидии и експорт към PDF." data-i18n-content="m-reports-desc">
+    <title data-i18n-title="m-reports-title">Финансови отчети за автобусни фирми | TransitFlow</title>
+    <meta name="description" content="Финансова отчетност за автобусни компании: приход в реално време, дневни и месечни отчети, разбивка по маршрут и община, експорт към PDF." data-i18n-content="m-reports-desc">
     <link rel="canonical" href="https://transitflow.org/reports.html">
 
     <!-- Structured Data (JSON-LD) -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Начало", "item": "https://transitflow.org/" },
-        { "@type": "ListItem", "position": 2, "name": "Отчети и анализ", "item": "https://transitflow.org/reports.html" }
-      ]
-    }
-    </script>
-    
     <!-- Social Media Sharing (Open Graph) -->
     <meta property="og:title" content="Отчети и Анализ | TransitFlow - Финансови справки за транспорт" data-i18n-content="m-reports-title">
     <meta property="og:description" content="Пълна финансова отчетност за автобусни компании: приход в реално време, месечни и дневни отчети, разбивка по начин на плащане, вид карта, маршрут и община, регистри за субсидии и експорт към PDF." data-i18n-content="m-reports-desc">
-    <meta property="og:image" content="https://transitflow.org/assets/transitflow_logo.png">
+    <meta property="og:image" content="https://transitflow.org/assets/og-reports.jpg">
     <meta property="og:url" content="https://transitflow.org/reports.html">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="TransitFlow">
@@ -31,7 +20,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Отчети и Анализ | TransitFlow - Финансови справки за транспорт" data-i18n-content="m-reports-title">
     <meta name="twitter:description" content="Пълна финансова отчетност за автобусни компании: приход в реално време, месечни и дневни отчети, разбивка по начин на плащане, вид карта, маршрут и община, регистри за субсидии и експорт към PDF." data-i18n-content="m-reports-desc">
-    <meta name="twitter:image" content="https://transitflow.org/assets/transitflow_logo.png">
+    <meta name="twitter:image" content="https://transitflow.org/assets/og-reports.jpg">
     <link rel="icon" type="image/png" href="assets/favicon.png">
     <link rel="stylesheet" href="index.css">
     <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
@@ -67,7 +56,7 @@
         .rep-table th, .rep-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
         .rep-table th { color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; }
     </style>
-    <script src="cookie-consent.js" defer></script>
+    <script src="cookie-consent.js?v=2" defer></script>
     <!-- Google Analytics - Consent Mode v2 (GDPR compliant) -->
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -86,6 +75,88 @@
       gtag('js', new Date());
       gtag('config', 'G-R9P46Z4YNV', {'send_page_view': true});
     </script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://transitflow.org/reports.html#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Начало",
+          "item": "https://transitflow.org/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Отчети и анализ",
+          "item": "https://transitflow.org/reports.html"
+        }
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://transitflow.org/reports.html#webpage",
+      "url": "https://transitflow.org/reports.html",
+      "name": "Финансови отчети за автобусни фирми | TransitFlow",
+      "description": "Пълна финансова отчетност за автобусни компании: приход в реално време, месечни и дневни отчети, разбивка по начин на плащане, вид карта, маршрут и община, регистри за субсидии и експорт към PDF.",
+      "isPartOf": {
+        "@id": "https://transitflow.org/#website"
+      },
+      "about": {
+        "@id": "https://transitflow.org/#organization"
+      },
+      "breadcrumb": {
+        "@id": "https://transitflow.org/reports.html#breadcrumb"
+      },
+      "primaryImageOfPage": {
+        "@type": "ImageObject",
+        "url": "https://transitflow.org/assets/dashboard_finance_screenshot_1775309930724.webp"
+      },
+      "inLanguage": "bg"
+    },
+    {
+      "@type": "Service",
+      "@id": "https://transitflow.org/reports.html#service",
+      "name": "Отчети и анализ — TransitFlow",
+      "serviceType": "Финансова отчетност за транспорт",
+      "description": "Пълна финансова отчетност за автобусни компании: приход в реално време, месечни и дневни отчети, разбивка по начин на плащане, вид карта, маршрут и община, регистри за субсидии и експорт към PDF.",
+      "url": "https://transitflow.org/reports.html",
+      "provider": {
+        "@id": "https://transitflow.org/#organization"
+      },
+      "areaServed": {
+        "@type": "Country",
+        "name": "България"
+      },
+      "audience": {
+        "@type": "BusinessAudience",
+        "name": "Автобусни превозвачи и общински транспортни дружества"
+      },
+      "isRelatedTo": {
+        "@id": "https://transitflow.org/#software"
+      }
+    }
+  ]
+}
+</script>
+    <!-- SEO: social + platform meta -->
+    <meta property="og:image:secure_url" content="https://transitflow.org/assets/og-reports.jpg">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Финансови отчети за автобусни компании">
+    <meta property="og:locale" content="bg_BG">
+    <meta property="og:locale:alternate" content="en_US">
+    <meta name="twitter:image:alt" content="Финансови отчети за автобусни компании">
+    <meta name="theme-color" content="#020617">
+    <link rel="apple-touch-icon" href="/assets/favicon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta name="author" content="ДАВИДА БГ ЕООД">
+    <!-- /SEO -->
 </head>
 <body>
     <div class="bg-glow"></div>

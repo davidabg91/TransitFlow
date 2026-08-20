@@ -1,4 +1,41 @@
+# https://transitflow.org/robots.txt
+
+# Search engines + AI/LLM crawlers share one rule set.
+# Naming the AI agents explicitly is a positive GEO signal; keeping them in the
+# same group means the Disallow rules below still apply to them.
 User-agent: *
+User-agent: Googlebot
+User-agent: Bingbot
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: cohere-ai
+User-agent: Meta-ExternalAgent
 Allow: /
+Disallow: /demo-system/
+Disallow: /video-editor/
+# /demo/ is deliberately NOT disallowed: it is linked from the homepage and
+# carries <meta name="robots" content="noindex, follow">. Blocking it here
+# would stop Googlebot from ever reading that noindex.
+
+# --- Third-party SEO scrapers: blocked ---
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
 
 Sitemap: https://transitflow.org/sitemap.xml

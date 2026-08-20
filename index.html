@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n-title="m-index-title">TransitFlow | Професионален Софтуер за Автобусни Системи и Транспорт</title>
+    <title data-i18n-title="m-index-title">Софтуер за автобусни компании | TransitFlow</title>
     <meta name="robots" content="index, follow">
-    <meta name="description" content="TransitFlow – цялостна платформа за дигитализация на автобусни компании: NFC валидиране, приложение за пътници с разписания в реално време, контрол на билети, финансова отчетност и хардуер myPOS." data-i18n-content="m-index-desc">
+    <meta name="description" content="Софтуер за автобусни компании: NFC валидиране, приложение за пътници с разписания в реално време, контрол на билети и финансови отчети." data-i18n-content="m-index-desc">
     <meta name="keywords" content="автобусни системи, транспортен софтуер, система за обществен транспорт, NFC билетна система, приложение за пътници, контрол на билети, дигитализация транспорт, управление на автопарк България" data-i18n-content="m-index-kw">
     <link rel="canonical" href="https://transitflow.org/">
 
@@ -15,83 +15,134 @@
     <!-- Social Media Sharing (Open Graph) -->
     <meta property="og:title" content="TransitFlow | Професионален Софтуер за Транспортен Контрол" data-i18n-content="m-index-ogt">
     <meta property="og:description" content="Революция в управлението на автобусни компании. NFC карти, приложение за пътници, реални графици и пълна отчетност." data-i18n-content="m-index-ogd">
-    <meta property="og:image" content="https://transitflow.org/assets/transitflow_logo.png">
+    <meta property="og:image" content="https://transitflow.org/assets/og-transitflow.jpg">
     <meta property="og:url" content="https://transitflow.org">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="TransitFlow">
-    <link rel="image_src" href="https://transitflow.org/assets/transitflow_logo.png">
-    <meta itemprop="image" content="https://transitflow.org/assets/transitflow_logo.png">
+    <link rel="image_src" href="https://transitflow.org/assets/og-transitflow.jpg">
+    <meta itemprop="image" content="https://transitflow.org/assets/og-transitflow.jpg">
 
     <!-- Twitter Cards -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="TransitFlow | Софтуер за Автобуси и Компании" data-i18n-content="m-index-twt">
     <meta name="twitter:description" content="Пълна дигитализация на Вашия транспортен бизнес с NFC валидация, приложение за пътници и автоматизирани отчети." data-i18n-content="m-index-twd">
-    <meta name="twitter:image" content="https://transitflow.org/assets/transitflow_logo.png">
+    <meta name="twitter:image" content="https://transitflow.org/assets/og-transitflow.jpg">
 
     <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "TransitFlow",
-      "operatingSystem": "Web, Android, iOS",
-      "applicationCategory": "BusinessApplication",
-      "offers": {
-        "@type": "Offer",
-        "price": "99.00",
-        "priceCurrency": "EUR",
-        "availability": "https://schema.org/InStock"
-      },
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "4.9",
-        "ratingCount": "24"
-      },
-      "description": "TransitFlow е цялостна система за управление на автобусни компании, предлагаща NFC валидиране, приложение за пътници, динамични графици, контрол на билети и финансова отчетност.",
-      "featureList": "NFC Валидиране, Приложение за Пътници, Контрол на Билети, Динамични Графици, Финансов Анализ, Киоск Режим, Облачна Синхронизация, Рекламни Екрани и Дигитална Медия (Signage)",
-      "screenshot": "https://transitflow.org/assets/transitflow_hero_final_branded_1775316190816.webp",
-      "author": {
-        "@type": "Organization",
-        "name": "ДАВИДА БГ ЕООД",
-        "url": "https://transitflow.org"
-      }
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://transitflow.org/#organization",
+          "name": "TransitFlow",
+          "legalName": "ДАВИДА БГ ЕООД",
+          "alternateName": "DAVIDA BG EOOD",
+          "url": "https://transitflow.org/",
+          "logo": {
+            "@type": "ImageObject",
+            "@id": "https://transitflow.org/#logo",
+            "url": "https://transitflow.org/assets/transitflow_logo.png",
+            "width": 600,
+            "height": 600
+          },
+          "image": { "@id": "https://transitflow.org/#logo" },
+          "description": "TransitFlow е цялостна платформа за дигитализация на автобусни компании и обществен транспорт — NFC валидиране, приложение за пътници, контрол на билети и финансова отчетност.",
+          "identifier": [
+            { "@type": "PropertyValue", "name": "ЕИК", "value": "204356138" }
+          ],
+          "vatID": "BG204356138",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "ул. „Цар Самуил“, жк. Сторгозия",
+            "addressLocality": "Плевен",
+            "addressRegion": "Плевен",
+            "postalCode": "5802",
+            "addressCountry": "BG"
+          },
+          "telephone": "+359876141826",
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "telephone": "+359876141826",
+            "contactType": "sales",
+            "areaServed": "BG",
+            "availableLanguage": ["bg", "en"]
+          },
+          "areaServed": { "@type": "Country", "name": "България" },
+          "sameAs": []
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://transitflow.org/#website",
+          "url": "https://transitflow.org/",
+          "name": "TransitFlow",
+          "description": "Софтуер за автобусни компании и обществен транспорт",
+          "publisher": { "@id": "https://transitflow.org/#organization" },
+          "inLanguage": "bg"
+        },
+        {
+          "@type": "WebPage",
+          "@id": "https://transitflow.org/#webpage",
+          "url": "https://transitflow.org/",
+          "name": "Софтуер за автобусни компании | TransitFlow",
+          "isPartOf": { "@id": "https://transitflow.org/#website" },
+          "about": { "@id": "https://transitflow.org/#organization" },
+          "primaryImageOfPage": { "@id": "https://transitflow.org/#logo" },
+          "inLanguage": "bg"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://transitflow.org/#software",
+          "name": "TransitFlow",
+          "operatingSystem": "Web, Android, iOS, Windows",
+          "applicationCategory": "BusinessApplication",
+          "applicationSubCategory": "Transportation Management Software",
+          "url": "https://transitflow.org/",
+          "description": "Платформа за управление на автобусни превозвачи: NFC валидиране, приложение за пътници, мобилен контрол на билети, финансови отчети и хардуер myPOS Ultra.",
+          "featureList": [
+            "NFC валидиране на абонаментни карти",
+            "Приложение за пътници с разписания в реално време",
+            "Мобилен контрол на билети с GPS",
+            "Финансови отчети и регистри за субсидии",
+            "Динамични разписания",
+            "Издаване и печат на карти",
+            "Наемане на автобуси и чартъри",
+            "Дигитални рекламни екрани (Signage)"
+          ],
+          "screenshot": "https://transitflow.org/assets/transitflow_hero_final_branded_1775316190816.webp",
+          "softwareHelp": "https://transitflow.org/faq.html",
+          "inLanguage": ["bg", "en"],
+          "publisher": { "@id": "https://transitflow.org/#organization" },
+          "author": { "@id": "https://transitflow.org/#organization" },
+          "offers": [
+            {
+              "@type": "Offer",
+              "name": "Старт",
+              "price": "99.00",
+              "priceCurrency": "EUR",
+              "availability": "https://schema.org/InStock",
+              "url": "https://transitflow.org/#pricing"
+            },
+            {
+              "@type": "Offer",
+              "name": "Професионален",
+              "price": "210.00",
+              "priceCurrency": "EUR",
+              "availability": "https://schema.org/InStock",
+              "url": "https://transitflow.org/#pricing"
+            }
+          ]
+        }
+      ]
     }
     </script>
 
-    <!-- Structured Data: Organization -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "TransitFlow",
-      "legalName": "ДАВИДА БГ ЕООД",
-      "url": "https://transitflow.org",
-      "logo": "https://transitflow.org/assets/transitflow_logo.png",
-      "description": "TransitFlow е българска платформа за дигитализация на автобусни компании и обществен транспорт — NFC валидиране, приложение за пътници, контрол на билети и финансова отчетност.",
-      "areaServed": "BG",
-      "sameAs": []
-    }
-    </script>
-
-    <!-- Structured Data: WebSite -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "TransitFlow",
-      "url": "https://transitflow.org",
-      "inLanguage": "bg",
-      "publisher": {
-        "@type": "Organization",
-        "name": "TransitFlow"
-      }
-    }
-    </script>
 
     <link rel="stylesheet" href="index.css">
     <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
     <script src="translations.js" defer></script>
-    <script src="cookie-consent.js" defer></script>
+    <script src="cookie-consent.js?v=2" defer></script>
     <!-- Google Analytics - Consent Mode v2 (GDPR compliant) -->
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -110,6 +161,20 @@
       gtag('js', new Date());
       gtag('config', 'G-R9P46Z4YNV', {'send_page_view': true});
     </script>
+    <!-- SEO: social + platform meta -->
+    <meta property="og:image:secure_url" content="https://transitflow.org/assets/og-transitflow.jpg">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="TransitFlow — софтуер за автобусни компании">
+    <meta property="og:locale" content="bg_BG">
+    <meta property="og:locale:alternate" content="en_US">
+    <meta name="twitter:image:alt" content="TransitFlow — софтуер за автобусни компании">
+    <meta name="theme-color" content="#020617">
+    <link rel="apple-touch-icon" href="/assets/favicon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta name="author" content="ДАВИДА БГ ЕООД">
+    <!-- /SEO -->
 </head>
 <body>
     <div class="bg-glow"></div>

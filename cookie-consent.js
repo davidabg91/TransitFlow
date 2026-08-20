@@ -31,6 +31,23 @@
         } catch (e) { return null; }
     }
 
+    /* The gtag snippet in <head> defaults every consent signal to 'denied'.
+       Google only re-evaluates it when it receives an explicit 'update', so
+       without this bridge analytics_storage stays denied for the whole session,
+       GA4 never sets _ga cookies and the property reports no traffic at all. */
+    function applyConsent(categories) {
+        if (typeof window.gtag !== 'function') return;
+        const yes = 'granted', no = 'denied';
+        window.gtag('consent', 'update', {
+            analytics_storage:       categories.analytics   ? yes : no,
+            ad_storage:              categories.marketing   ? yes : no,
+            ad_user_data:            categories.marketing   ? yes : no,
+            ad_personalization:      categories.marketing   ? yes : no,
+            functionality_storage:   categories.preferences ? yes : no,
+            personalization_storage: categories.preferences ? yes : no
+        });
+    }
+
     function saveConsent(categories) {
         const payload = {
             version: CONSENT_VERSION,
@@ -38,6 +55,7 @@
             categories
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        applyConsent(categories);
     }
 
     function isLang(code) {
@@ -640,9 +658,18 @@
     }
 
     /* ── Init ──────────────────────────────────────────────── */
+
+    // Replay stored consent to gtag as early as this script runs, rather than
+    // waiting for DOMContentLoaded. Consent lives in localStorage but gtag
+    // restarts every page load at 'denied', so returning visitors who already
+    // accepted would otherwise go unmeasured -- and the earlier the update
+    // lands, the less of the visit GA misses.
+    const storedConsent = getConsent();
+    if (storedConsent) applyConsent(storedConsent.categories);
+
     function init() {
-        // If consent already stored skip
-        if (getConsent()) return;
+        // Banner is only for visitors who have not chosen yet.
+        if (storedConsent) return;
 
         injectStyles();
         const wrap = buildBanner();
