@@ -245,7 +245,7 @@ const Layout: React.FC = () => {
                             src={logo}
                             alt="TransitFlow"
                             style={{
-                                height: isMobile ? '34px' : '46px',
+                                height: isMobile ? '29px' : '39px',
                                 width: 'auto',
                                 objectFit: 'contain',
                                 display: 'block'
