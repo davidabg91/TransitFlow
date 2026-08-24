@@ -190,18 +190,21 @@ const ClientProfile: React.FC = () => {
     // A card is scanned by someone who is not signed in to anything, so the
     // company comes from the address written on the card. It grants nothing on
     // its own — the rules still decide what may be read.
-    useEffect(() => {
-        // The signed-in account's own company always wins. The address is only
-        // consulted for a visitor who has none — otherwise opening another
-        // company's card link would repoint this browser at that company, and
-        // every panel afterwards would query a company the account has no claim
-        // to and come back denied.
-        if (tenantId) {
-            setActiveTenant(tenantId);
-        } else if (tenantFromUrl) {
-            setActiveTenant(tenantFromUrl);
-        }
-    }, [tenantFromUrl, tenantId]);
+    // Set while rendering rather than in an effect, and deliberately so: React
+    // runs a child's effects before its parent's, so any child that queries on
+    // mount would have gone out before an effect here could name the company.
+    // Assigning a module variable during render is safe — it is idempotent and
+    // touches no React state.
+    //
+    // The signed-in account's own company wins. The address is consulted only
+    // for a visitor who has no claim, which is the passenger who just tapped
+    // their card; otherwise opening another company's card link would repoint
+    // this browser at that company and every later panel would come back denied.
+    if (tenantId) {
+        setActiveTenant(tenantId);
+    } else if (tenantFromUrl) {
+        setActiveTenant(tenantFromUrl);
+    }
 
     // What this company's card stock says about the scanned card: its number if
     // the card was minted here, nothing if it was not. Activation depends on it,

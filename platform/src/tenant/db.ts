@@ -85,12 +85,23 @@ export const getActiveTenant = () => activeTenant;
  * a bug worth surfacing in development instead of a confusing empty result.
  */
 const requireTenant = (): string => {
-    if (!activeTenant) {
-        throw new Error(
-            '[tenant] No active company. A query ran before the account\'s tenant claim was resolved.'
-        );
+    if (activeTenant) return activeTenant;
+
+    // A card's address carries its company, so when a query beats the code
+    // that sets it — React runs a child's effects before its parent's — the
+    // address is a reliable second source rather than a reason to fail. It
+    // grants nothing: the rules still decide what may be read.
+    const fromUrl = typeof window !== 'undefined'
+        ? window.location.hash.match(/#\/t\/([^/]+)\//)
+        : null;
+    if (fromUrl) {
+        activeTenant = fromUrl[1];
+        return activeTenant;
     }
-    return activeTenant;
+
+    throw new Error(
+        '[tenant] No active company. A query ran before the company was known.'
+    );
 };
 
 /** True when the value is the Firestore instance rather than a reference. */
