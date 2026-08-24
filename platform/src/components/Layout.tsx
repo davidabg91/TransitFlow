@@ -13,7 +13,10 @@ import { db } from '../firebase';
 const Layout: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const isClientProfilePath = location.pathname.startsWith('/client/');
+    // The card page paints its own full-bleed background, so it must not sit in
+    // the centred content column. Matches both address forms: the current one
+    // carries the company, the bare one is what earlier cards were written with.
+    const isClientProfilePath = /^\/(t\/[^/]+\/)?client\//.test(location.pathname);
     const isAdminPath = location.pathname === '/admin' || location.pathname === '/system-admin' || location.pathname === '/inspections';
     const isFullScreen = isClientProfilePath || isAdminPath;
     const { currentUser, logout, tenantId, isPlatformAdmin } = useAuth();
