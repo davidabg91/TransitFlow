@@ -137,6 +137,19 @@ service cloud.firestore {
         }
       }
 
+      // ---- Card stock ----
+      // The blank cards this company has had minted. Written only by the
+      // generateCardBatch function, so a code cannot be added by hand and then
+      // registered to somebody.
+      match /card_stock/{code} {
+        allow read: if belongs(tenantId);
+        allow write: if false;
+      }
+      match /counters/{counterId} {
+        allow read: if canStaff(tenantId);
+        allow write: if false;
+      }
+
       // ---- Physical chip UID -> card ----
       // Lets a terminal that read only the chip's UID resolve it to a card.
       // Written by the syncNfcUid Cloud Function.

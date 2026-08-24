@@ -235,6 +235,13 @@ function App() {
           <Routes>
             {/* Public — no login needed */}
             <Route path="/login" element={<LoginPage />} />
+            {/* The company is part of the card's address, because that address is
+                written into the chip and can never be changed afterwards. The
+                bare form stays for links issued before this, and resolves from
+                the signed-in account instead. */}
+            <Route path="/t/:tenant/client/:id" element={<Layout />}>
+              <Route index element={<ClientProfileWrapper />} />
+            </Route>
             <Route path="/client/:id" element={<Layout />}>
               <Route index element={<ClientProfileWrapper />} />
             </Route>

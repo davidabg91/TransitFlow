@@ -843,3 +843,104 @@ export const setTenantActive = fn.https.onCall(async (data, context) => {
 
     return { ok: true, active };
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Card stock
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Mints a batch of blank cards.
+ *
+ * The codes are random, but they are not accepted because they look right —
+ * they are recorded here first, and activation later checks a card against this
+ * stock. A card that was never minted cannot be registered to anyone, so a code
+ * invented by hand (or read off another company's card) is refused.
+ *
+ * Card numbers are allocated in a transaction, so two admins generating batches
+ * at the same time cannot be handed the same number.
+ */
+export const generateCardBatch = fn.https.onCall(async (data, context) => {
+    const caller = requireAdmin(context);
+    const quantity = Math.floor(Number(data?.quantity) || 0);
+    if (quantity < 1 || quantity > 500) {
+        throw new functions.https.HttpsError("invalid-argument", "Количеството трябва да е между 1 и 500.");
+    }
+
+    const company = tenantRef(caller.tenant);
+    const counter = company.collection("counters").doc("cards");
+
+    const randomCode = () => {
+        const bytes = require("crypto").randomBytes(6) as Buffer;
+        return bytes.toString("hex").toUpperCase(); // 12 characters
+    };
+
+    // Reserve the number range first; the documents are written after.
+    const firstNumber: number = await db().runTransaction(async (tx) => {
+        const snap = await tx.get(counter);
+        const issued = (snap.exists ? (snap.data()?.issued as number) : 0) || 0;
+        tx.set(counter, { issued: issued + quantity, updatedAt: nowIso() }, { merge: true });
+        return issued + 1;
+    });
+
+    const batchId = nowIso();
+    const codes: { code: string; cardNumber: string }[] = [];
+    let writer = db().batch();
+    let pending = 0;
+
+    for (let i = 0; i < quantity; i++) {
+        const code = randomCode();
+        const cardNumber = String(firstNumber + i).padStart(10, "0");
+        codes.push({ code, cardNumber });
+
+        writer.set(company.collection("card_stock").doc(code), {
+            code,
+            cardNumber,
+            tenant: caller.tenant,
+            status: "free",
+            batch: batchId,
+            createdAt: nowIso(),
+            createdBy: context.auth?.token.email || caller.uid,
+        });
+
+        // Firestore caps a batch at 500 writes.
+        if (++pending === 400) {
+            await writer.commit();
+            writer = db().batch();
+            pending = 0;
+        }
+    }
+    if (pending > 0) await writer.commit();
+
+    return { batch: batchId, tenant: caller.tenant, codes };
+});
+
+/**
+ * Confirms a card exists in this company's stock and hands back its number.
+ * Called when someone tries to activate a card, so an unminted code is refused
+ * before a profile is written for it.
+ */
+export const lookupCard = fn.https.onCall(async (data, context) => {
+    const caller = requireCaller(context);
+    const code = String(data?.code || "").trim().toUpperCase();
+    if (!code) throw new functions.https.HttpsError("invalid-argument", "Липсва код.");
+
+    const company = tenantRef(caller.tenant);
+    const direct = await company.collection("card_stock").doc(code).get();
+    if (direct.exists) {
+        const d = direct.data() || {};
+        return { found: true, code, cardNumber: d.cardNumber, status: d.status };
+    }
+
+    // Staff read the number off the card, so accept that too.
+    const digits = code.replace(/\D/g, "");
+    if (digits) {
+        const byNumber = await company.collection("card_stock")
+            .where("cardNumber", "==", digits.padStart(10, "0")).limit(1).get();
+        if (!byNumber.empty) {
+            const d = byNumber.docs[0].data();
+            return { found: true, code: byNumber.docs[0].id, cardNumber: d.cardNumber, status: d.status };
+        }
+    }
+
+    return { found: false };
+});

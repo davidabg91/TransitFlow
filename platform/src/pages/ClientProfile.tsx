@@ -12,7 +12,7 @@ import LostCardTransfer from '../components/LostCardTransfer';
 import PaymentMethodSelector from '../components/PaymentMethodSelector';
 import ModeratorInactivityWarningModal from '../components/ModeratorInactivityWarningModal';
 import { MIXED_METHOD } from '../data/paymentMethods';
-import { CARDS_MAPPING } from '../data/cardsMapping';
+import { getDoc, doc as tdoc, setActiveTenant } from '../tenant/db';
 import { MUNICIPALITIES, MUNICIPALITY_CUSTOM, DEFAULT_MUNICIPALITY, needsMunicipality } from '../data/municipalities';
 import { SCHOOLS, SCHOOL_MUNICIPALITY } from '../data/schools';
 
@@ -185,7 +185,19 @@ const formatBGMonth = (monthStr: string) => {
 };
 
 const ClientProfile: React.FC = () => {
-    const { id: rawId } = useParams<{ id: string }>();
+    const { id: rawId, tenant: tenantFromUrl } = useParams<{ id: string; tenant?: string }>();
+    // A card is scanned by someone who is not signed in to anything, so the
+    // company comes from the address written on the card. It grants nothing on
+    // its own — the rules still decide what may be read.
+    useEffect(() => {
+        if (tenantFromUrl) setActiveTenant(tenantFromUrl);
+    }, [tenantFromUrl]);
+
+    // What this company's card stock says about the scanned card: its number if
+    // the card was minted here, nothing if it was not. Activation depends on it,
+    // so a code the system never issued cannot become a passenger's profile.
+    const [stockCard, setStockCard] = useState<{ cardNumber: string } | null>(null);
+    const [stockChecked, setStockChecked] = useState(false);
     const id = sanitizeId(rawId);
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
@@ -382,6 +394,20 @@ const ClientProfile: React.FC = () => {
         }
         setIsCapturing(false);
     };
+
+    useEffect(() => {
+        if (!id) return;
+        let cancelled = false;
+        setStockChecked(false);
+        getDoc(tdoc(db, 'card_stock', id))
+            .then(snap => {
+                if (cancelled) return;
+                setStockCard(snap.exists() ? { cardNumber: String(snap.data()?.cardNumber || '') } : null);
+                setStockChecked(true);
+            })
+            .catch(() => { if (!cancelled) { setStockCard(null); setStockChecked(true); } });
+        return () => { cancelled = true; };
+    }, [id]);
 
     useEffect(() => {
         return () => {
@@ -633,8 +659,8 @@ const ClientProfile: React.FC = () => {
         }
         // The id must correspond to a real printed card (i.e. exist in the card
         // list with a number). Otherwise the profile would have no card number.
-        if (!CARDS_MAPPING[id]) {
-            alert(`Кодът "${id}" не е в списъка с картите на системата, затова няма номер на карта.\n\nПроверете картата и сканирайте отново. Ако е нова карта, първо трябва да се добави в списъка.`);
+        if (!stockCard) {
+            alert(`Картата "${id}" не е издадена от системата.\n\nРегистрират се само карти, генерирани от таб „NFC КОДОВЕ". Проверете дали сканирате правилната карта.`);
             return;
         }
         // Teachers require an община; disabled cards require an address (like pensioners).
@@ -704,7 +730,7 @@ const ClientProfile: React.FC = () => {
             serviceReason: isServiceCard ? regServiceReason.trim() : '',
             school: regCardType === 'Ученическа карта' ? (regSelectedSchool === 'custom' ? regCustomSchool : regSelectedSchool) : '',
             municipality: needsMunicipality(regCardType) ? resolvedMunicipality : '',
-            cardNumber: CARDS_MAPPING[id] || '',
+            cardNumber: stockCard?.cardNumber || '',
             expiryDate: expiryMonth,
             photo: photoValue,
             photoThumb,
@@ -734,7 +760,7 @@ const ClientProfile: React.FC = () => {
                         : `Нова карта (NFC): ${id}. Сума: ${regEffectiveAmount.toFixed(2)} €. Регион: ${regRoute} | Начин на плащане: ${regPaymentLabel}`,
                     amount: isServiceCard ? 0 : regEffectiveAmount
                 });
-                const cardNum = CARDS_MAPPING[id] || '';
+                const cardNum = stockCard?.cardNumber || '';
                 const nameWithCard = cardNum ? `${regName} (Карта № ${cardNum})` : regName;
                 console.log(`[TRANSITFLOW_BRIDGE_LOG]: Нов профил на ${nameWithCard} (${regRoute}) - Сума: ${regAmount} €`);
             } catch (logErr) {
@@ -781,7 +807,7 @@ const ClientProfile: React.FC = () => {
                         playErrorSound();
                     }
                     
-                    const cardNum = clientData.cardNumber || CARDS_MAPPING[clientData.id] || '';
+                    const cardNum = clientData.cardNumber || '';
                     const cardPart = cardNum ? ` (Карта № ${cardNum})` : '';
                     const statusStr = clientData.isCanceled ? 'Анулиран' : (hasPaidCurrentMonth ? 'Платен' : 'Неплатен');
                     console.log(`[TRANSITFLOW_BRIDGE_LOG]: Сканиран профил: ${clientData.name}${cardPart} - Статус: ${statusStr}`);
@@ -828,7 +854,7 @@ const ClientProfile: React.FC = () => {
 
         const isoNow = new Date().toISOString();
         const clientRef = doc(db, 'clients', id);
-        const cardNum = client?.cardNumber || CARDS_MAPPING[id] || '';
+        const cardNum = client?.cardNumber || stockCard?.cardNumber || '';
 
         // Staff scans vs Anonymous passenger/driver scans
         if (currentUser) {
@@ -997,7 +1023,7 @@ const ClientProfile: React.FC = () => {
                                 </p>
                                 <Link to="/" onClick={(e) => { if (!handleModeratorGuardedAction(() => navigate('/'))) e.preventDefault(); }} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 }}>Към Начало</Link>
                             </>
-                        ) : currentUser && !CARDS_MAPPING[id] ? (
+                        ) : currentUser && stockChecked && !stockCard ? (
                             // Id is a full length but is NOT in the printed-card list, so it has
                             // no real card number. Block activation to avoid a numberless profile.
                             <>
@@ -1036,9 +1062,9 @@ const ClientProfile: React.FC = () => {
                     ) : (
                         <div style={{ animation: 'fadeIn 0.4s ease', textAlign: 'left', background: 'rgba(255,255,255,0.03)', padding: '2rem', borderRadius: '32px', border: '1px solid rgba(255,255,255,0.08)' }}>
                             <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', textAlign: 'center' }}>Регистрация на Карта</h3>
-                            {CARDS_MAPPING[id] && (
+                            {stockCard && (
                                 <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary-color)', textAlign: 'center', marginBottom: '1.5rem' }}>
-                                    Номер на Карта: {CARDS_MAPPING[id]}
+                                    Номер на Карта: {stockCard.cardNumber}
                                 </div>
                             )}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
@@ -1633,7 +1659,7 @@ const ClientProfile: React.FC = () => {
                 <div style={{ padding: '1rem 1.5rem', background: 'rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
                         #{client.id.substring(0,8).toUpperCase()}
-                        {(client.cardNumber || CARDS_MAPPING[client.id]) && ` | КАРТА: ${client.cardNumber || CARDS_MAPPING[client.id]}`}
+                        {client.cardNumber && ` | КАРТА: ${client.cardNumber}`}
                     </span>
                     <Settings size={16} style={{ opacity: 0.1 }} />
                 </div>
@@ -1957,7 +1983,7 @@ const ClientProfile: React.FC = () => {
                                                         details: `Бързо подновяване за месец ${renewalMonth}. Сума: ${qrAmount.toFixed(2)} €. Маршрут: ${renewalRoute} | Начин на плащане: ${qrPaymentLabel}`,
                                                         amount: qrAmount
                                                     });
-                                                    const cardNum = client ? (client.cardNumber || CARDS_MAPPING[client.id] || '') : '';
+                                                    const cardNum = client?.cardNumber || '';
                                                     const nameWithCard = cardNum ? `${client?.name} (Карта № ${cardNum})` : (client?.name || 'Клиент');
                                                     console.log(`[TRANSITFLOW_BRIDGE_LOG]: Подновяване на ${nameWithCard} за месец ${renewalMonth} - Сума: ${qrAmount.toFixed(2)} €`);
                                                 } catch (logErr) { console.error("Log error", logErr); }
@@ -2057,7 +2083,7 @@ const ClientProfile: React.FC = () => {
                 reason={inactivityModalReason}
                 clientName={client?.name || 'Клиент'}
                 clientRoute={client?.route}
-                cardNumber={client?.cardNumber || (client ? CARDS_MAPPING[client.id] : '')}
+                cardNumber={client?.cardNumber || ''}
                 lastPaidMonth={lastPaidMonth ? formatBGMonth(lastPaidMonth) : undefined}
                 isPaidCurrentMonth={hasPaidCurrentMonth}
                 onStayAndRenew={handleStayAndRenew}

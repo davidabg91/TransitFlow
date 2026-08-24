@@ -10,6 +10,8 @@ import {
     Eye, EyeOff, ArrowLeftRight, GraduationCap, CheckCircle, Undo2, Lock
 } from 'lucide-react';
 import Card from '../components/Card';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import app from '../firebase';
 import ModuleLocked from '../components/ModuleLocked';
 import { useModules } from '../tenant/modules';
 import UnpaidAlertsButton from '../components/UnpaidAlertsButton';
@@ -415,6 +417,7 @@ const AdminPanel: React.FC = () => {
         }
     );
     const modules = useModules();
+    const [generatedCards, setGeneratedCards] = useState<{ code: string; cardNumber: string }[]>([]);
     const [signals, setSignals] = useState<Signal[]>([]);
     const [rentals, setRentals] = useState<Rental[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
@@ -1667,18 +1670,41 @@ const AdminPanel: React.FC = () => {
         });
     };
 
-    const generateNfcBatch = () => {
-        const baseUrl = `${window.location.origin}${window.location.pathname}#/client/`;
-        const newLinks = [];
-        for (let i = 0; i < nfcQuantity; i++) {
-            newLinks.push(`${baseUrl}${generateClientId()}`);
+    const [nfcBusy, setNfcBusy] = useState(false);
+
+    /**
+     * Mints the batch on the server rather than making up codes in the browser.
+     *
+     * The codes are still random, but they are recorded as this company's stock
+     * before anyone can use them, and activation checks a card against that
+     * stock. So only cards this system issued can be registered to a passenger —
+     * a code someone invents, or one belonging to another company, is refused.
+     */
+    const generateNfcBatch = async () => {
+        if (nfcBusy) return;
+        setNfcBusy(true);
+        try {
+            const res = await httpsCallable(getFunctions(app, 'europe-west3'), 'generateCardBatch')({ quantity: nfcQuantity });
+            const payload = res.data as { tenant: string; codes: { code: string; cardNumber: string }[] };
+            const base = `${window.location.origin}${window.location.pathname}#/t/${payload.tenant}/client/`;
+            setGeneratedLinks(payload.codes.map(c => `${base}${c.code}`));
+            setGeneratedCards(payload.codes);
+            logGlobalActivity('Генериране на NFC карти', 'Система', `Издадени ${payload.codes.length} нови карти (№ ${payload.codes[0]?.cardNumber} – ${payload.codes[payload.codes.length - 1]?.cardNumber}).`);
+            setMessage({ text: `Издадени са ${payload.codes.length} карти. Запишете линковете в чиповете.`, type: 'success' });
+        } catch (e) {
+            setMessage({ text: (e as { message?: string }).message || 'Неуспешно генериране.', type: 'error' });
+        } finally {
+            setNfcBusy(false);
         }
-        setGeneratedLinks(newLinks);
-        logGlobalActivity('Генериране на NFC линкове', 'Система', `Генерирани ${nfcQuantity} NFC линка.`);
     };
 
     const copyLinksToClipboard = () => {
-        const text = generatedLinks.join(',');
+        // Number and link per row, so the batch can be pasted straight into
+        // the sheet the card manufacturer works from.
+        const rows = generatedCards.length === generatedLinks.length
+            ? generatedCards.map((c, i) => c.cardNumber + '\t' + generatedLinks[i])
+            : generatedLinks;
+        const text = rows.join('\n');
         navigator.clipboard.writeText(text);
         setMessage({ text: 'Линковете са копирани в клипборда!', type: 'success' });
         logGlobalActivity('Копиране на NFC линкове', 'Система', `Копирани ${generatedLinks.length} NFC линка в клипборда.`);
@@ -4765,8 +4791,9 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                 <ExternalLink size={24} /> Генериране на NFC Линкове
                             </h2>
                             <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.9rem' }}>
-                                Използвайте този инструмент, за да генерирате уникални линкове за нови карти. 
-                                Изпратете списъка на производителя, за да ги запише в NFC чиповете на картите.
+                                Издава нови карти и връща линковете, които производителят записва в чиповете.
+                                Само карти, издадени оттук, могат да бъдат регистрирани на клиент — код, който
+                                системата не е издала, се отказва при активиране.
                             </p>
 
                             <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '2rem' }}>
@@ -4781,9 +4808,10 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                 </div>
                                 <button 
                                     onClick={generateNfcBatch}
-                                    style={{ padding: '0.8rem 2rem', borderRadius: '12px', background: 'var(--accent-color)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' }}
+                                    disabled={nfcBusy}
+                                    style={{ padding: '0.8rem 2rem', borderRadius: '12px', background: 'var(--accent-color)', color: '#fff', border: 'none', fontWeight: 700, cursor: nfcBusy ? 'wait' : 'pointer', opacity: nfcBusy ? 0.6 : 1 }}
                                 >
-                                    Генерирай
+                                    {nfcBusy ? 'Издаване…' : 'Генерирай'}
                                 </button>
                             </div>
 
@@ -4809,8 +4837,13 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                         fontSize: '0.85rem'
                                     }}>
                                         {generatedLinks.map((link, idx) => (
-                                            <div key={idx} style={{ padding: '0.4rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--primary-color)' }}>
-                                                {link}
+                                            <div key={idx} style={{ display: 'flex', gap: '0.75rem', alignItems: 'baseline', padding: '0.4rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                {/* The number is what gets printed on the card, so the
+                                                    manufacturer needs it next to the link, not just the link. */}
+                                                <span style={{ flexShrink: 0, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+                                                    {generatedCards[idx]?.cardNumber || ''}
+                                                </span>
+                                                <span style={{ color: 'var(--primary-color)', wordBreak: 'break-all' }}>{link}</span>
                                             </div>
                                         ))}
                                     </div>
