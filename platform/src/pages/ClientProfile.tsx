@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { doc, onSnapshot, setDoc, updateDoc, increment, arrayUnion, addDoc, collection } from '../tenant/db';
 import LoadingScreen from '../components/LoadingScreen';
-import { ROUTE_METADATA, ROUTES, cardPrice } from '../data/routeMetadata';
+import { useRoutePricing } from '../tenant/settings';
 import { uploadClientPhoto } from '../utils/photoStorage';
 import ClientPhoto from '../components/ClientPhoto';
 import LostCardTransfer from '../components/LostCardTransfer';
@@ -216,11 +216,13 @@ const ClientProfile: React.FC = () => {
     const queryParams = new URLSearchParams(location.search);
     const urlUid = queryParams.get('uid') || '';
     const [client, setClient] = useState<Client | null>(null);
+    // The company's own lines and fares, set under Настройки.
+    const { names: ROUTES, priceOf, has: hasRoute } = useRoutePricing();
     // What this card actually costs, from the same tariff the desk charges —
     // the panel previously showed a fixed 50.80 € regardless of route or type.
     const onlinePrice = React.useMemo(
-        () => (client?.route ? cardPrice(client.route, client?.cardType) : null),
-        [client?.route, client?.cardType]
+        () => (client?.route ? priceOf(client.route, client?.cardType) : null),
+        [client?.route, client?.cardType, priceOf]
     );
     const [loading, setLoading] = useState(true);
     const [scanTime] = useState(new Date().toLocaleTimeString('bg-BG'));
@@ -530,8 +532,8 @@ const ClientProfile: React.FC = () => {
     // Auto-price logic for registration
     useEffect(() => {
         if (regCardType === 'Служебна карта') { setRegAmount('0'); return; }
-        if (regRoute && ROUTE_METADATA[regRoute]) {
-            const price = cardPrice(regRoute, regCardType);
+        if (regRoute && hasRoute(regRoute)) {
+            const price = priceOf(regRoute, regCardType);
             if (price !== null) setRegAmount(price.toFixed(2));
         }
     }, [regRoute, regCardType]);
@@ -541,8 +543,8 @@ const ClientProfile: React.FC = () => {
     // of the last paid amount. Service cards are handled separately (whole year).
     useEffect(() => {
         if (!client || client.cardType === 'Служебна карта') return;
-        if (renewalRoute && ROUTE_METADATA[renewalRoute]) {
-            const price = cardPrice(renewalRoute, client.cardType);
+        if (renewalRoute && hasRoute(renewalRoute)) {
+            const price = priceOf(renewalRoute, client.cardType);
             if (price !== null) setRenewalAmount(price);
         }
     }, [renewalRoute, client]);
@@ -1393,7 +1395,7 @@ const ClientProfile: React.FC = () => {
                                         </div>
                                     </div>
                                 )}
-                                <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>МАРШРУТ (КУРС)</label><select value={regRoute} onChange={e => setRegRoute(e.target.value)} style={{ width: '100%', padding: '1rem', background: '#222', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none' }}><option value="">Избери маршрут...</option>{ROUTES.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
+                                <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>МАРШРУТ (КУРС)</label><select value={regRoute} onChange={e => setRegRoute(e.target.value)} style={{ width: '100%', padding: '1rem', background: '#222', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none' }}><option value="">{ROUTES.length ? 'Избери маршрут...' : 'Няма добавени линии — добави ги в Настройки'}</option>{ROUTES.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
                                 {regCardType !== 'Служебна карта' && (
                                 <>
                                 <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>СУМА (€)</label><input type="number" value={regAmount} onChange={e => setRegAmount(e.target.value)} style={{ width: '100%', padding: '1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none' }} /></div>
@@ -1987,7 +1989,7 @@ const ClientProfile: React.FC = () => {
                                             onChange={(e) => setRenewalRoute(e.target.value)}
                                             style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px', borderRadius: '12px', fontSize: '1rem', fontWeight: 700, outline: 'none', colorScheme: 'dark', width: '100%', boxSizing: 'border-box' }}
                                         >
-                                            <option value="">Избери маршрут...</option>
+                                            <option value="">{ROUTES.length ? 'Избери маршрут...' : 'Няма добавени линии — добави ги в Настройки'}</option>
                                             {ROUTES.map(r => <option key={r} value={r}>{r}</option>)}
                                         </select>
                                     </div>

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { collection, doc, getDoc, onSnapshot, orderBy, query } from './db';
+import { useEffect, useMemo, useState } from 'react';
+import { collection, doc, getActiveTenant, getDoc, onSnapshot, orderBy, query } from './db';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 
@@ -100,11 +100,15 @@ export const routePrice = (
 /** The company's lines, live — the panels list them and price against them. */
 export const useRoutes = () => {
     const { tenantId } = useAuth();
+    // A passenger who has just tapped their own card is not signed in and so
+    // carries no claim; the company is in the address they arrived at. The
+    // fares are the tariff printed on the bus, not private data.
+    const tenant = tenantId || getActiveTenant();
     const [routes, setRoutes] = useState<RouteDef[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!tenantId) { setRoutes([]); setLoading(false); return; }
+        if (!tenant) { setRoutes([]); setLoading(false); return; }
         const unsub = onSnapshot(
             query(collection(db, 'routes'), orderBy('name')),
             snap => {
@@ -114,9 +118,59 @@ export const useRoutes = () => {
             err => { console.error('Routes unavailable:', err); setLoading(false); }
         );
         return () => unsub();
-    }, [tenantId]);
+    }, [tenant]);
 
     return { routes, loading };
+};
+
+/**
+ * The names of the lines the company currently runs — what every route picker
+ * lists. A line switched off keeps its history but stops being offered.
+ */
+export const useRouteNames = (): string[] => {
+    const { routes } = useRoutes();
+    return useMemo(
+        () => routes.filter(r => r.active !== false).map(r => r.name),
+        [routes]
+    );
+};
+
+/**
+ * The company's lines together with a price lookup over them.
+ *
+ * The panels used to price against a compiled table of one operator's routes,
+ * with the discounts for student and pensioner cards written into the code. A
+ * second company has neither those routes nor those discounts, so the price now
+ * comes from the matrix the company fills in under Настройки, and a price it has
+ * not set reads as `null` — the form then leaves the amount alone rather than
+ * quoting a figure nobody agreed to.
+ */
+export const useRoutePricing = () => {
+    const { routes, loading } = useRoutes();
+
+    return useMemo(() => {
+        const byName = new Map(routes.map(r => [r.name, r]));
+        return {
+            routes,
+            loading,
+            names: routes.filter(r => r.active !== false).map(r => r.name),
+            /** Does the company run this line? */
+            has: (name?: string) => !!name && byName.has(name),
+            /** The fare, or `null` when the company has not set one. */
+            priceOf: (
+                name?: string,
+                cardType?: string,
+                period: PeriodId = 'month'
+            ): number | null => {
+                // A service card is issued to staff and is never charged for,
+                // whatever the line's matrix says.
+                if (cardType === 'Служебна карта') return 0;
+                return routePrice(byName.get(name || ''), cardType, period);
+            },
+            /** A line's stops, for the passenger-facing card. */
+            stopsOf: (name?: string): string[] => byName.get(name || '')?.stops || [],
+        };
+    }, [routes, loading]);
 };
 
 export const useCompanySettings = (): CompanySettings => {

@@ -8,6 +8,7 @@ import {
 import { collection, collectionGroup, query, where, orderBy, limit, onSnapshot, updateDoc, doc, writeBatch, deleteField, getDocs } from '../tenant/db';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
+import { useRouteNames } from '../tenant/settings';
 import Card from '../components/Card';
 import AdminAlertsButton from '../components/AdminAlertsButton';
 import SecurityLog from '../components/SecurityLog';
@@ -57,16 +58,6 @@ interface GlobalLog {
     amount: number;
 }
 
-const ROUTES = [
-    "Бъркач", "Тръстеник", "Биволаре", "Горна Митрополия", "Долни Дъбник",
-    "Рибен", "Садовец", "Славовица", "Байкал", "Гиген",
-    "Долна Митрополия", "Ясен", "Крушовица", "Дисевица", "Търнене", "Градина",
-    "Петърница", "Опанец", "Победа", "Подем", "Божурица",
-    "Горни Дъбник", "Ясен-Дисевица", "Ясен-Долни Дъбник", "Ореховица", "Брегаре", "Крушовене",
-    "Гривица", "Згалево", "Пордим", "Одърне", "Каменец", "Вълчитрън", "Катерица", "Борислав",
-    "Долни Дъбник - Садовец", "Долна Митрополия - Тръстеник", "Долна Митрополия - Славовица",
-    "Пордим - Каменец", "Пордим - Згалево"
-];
 
 const ROLE_LABELS: Record<UserRole, string> = {
     admin: 'Администратор',
@@ -94,6 +85,9 @@ const formatLastSeen = (iso?: string): string => {
 
 // --- Main Component ---
 const SystemAdminPanel: React.FC = () => {
+    // The lines this company runs, from its own settings — the revenue
+    // breakdown and the chart filter both count against them.
+    const ROUTES = useRouteNames();
     const { users, currentUser, addUser, updateUserRole, deleteUser } = useAuth();
     const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'audit'>('dashboard');
 

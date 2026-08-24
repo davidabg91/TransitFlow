@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { collection, query, where, orderBy, onSnapshot, limit, addDoc } from '../tenant/db';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import { ROUTES } from '../data/routeMetadata';
+import { useRouteNames } from '../tenant/settings';
 import {
     ShieldCheck, MapPin, Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight, CalendarDays, ClipboardCheck, Percent,
     FileText, Users, Bus, Navigation, AlertTriangle, Send, Loader2, UserCog,
@@ -113,6 +113,8 @@ function MiniBarChart({ data, max }: { data: { day: number; count: number }[]; m
 }
 
 export default function Inspections() {
+    // Suggestions for the direction field come from the company's own lines.
+    const ROUTES = useRouteNames();
     const { currentUser, users } = useAuth();
     const [scans, setScans] = useState<InspectionScan[]>([]);
     const [loading, setLoading] = useState(true);

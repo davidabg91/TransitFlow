@@ -38,7 +38,7 @@ import {
     where
 } from '../tenant/db';
 import { useAuth } from '../context/AuthContext';
-import { ROUTE_METADATA, cardPrice } from '../data/routeMetadata';
+import { useRoutePricing } from '../tenant/settings';
 import { uploadClientPhoto } from '../utils/photoStorage';
 import PaymentMethodSelector from '../components/PaymentMethodSelector';
 import { MIXED_METHOD, PAYMENT_METHODS } from '../data/paymentMethods';
@@ -108,16 +108,6 @@ interface PriceMismatch {
     month?: string;
 }
 
-const ROUTES = [
-    "Бъркач", "Тръстеник", "Биволаре", "Горна Митрополия", "Долни Дъбник",
-    "Рибен", "Садовец", "Славовица", "Байкал", "Гиген",
-    "Долна Митрополия", "Ясен", "Крушовица", "Дисевица", "Търнене", "Градина",
-    "Петърница", "Опанец", "Победа", "Подем", "Божурица",
-    "Горни Дъбник", "Ясен-Дисевица", "Ясен-Долни Дъбник", "Ореховица", "Брегаре", "Крушовене",
-    "Гривица", "Згалево", "Пордим", "Одърне", "Каменец", "Вълчитрън", "Катерица", "Борислав",
-    "Долни Дъбник - Садовец", "Долна Митрополия - Тръстеник", "Долна Митрополия - Славовица",
-    "Пордим - Каменец", "Пордим - Згалево"
-];
 
 // The card types offered on registration, reused for the clients-list filter.
 const CARD_TYPES = [
@@ -220,11 +210,6 @@ const getServiceYearOptions = (): number[] => {
     const y = new Date().getFullYear();
     return [y - 1, y, y + 1, y + 2];
 };
-
-// The card price for a route + card type, used by bulk renewal. Routes without
-// a card price (and service cards) count as 0.
-const computeCardAmount = (route: string, cardType?: string): number =>
-    cardPrice(route, cardType) ?? 0;
 
 // Split a Bulgarian name into comparable tokens: lowercase, drop quotes/dots,
 // treat hyphens as spaces, keep tokens of >=2 letters (so abbreviations like
@@ -402,6 +387,14 @@ const compressImage = (dataUrl: string, maxWidth: number, maxHeight: number, qua
 
 const AdminPanel: React.FC = () => {
     const { currentUser } = useAuth();
+    // The lines this company runs and what it charges on them, set under
+    // Настройки. Empty until the company adds its first line — the pickers then
+    // say so rather than offering another operator's routes.
+    const { names: ROUTES, priceOf, has: hasRoute } = useRoutePricing();
+    // The card price for a route + card type, used by bulk renewal. A line with
+    // no price set (and service cards) counts as 0.
+    const computeCardAmount = (route: string, cardType?: string): number =>
+        priceOf(route, cardType) ?? 0;
     const location = useLocation();
     const isAdmin = currentUser?.role === 'admin';
     // Moderators share most day-to-day client actions with admins (changing a
@@ -796,8 +789,8 @@ const AdminPanel: React.FC = () => {
     // Auto-price logic
     useEffect(() => {
         if (cardType === 'Служебна карта') { setAmountPaid('0'); return; }
-        if (selectedRoute && ROUTE_METADATA[selectedRoute]) {
-            const price = cardPrice(selectedRoute, cardType);
+        if (selectedRoute && hasRoute(selectedRoute)) {
+            const price = priceOf(selectedRoute, cardType);
             if (price !== null) setAmountPaid(price.toFixed(2));
         }
     }, [selectedRoute, cardType]);
@@ -805,8 +798,8 @@ const AdminPanel: React.FC = () => {
     // Auto-price logic for renewal modal
     useEffect(() => {
         if (selectedClient?.cardType === 'Служебна карта') { setNewAmount('0'); return; }
-        if (newRoute && ROUTE_METADATA[newRoute] && selectedClient) {
-            const price = cardPrice(newRoute, selectedClient.cardType);
+        if (newRoute && hasRoute(newRoute) && selectedClient) {
+            const price = priceOf(newRoute, selectedClient.cardType);
             if (price !== null) setNewAmount(price.toFixed(2));
         }
     }, [newRoute, selectedClient]);
@@ -2306,7 +2299,7 @@ const AdminPanel: React.FC = () => {
                                         >
                                             ВСИЧКИ <span style={{ opacity: 0.6, fontSize: '0.65rem' }}>({new Set(subscribers.map(s => s.token)).size})</span>
                                         </button>
-                                        {Object.keys(ROUTE_METADATA).map(routeId => {
+                                        {ROUTES.map(routeId => {
                                             const isSelected = selectedNotifRoutes.includes(routeId);
                                             const routeSubCount = subscribers.filter(s => s.courseId === routeId).length;
                                             return (
@@ -2464,7 +2457,7 @@ const AdminPanel: React.FC = () => {
                             gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(200px, 1fr))', 
                             gap: '1rem' 
                         }}>
-                            {Object.keys(ROUTE_METADATA).map(routeId => {
+                            {ROUTES.map(routeId => {
                                 const count = subscribers.filter(s => s.courseId === routeId).length;
                                 if (count === 0) return null; // Only show routes with subscribers to keep it clean, or show all? 
                                 return (
@@ -4544,7 +4537,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                     <div>
                                         <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Курс (Маршрут)</label>
                                         <select style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'var(--bg-color)', border: '1px solid var(--surface-border)', color: 'white' }} value={selectedRoute} onChange={e => setSelectedRoute(e.target.value)} required>
-                                            <option value="" disabled>-- Изберете Маршрут --</option>
+                                            <option value="" disabled>{ROUTES.length ? '-- Изберете Маршрут --' : '-- Няма добавени линии (виж Настройки) --'}</option>
                                             {ROUTES.map(r => <option key={r} value={r}>{r}</option>)}
                                         </select>
                                     </div>

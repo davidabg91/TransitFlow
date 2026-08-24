@@ -148,7 +148,11 @@ service cloud.firestore {
       // Its lines, stops and fares. Everyone in the company reads them (the
       // panels price against them); only an admin changes them.
       match /routes/{routeId} {
-        allow read: if belongs(tenantId);
+        // A fare table is a published tariff — it hangs in the bus and at the
+        // stop. A passenger reading their own card is signed in to nothing, and
+        // needs it to see what their subscription costs, so reading is open.
+        // Nothing here is personal: line names, stops and prices only.
+        allow read: if true;
         allow write: if canAdmin(tenantId);
       }
       match /settings/{docId} {

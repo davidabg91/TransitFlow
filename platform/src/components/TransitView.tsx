@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { CheckCircle, XCircle, RefreshCw, Settings, UserPlus, Zap, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useRouteNames } from '../tenant/settings';
 import AdSlideshow from './AdSlideshow';
 import ClientPhoto from './ClientPhoto';
 import PaymentMethodSelector from './PaymentMethodSelector';
@@ -37,16 +38,6 @@ interface TransitViewProps {
     onUnregistered: (id: string) => void;
 }
 
-const ROUTES = [
-    "Бъркач", "Тръстеник", "Биволаре", "Горна Митрополия", "Долни Дъбник",
-    "Рибен", "Садовец", "Славовица", "Байкал", "Гиген",
-    "Долна Митрополия", "Ясен", "Крушовица", "Дисевица", "Търнене", "Градина",
-    "Петърница", "Опанец", "Победа", "Подем", "Божурица",
-    "Ясен-Дисевица", "Ясен-Долни Дъбник", "Ореховица", "Брегаре", "Крушовене",
-    "Гривица", "Згалево", "Пордим", "Одърне", "Каменец", "Вълчитрън", "Катерица", "Борислав",
-    "Д. Дъбник - Садовец", "Д.Митрополия - Тръстеник", "Д.Митрополия - Славовица",
-    "Пордим - Каменец", "Пордим - Згалево"
-];
 
 const formatTimeAgo = (totalSecs: number) => {
     if (totalSecs < 60) {
@@ -60,6 +51,8 @@ const formatTimeAgo = (totalSecs: number) => {
 };
 
 const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, onClose }) => {
+    // Renewal at the roadside offers the company's own lines.
+    const ROUTES = useRouteNames();
     const navigate = useNavigate();
     const { currentUser } = useAuth();
     const [client, setClient] = useState<Client | null>(null);
@@ -893,7 +886,7 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
                                                 onChange={(e) => setRenewalRoute(e.target.value)}
                                                 style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '12px', borderRadius: '12px', fontSize: '1rem', fontWeight: 700, outline: 'none', colorScheme: 'dark' }}
                                             >
-                                                <option value="">Избери маршрут...</option>
+                                                <option value="">{ROUTES.length ? 'Избери маршрут...' : 'Няма добавени линии — добави ги в Настройки'}</option>
                                                 {ROUTES.map(r => <option key={r} value={r}>{r}</option>)}
                                             </select>
                                         </div>
