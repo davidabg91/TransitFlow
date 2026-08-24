@@ -4,6 +4,7 @@ import { onSnapshot, query } from '../tenant/db';
 import { collection as fsCollection } from 'firebase/firestore';
 import app, { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
+import { Navigate } from 'react-router-dom';
 import { Building2, Plus, ShieldCheck, Loader2, AlertTriangle, CheckCircle2, CreditCard } from 'lucide-react';
 
 /**
@@ -54,7 +55,7 @@ const input: React.CSSProperties = {
 };
 
 const PlatformAdmin: React.FC = () => {
-    const { signedInEmail, isPlatformAdmin, refreshClaims } = useAuth();
+    const { signedInEmail, isPlatformAdmin, refreshClaims, tenantId: ownCompany } = useAuth();
     const [tenants, setTenants] = useState<Tenant[]>([]);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -111,8 +112,14 @@ const PlatformAdmin: React.FC = () => {
         }
     };
 
-    // Gated on being signed in, not on having access — the whole point of this
-    // screen is to grant the owner rights they do not have yet.
+    // Belongs to a company, so this screen is not for them — it administers the
+    // companies, it is not part of any one of them.
+    if (ownCompany && !isPlatformAdmin) {
+        return <Navigate to="/" replace />;
+    }
+
+    // Otherwise gated on being signed in rather than on having access, because
+    // granting the owner their access is precisely what this screen does.
     if (!signedInEmail) {
         return <div style={{ padding: '4rem 1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Трябва да влезете.</div>;
     }

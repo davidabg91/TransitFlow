@@ -62,18 +62,6 @@ const Layout: React.FC = () => {
 
     const navLinks = (
         <>
-            <Link
-                to="/admin"
-                onClick={(e) => handleGuardedNavigation(e, '/admin')}
-                style={{
-                    color: location.pathname === '/admin' ? '#ff5252' : '#fff',
-                    fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
-                    borderBottom: location.pathname === '/admin' ? '2px solid #ff5252' : '2px solid transparent',
-                    paddingBottom: '2px',
-                    display: 'flex',
-                    alignItems: 'center'
-                }}
-            >Табло</Link>
 
 
             {currentUser && (
@@ -182,8 +170,7 @@ const Layout: React.FC = () => {
 
     const mobileNavLinks = (
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <Link to="/admin" onClick={(e) => handleGuardedNavigation(e, '/admin')} className="mobile-nav-link">Табло</Link>
-            {(!currentUser || currentUser.role === 'admin') && (
+                        {(!currentUser || currentUser.role === 'admin') && (
                 <>
                 </>
             )}

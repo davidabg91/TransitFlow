@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { NFCService } from './services/NFCService';
-import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -16,6 +16,7 @@ const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 const Help = lazy(() => import('./pages/Help'));
 const Legal = lazy(() => import('./pages/Legal'));
 const PlatformAdmin = lazy(() => import('./pages/PlatformAdmin'));
+const Home = lazy(() => import('./pages/Home'));
 
 const PageLoader = () => <LoadingScreen />;
 
@@ -238,9 +239,10 @@ function App() {
 
             {/* App shell */}
             <Route path="/" element={<Layout />}>
-              {/* Signing in lands straight on the dashboard — there is no
-                  public page in front of the system any more. */}
-              <Route index element={<Navigate to="/admin" replace />} />
+              {/* Where staff land: a way in, not a dashboard. */}
+              <Route index element={
+                <ProtectedRoute allowedRoles={['admin', 'moderator', 'inspector']}><Home /></ProtectedRoute>
+              } />
               <Route path="portal" element={<StaffPortal />} />
 
               {/* Moderator + Admin (inspectors are redirected to /inspections) */}

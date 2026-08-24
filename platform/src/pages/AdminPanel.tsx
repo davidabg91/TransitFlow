@@ -376,8 +376,15 @@ const AdminPanel: React.FC = () => {
     // Moderators share most day-to-day client actions with admins (changing a
     // direction, renewing); only destructive ones stay admin-only.
     const isStaff = isAdmin || currentUser?.role === 'moderator';
+    // Openable straight from a shortcut, e.g. /#/admin?tab=register.
     const [activeTab, setActiveTab] = useState<'clients' | 'register' | 'nfc' | 'finances' | 'notifications' | 'unpaid'>(
-        'clients'
+        () => {
+            const wanted = new URLSearchParams(window.location.hash.split('?')[1] || '').get('tab');
+            const allowed = ['clients', 'register', 'nfc', 'finances', 'notifications', 'unpaid'] as const;
+            return (allowed as readonly string[]).includes(wanted || '')
+                ? (wanted as typeof allowed[number])
+                : 'clients';
+        }
     );
     const [clients, setClients] = useState<Client[]>([]);
     const [fines, setFines] = useState<{ amount: number; date: string }[]>([]);
