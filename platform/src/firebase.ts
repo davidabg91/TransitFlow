@@ -5,14 +5,17 @@ import { initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getMessaging, isSupported, type Messaging } from 'firebase/messaging';
 
+// TransitFlow platform project (europe-west3). These values are public by
+// design — they identify the project, they do not grant access. Access is
+// controlled by Firestore/Storage rules and the tenant claim on the auth token.
 const firebaseConfig = {
-  apiKey: "AIzaSyB0F2U11RI7NcBs0ghhu5J642HcGNP5T18",
-  authDomain: "darycard-6e8e7.firebaseapp.com",
-  projectId: "darycard-6e8e7",
-  storageBucket: "darycard-6e8e7.firebasestorage.app",
-  messagingSenderId: "949719547537",
-  appId: "1:949719547537:web:5ae189666873df89dc8930",
-  measurementId: "G-RZ7JWCDJ0W"
+  apiKey: "AIzaSyDNTbG7gTCRNGP9_fF4Rohl7vR83mKL5ug",
+  authDomain: "pokanipro.firebaseapp.com",
+  projectId: "pokanipro",
+  storageBucket: "pokanipro.firebasestorage.app",
+  messagingSenderId: "1043317640536",
+  appId: "1:1043317640536:web:9f73bcb50ff3503e4e692d",
+  measurementId: "G-FNJN48QFKS"
 };
 
 const app = initializeApp(firebaseConfig);
