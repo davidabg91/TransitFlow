@@ -601,3 +601,131 @@ export const alertUnpaidScan = fn.firestore
             }
         });
     });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Monthly rollups
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface Renewal {
+    month?: string;
+    amount?: number;
+    paymentMethod?: string;
+    bankAmount?: number;
+    cashAmount?: number;
+}
+
+/** Key a renewal by month + date + amount so the same payment is recognised across writes. */
+const renewalKey = (r: Renewal & { date?: string }) =>
+    `${r.month || ""}|${r.date || ""}|${r.amount ?? ""}`;
+
+const METHOD_FIELD: Record<string, string> = {
+    "В брой": "cash",
+    "С карта": "card",
+    "Банка": "bank",
+    "Смесено": "mixed",
+};
+
+/**
+ * Keeps `tenants/{id}/rollups/{YYYY-MM}` current so the dashboard can read one
+ * document instead of every card in the company.
+ *
+ * Deliberately incremental: it compares the card's payment history before and
+ * after the write and applies only the difference. Recomputing from the whole
+ * collection on every change would cost more than the reads it is meant to save.
+ */
+export const updateRollups = fn.firestore
+    .document("tenants/{tenantId}/clients/{clientId}")
+    .onWrite(async (change, context) => {
+        const tenantId = context.params.tenantId as string;
+
+        const listOf = (snap: admin.firestore.DocumentSnapshot): Renewal[] => {
+            const h = snap.exists ? snap.data()?.renewalHistory : undefined;
+            return Array.isArray(h) ? h : [];
+        };
+
+        const before = new Map<string, Renewal>();
+        listOf(change.before).forEach(r => before.set(renewalKey(r), r));
+        const after = new Map<string, Renewal>();
+        listOf(change.after).forEach(r => after.set(renewalKey(r), r));
+
+        // Only the payments that appeared or disappeared in this write.
+        const deltas = new Map<string, admin.firestore.UpdateData<Record<string, unknown>>>();
+        const apply = (r: Renewal, sign: 1 | -1) => {
+            const month = r.month;
+            if (!month) return;
+            const amount = Number(r.amount) || 0;
+            const entry = deltas.get(month) || {};
+            const bump = (field: string, by: number) => {
+                if (!by) return;
+                entry[field] = admin.firestore.FieldValue.increment(sign * by);
+            };
+            bump("revenue", amount);
+            bump("payments", 1);
+            const field = METHOD_FIELD[String(r.paymentMethod || "")] || "other";
+            bump(`byMethod.${field}`, amount);
+            if (field === "mixed") {
+                bump("byMethod.mixedBank", Number(r.bankAmount) || 0);
+                bump("byMethod.mixedCash", Number(r.cashAmount) || 0);
+            }
+            deltas.set(month, entry);
+        };
+
+        for (const [k, r] of after) if (!before.has(k)) apply(r, 1);
+        for (const [k, r] of before) if (!after.has(k)) apply(r, -1);
+        if (deltas.size === 0) return;
+
+        const batch = db().batch();
+        for (const [month, data] of deltas) {
+            batch.set(
+                tenantRef(tenantId).collection("rollups").doc(month),
+                { month, tenant: tenantId, updatedAt: nowIso(), ...data },
+                { merge: true }
+            );
+        }
+        await batch.commit();
+    });
+
+/**
+ * Rebuilds a company's rollups from scratch. Needed after importing existing
+ * cards, and as a repair if an incremental update was ever missed. Reads the
+ * whole collection once, which is exactly what the incremental path exists to
+ * avoid doing routinely.
+ */
+export const rebuildRollups = fn.runWith({ timeoutSeconds: 540, memory: "512MB" })
+    .https.onCall(async (_data, context) => {
+        const caller = requireAdmin(context);
+        const snap = await tenantRef(caller.tenant).collection("clients").get();
+
+        const totals = new Map<string, {
+            revenue: number; payments: number; byMethod: Record<string, number>;
+        }>();
+
+        snap.forEach(docSnap => {
+            const history = docSnap.data()?.renewalHistory;
+            if (!Array.isArray(history)) return;
+            for (const r of history as Renewal[]) {
+                if (!r?.month) continue;
+                const t = totals.get(r.month) || { revenue: 0, payments: 0, byMethod: {} };
+                const amount = Number(r.amount) || 0;
+                t.revenue += amount;
+                t.payments += 1;
+                const field = METHOD_FIELD[String(r.paymentMethod || "")] || "other";
+                t.byMethod[field] = (t.byMethod[field] || 0) + amount;
+                if (field === "mixed") {
+                    t.byMethod.mixedBank = (t.byMethod.mixedBank || 0) + (Number(r.bankAmount) || 0);
+                    t.byMethod.mixedCash = (t.byMethod.mixedCash || 0) + (Number(r.cashAmount) || 0);
+                }
+                totals.set(r.month, t);
+            }
+        });
+
+        const batch = db().batch();
+        for (const [month, t] of totals) {
+            batch.set(tenantRef(caller.tenant).collection("rollups").doc(month), {
+                month, tenant: caller.tenant, updatedAt: nowIso(), rebuiltAt: nowIso(), ...t,
+            });
+        }
+        await batch.commit();
+
+        return { months: totals.size, cardsScanned: snap.size };
+    });
