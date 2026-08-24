@@ -17,6 +17,7 @@ const Help = lazy(() => import('./pages/Help'));
 const Legal = lazy(() => import('./pages/Legal'));
 const PlatformAdmin = lazy(() => import('./pages/PlatformAdmin'));
 const Home = lazy(() => import('./pages/Home'));
+const Settings = lazy(() => import('./pages/Settings'));
 const Signal = lazy(() => import('./pages/Signal'));
 const BusRental = lazy(() => import('./pages/BusRental'));
 
@@ -277,6 +278,10 @@ function App() {
                   has not licensed them; these are the forms that feed them. */}
               <Route path="signal" element={<Signal />} />
               <Route path="rent" element={<BusRental />} />
+
+              <Route path="settings" element={
+                <ProtectedRoute requiredRole="admin"><Settings /></ProtectedRoute>
+              } />
 
               <Route path="legal" element={<Legal />} />
 

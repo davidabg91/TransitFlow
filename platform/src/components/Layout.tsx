@@ -118,6 +118,20 @@ const Layout: React.FC = () => {
                             >Админ Панел</Link>
                         )}
 
+                    {currentUser.role === 'admin' && (
+                    <Link
+                        to="/settings"
+                        onClick={(e) => handleGuardedNavigation(e, '/settings')}
+                        style={{
+                            color: location.pathname === '/settings' ? '#ff5252' : '#fff',
+                            fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
+                            borderBottom: location.pathname === '/settings' ? '2px solid #ff5252' : '2px solid transparent',
+                            paddingBottom: '2px',
+                            display: 'flex',
+                            alignItems: 'center'
+                        }}
+                    >Настройки</Link>
+                    )}
                     <Link
                         to="/help"
                         onClick={(e) => handleGuardedNavigation(e, '/help')}
@@ -195,6 +209,7 @@ const Layout: React.FC = () => {
                     {currentUser.role === 'admin' && (
                         <Link to="/system-admin" onClick={(e) => handleGuardedNavigation(e, '/system-admin')} className="mobile-nav-link">Админ Панел</Link>
                     )}
+                    {currentUser.role === 'admin' && (<Link to="/settings" onClick={(e) => handleGuardedNavigation(e, '/settings')} className="mobile-nav-link">Настройки</Link>)}
                     <Link to="/help" onClick={(e) => handleGuardedNavigation(e, '/help')} className="mobile-nav-link">Помощ</Link>
                     <div style={{ padding: '0.8rem 1.2rem', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
                         {currentUser.role === 'admin' ? <ShieldCheck size={18} color="#ff5252" /> : <Shield size={18} color="var(--primary-color)" />}

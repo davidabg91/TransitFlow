@@ -144,6 +144,18 @@ service cloud.firestore {
         }
       }
 
+      // ---- The company's own configuration ----
+      // Its lines, stops and fares. Everyone in the company reads them (the
+      // panels price against them); only an admin changes them.
+      match /routes/{routeId} {
+        allow read: if belongs(tenantId);
+        allow write: if canAdmin(tenantId);
+      }
+      match /settings/{docId} {
+        allow read: if belongs(tenantId);
+        allow write: if canAdmin(tenantId);
+      }
+
       // ---- The passenger's own card ----
       // Readable by anyone holding the code, which exists only on the physical
       // card — that is what a passenger tapping their card has, and it is why

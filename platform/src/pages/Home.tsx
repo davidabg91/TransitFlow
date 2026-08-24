@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
     PlusCircle, Users, PiggyBank, ShieldCheck, Bell, AlertTriangle,
-    ExternalLink, LifeBuoy, Settings, Clock, Nfc, Search, UserPlus, ArrowRight,
+    ExternalLink, LifeBuoy, Settings, SlidersHorizontal, Clock, Nfc, Search, UserPlus, ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getDoc, tenantDoc } from '../tenant/db';
@@ -36,6 +36,7 @@ const SHORTCUTS: Shortcut[] = [
     { to: '/inspections', icon: ShieldCheck, title: 'Проверки', accent: '#00b0ff', roles: ['admin', 'inspector'] },
     { to: '/admin?tab=notifications', icon: Bell, title: 'Известия', accent: '#ff4081', roles: ['admin'] },
     { to: '/admin?tab=nfc', icon: ExternalLink, title: 'NFC кодове', accent: '#a78bfa', roles: ['admin'] },
+    { to: '/settings', icon: SlidersHorizontal, title: 'Настройки', accent: '#a3e635', roles: ['admin'] },
     { to: '/system-admin', icon: Settings, title: 'Системен панел', accent: '#f87171', roles: ['admin'] },
     { to: '/help', icon: LifeBuoy, title: 'Помощ', accent: '#94a3b8', roles: ['admin', 'moderator', 'inspector'] },
 ];
