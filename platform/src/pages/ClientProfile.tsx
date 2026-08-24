@@ -787,6 +787,34 @@ const ClientProfile: React.FC = () => {
 
     useEffect(() => {
         if (!id) return;
+
+        // Somebody who is not signed in is a passenger who has just tapped their
+        // own card. They read the public copy, which carries only what the card
+        // face shows — reading the client record would hand over the address and
+        // school as well, since a read returns the whole document whatever the
+        // page draws.
+        if (!currentUser) {
+            const unsub = onSnapshot(doc(db, 'public_cards', id), (snap) => {
+                if (snap.exists()) {
+                    const d = snap.data() as Record<string, unknown>;
+                    setClient({
+                        ...d,
+                        id: snap.id,
+                        // The public copy keeps month and amount only; the rest of a
+                        // renewal is the operator's business.
+                        renewalHistory: (d.payments as Client['renewalHistory']) || [],
+                    } as Client);
+                } else {
+                    setClient(null);
+                }
+                setLoading(false);
+            }, (err) => {
+                console.error('Public card unavailable:', err);
+                setLoading(false);
+            });
+            return () => unsub();
+        }
+
         const unsubscribe = onSnapshot(doc(db, 'clients', id), (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data() as Record<string, unknown>;

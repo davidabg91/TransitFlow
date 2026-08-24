@@ -944,3 +944,59 @@ export const lookupCard = fn.https.onCall(async (data, context) => {
 
     return { found: false };
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The passenger's view of their own card
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Keeps a small public copy of each card, so a passenger can tap their card with
+ * a phone and see its status without an account.
+ *
+ * The card's code is a 48-bit random string that exists only on the physical
+ * card, so holding it is the proof of entitlement — the same idea as a
+ * password-reset link. What makes that safe is this projection: opening the
+ * client record itself would hand over the address, school and municipality too,
+ * because a read returns the whole document no matter what the page chooses to
+ * draw. Only the fields the card actually shows are copied here.
+ */
+export const syncPublicCard = fn.firestore
+    .document("tenants/{tenantId}/clients/{clientId}")
+    .onWrite(async (change, context) => {
+        const tenantId = context.params.tenantId as string;
+        const clientId = context.params.clientId as string;
+        const publicRef = tenantRef(tenantId).collection("public_cards").doc(clientId);
+
+        if (!change.after.exists) {
+            await publicRef.delete().catch(() => { /* already gone */ });
+            return;
+        }
+
+        const d = change.after.data() || {};
+        const history = Array.isArray(d.renewalHistory) ? d.renewalHistory : [];
+
+        // Only what the card face shows. Payments are reduced to month and
+        // amount — the payment method and who took the money are the operator's
+        // business, not the passenger's.
+        const payments = history
+            .slice(-6)
+            .map((r: { month?: string; amount?: number }) => ({
+                month: String(r?.month || ""),
+                amount: Number(r?.amount) || 0,
+            }))
+            .filter((r: { month: string }) => r.month);
+
+        await publicRef.set({
+            tenant: tenantId,
+            name: String(d.name || ""),
+            route: String(d.route || ""),
+            photo: String(d.photo || ""),
+            cardNumber: String(d.cardNumber || ""),
+            cardType: String(d.cardType || ""),
+            expiryDate: String(d.expiryDate || ""),
+            isCanceled: d.isCanceled === true,
+            payments,
+            lastScanAt: String(d.lastScanAt || ""),
+            updatedAt: nowIso(),
+        });
+    });

@@ -132,9 +132,27 @@ service cloud.firestore {
 
         match /scans/{scanId} {
           allow read: if isStaff(tenantId);
-          allow create: if canWrite(tenantId) && stampedCorrectly(tenantId);
+          // A bus terminal records a validation without being signed in, the way
+          // drivers actually work. The shape is pinned so the collection cannot
+          // be stuffed with arbitrary documents, and the tenant must match the
+          // path it is being written into.
+          allow create: if stampedCorrectly(tenantId)
+            && request.resource.data.at is string
+            && request.resource.data.keys().hasOnly(
+                 ['at', 'route', 'tenant', 'scannedBy', 'scannedByName', 'role']);
           allow update, delete: if canAdmin(tenantId);
         }
+      }
+
+      // ---- The passenger's own card ----
+      // Readable by anyone holding the code, which exists only on the physical
+      // card — that is what a passenger tapping their card has, and it is why
+      // this works without an account. Listing is refused, so the collection
+      // cannot be walked; a code has to be known, and it cannot be guessed.
+      // Written only by syncPublicCard, from the fields the card face shows.
+      match /public_cards/{code} {
+        allow get: if true;
+        allow list, write: if false;
       }
 
       // ---- Card stock ----
