@@ -37,11 +37,21 @@ service cloud.firestore {
     function isAdmin(tenantId) {
       return inTenant(tenantId) && role() == 'admin';
     }
+    // Write-capable variants: the same role, plus a company in good standing.
+    function canAdmin(tenantId) {
+      return isAdmin(tenantId) && companyActive(tenantId);
+    }
     function isStaff(tenantId) {
       return inTenant(tenantId) && (role() == 'admin' || role() == 'moderator');
     }
+    function canStaff(tenantId) {
+      return isStaff(tenantId) && companyActive(tenantId);
+    }
     function isInspector(tenantId) {
       return inTenant(tenantId) && role() == 'inspector';
+    }
+    function canInspect(tenantId) {
+      return isInspector(tenantId) && companyActive(tenantId);
     }
     // A bus terminal. Signs in anonymously and is enrolled to a company by an
     // admin, which is what puts the tenant claim on its token. Drivers never
@@ -49,15 +59,29 @@ service cloud.firestore {
     function isDevice(tenantId) {
       return inTenant(tenantId) && role() == 'device';
     }
+    function canDevice(tenantId) {
+      return isDevice(tenantId) && companyActive(tenantId);
+    }
     // Anyone the company has issued a token to: staff, inspector or terminal.
     function belongs(tenantId) {
       return inTenant(tenantId);
+    }
+    function canWrite(tenantId) {
+      return inTenant(tenantId) && companyActive(tenantId);
     }
     // The platform owner administers the companies but is not a member of any.
     // They may see which companies exist and how much each one uses the system —
     // never the passengers' personal data, which belongs to the operator.
     function isPlatformOwner() {
       return signedIn() && request.auth.token.platformAdmin == true;
+    }
+
+    // A company suspended for non-payment may still see its data but may not
+    // change anything. This costs one document read, so it guards writes only —
+    // reads stay free, and a frozen company is one that cannot operate, not one
+    // that cannot look.
+    function companyActive(tenantId) {
+      return get(/databases/$(database)/documents/tenants/$(tenantId)).data.active != false;
     }
 
     // Writes must stamp the document with the company they belong to, and may
@@ -83,8 +107,8 @@ service cloud.firestore {
       match /users/{userId} {
         allow read: if belongs(tenantId);
         allow create, delete: if false;
-        allow update: if isAdmin(tenantId)
-          || (belongs(tenantId) && request.auth.uid == userId
+        allow update: if canAdmin(tenantId)
+          || (canWrite(tenantId) && request.auth.uid == userId
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen']));
       }
 
@@ -96,20 +120,20 @@ service cloud.firestore {
       match /clients/{clientId} {
         allow get: if belongs(tenantId);
         allow list: if isStaff(tenantId) || isInspector(tenantId);
-        allow create: if isStaff(tenantId) && stampedCorrectly(tenantId);
+        allow create: if canStaff(tenantId) && stampedCorrectly(tenantId);
         // Staff may edit anything. A terminal may bump only the scan counters —
         // never the route, expiry, name or photo.
-        allow update: if isStaff(tenantId)
-          || (isDevice(tenantId)
+        allow update: if canStaff(tenantId)
+          || (canDevice(tenantId)
               && request.resource.data.diff(resource.data).affectedKeys()
                    .hasOnly(['scanCount', 'lastScanAt', 'lastScanCounter', 'nfcUid',
                              'dailyScanCount', 'lastScanDate', 'scanHistory']));
-        allow delete: if isAdmin(tenantId);
+        allow delete: if canAdmin(tenantId);
 
         match /scans/{scanId} {
           allow read: if isStaff(tenantId);
-          allow create: if belongs(tenantId) && stampedCorrectly(tenantId);
-          allow update, delete: if isAdmin(tenantId);
+          allow create: if canWrite(tenantId) && stampedCorrectly(tenantId);
+          allow update, delete: if canAdmin(tenantId);
         }
       }
 
@@ -127,23 +151,23 @@ service cloud.firestore {
       // Whether the module is usable at all is decided by the company's record,
       // which only the platform can write.
       match /signals/{signalId} {
-        allow create: if belongs(tenantId) && stampedCorrectly(tenantId);
+        allow create: if canWrite(tenantId) && stampedCorrectly(tenantId);
         allow read, update, delete: if isStaff(tenantId);
       }
       match /rentals/{rentalId} {
-        allow create: if belongs(tenantId) && stampedCorrectly(tenantId);
+        allow create: if canWrite(tenantId) && stampedCorrectly(tenantId);
         allow read, update, delete: if isStaff(tenantId);
       }
 
       // ---- Notifications ----
       match /push_subscriptions/{subId} {
         allow read, create, delete: if belongs(tenantId);
-        allow update: if isStaff(tenantId);
+        allow update: if canStaff(tenantId);
       }
       match /push_notifications/{notifId} {
         allow read: if belongs(tenantId);
-        allow create: if isStaff(tenantId) && stampedCorrectly(tenantId);
-        allow update, delete: if isAdmin(tenantId);
+        allow create: if canStaff(tenantId) && stampedCorrectly(tenantId);
+        allow update, delete: if canAdmin(tenantId);
       }
       match /admin_push_tokens/{tokenId} {
         allow read, create, delete, update: if isStaff(tenantId);
@@ -152,8 +176,8 @@ service cloud.firestore {
       // ---- Audit trail ----
       match /activity_logs/{logId} {
         allow read: if isStaff(tenantId);
-        allow create: if isStaff(tenantId) && stampedCorrectly(tenantId);
-        allow update, delete: if isAdmin(tenantId);
+        allow create: if canStaff(tenantId) && stampedCorrectly(tenantId);
+        allow update, delete: if canAdmin(tenantId);
       }
 
       // ---- Security monitoring ----
@@ -169,9 +193,9 @@ service cloud.firestore {
       // ---- Duplicate-card alerts ----
       // A terminal raises one when a chip UID does not match the card on file.
       match /clone_alerts/{alertId} {
-        allow create: if belongs(tenantId) && stampedCorrectly(tenantId);
+        allow create: if canWrite(tenantId) && stampedCorrectly(tenantId);
         allow read, delete: if isStaff(tenantId);
-        allow update: if isAdmin(tenantId);
+        allow update: if canAdmin(tenantId);
       }
 
       // ---- Terminal hand-shake ----
@@ -183,16 +207,16 @@ service cloud.firestore {
       // ---- Inspections ----
       // An inspector sees only their own checks; admins see all.
       match /inspector_scans/{scanId} {
-        allow create: if (isInspector(tenantId) || isAdmin(tenantId)) && stampedCorrectly(tenantId);
+        allow create: if (canInspect(tenantId) || canAdmin(tenantId)) && stampedCorrectly(tenantId);
         allow read: if isAdmin(tenantId)
           || (isInspector(tenantId) && resource.data.inspectorId == request.auth.uid);
-        allow update, delete: if isAdmin(tenantId);
+        allow update, delete: if canAdmin(tenantId);
       }
       match /inspector_reports/{reportId} {
-        allow create: if (isInspector(tenantId) || isAdmin(tenantId)) && stampedCorrectly(tenantId);
+        allow create: if (canInspect(tenantId) || canAdmin(tenantId)) && stampedCorrectly(tenantId);
         allow read: if isAdmin(tenantId)
           || (isInspector(tenantId) && resource.data.inspectorId == request.auth.uid);
-        allow update, delete: if isAdmin(tenantId);
+        allow update, delete: if canAdmin(tenantId);
       }
 
       // ---- Fines ----
@@ -200,7 +224,7 @@ service cloud.firestore {
       // count toward revenue without extending a subscription.
       match /fines/{fineId} {
         allow read, create: if isStaff(tenantId) && stampedCorrectly(tenantId);
-        allow update, delete: if isAdmin(tenantId);
+        allow update, delete: if canAdmin(tenantId);
       }
 
       // ---- Precomputed monthly totals ----

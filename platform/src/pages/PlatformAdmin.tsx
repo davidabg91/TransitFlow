@@ -3,7 +3,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
-import { Building2, Plus, ShieldCheck, Loader2, AlertTriangle, CheckCircle2, CreditCard, Users2, Wallet, RefreshCw } from 'lucide-react';
+import { Building2, Plus, ShieldCheck, Loader2, AlertTriangle, CheckCircle2, CreditCard, Users2, Wallet, RefreshCw, Lock, Unlock } from 'lucide-react';
 
 /**
  * Platform owner's screen: create the companies that use TransitFlow.
@@ -123,6 +123,29 @@ const PlatformAdmin: React.FC = () => {
             setTenants(list => list.map(x => x.id === t.id
                 ? { ...x, modules: { ...x.modules, [key]: !next } } : x));
             setError((e as { message?: string }).message || 'Промяната не беше записана.');
+        }
+    };
+
+    const toggleActive = async (t: Tenant) => {
+        const next = !t.active;
+        if (!next && !window.confirm(
+            `Да се спре ли достъпът на „${t.name}“?
+
+` +
+            'Служителите ѝ ще бъдат отписани веднага и няма да могат да променят нищо, ' +
+            'докато не възстановите достъпа. Данните остават непокътнати.'
+        )) return;
+
+        const reason = next ? '' : (window.prompt('Причина (вижда се от фирмата):', 'Неплатен абонамент') || 'Неплатен абонамент');
+        setBusy(true); setError(null); setDone(null);
+        try {
+            await call('setTenantActive')({ tenantId: t.id, active: next, reason });
+            setTenants(list => list.map(x => x.id === t.id ? { ...x, active: next } : x));
+            setDone(next ? `Достъпът на „${t.name}“ е възстановен.` : `Достъпът на „${t.name}“ е спрян.`);
+        } catch (e) {
+            setError((e as { message?: string }).message || 'Промяната не беше записана.');
+        } finally {
+            setBusy(false);
         }
     };
 
@@ -290,14 +313,22 @@ const PlatformAdmin: React.FC = () => {
                                                     {t.id}{t.createdAt ? ' \u00b7 от ' + new Date(t.createdAt).toLocaleDateString('bg-BG') : ''}
                                                 </div>
                                             </div>
-                                            <span style={{
-                                                fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.06em',
-                                                padding: '3px 9px', borderRadius: '20px',
-                                                background: t.active ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)',
-                                                color: t.active ? '#00e676' : '#ff5252',
-                                            }}>
+                                            <button
+                                                onClick={() => toggleActive(t)}
+                                                disabled={busy}
+                                                title={t.active ? 'Спри достъпа при неплатен абонамент' : 'Възстанови достъпа'}
+                                                style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                                                    fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.06em',
+                                                    padding: '5px 12px', borderRadius: '20px', cursor: busy ? 'wait' : 'pointer',
+                                                    background: t.active ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)',
+                                                    border: `1px solid ${t.active ? 'rgba(0,230,118,0.4)' : 'rgba(255,82,82,0.45)'}`,
+                                                    color: t.active ? '#00e676' : '#ff5252',
+                                                }}
+                                            >
+                                                {t.active ? <Unlock size={12} /> : <Lock size={12} />}
                                                 {t.active ? 'АКТИВНА' : 'СПРЯНА'}
-                                            </span>
+                                            </button>
                                         </div>
 
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>

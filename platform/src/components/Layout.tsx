@@ -4,6 +4,8 @@ import logo from '../assets/logo_main.png';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, ShieldCheck, Shield, Menu, X } from 'lucide-react';
 import InstallPWA from './InstallPWA';
+import CompanySuspended from './CompanySuspended';
+import { useCompanyStatus } from '../tenant/modules';
 import { getDoc, tenantDoc } from '../tenant/db';
 import { db } from '../firebase';
 
@@ -16,6 +18,7 @@ const Layout: React.FC = () => {
     const isFullScreen = isClientProfilePath || isAdminPath;
     const { currentUser, logout, tenantId, isPlatformAdmin } = useAuth();
     const [companyName, setCompanyName] = useState<string>('');
+    const companyStatus = useCompanyStatus();
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     
@@ -64,8 +67,9 @@ const Layout: React.FC = () => {
         <>
 
 
-            {currentUser && !isPlatformAdmin && (
+            {currentUser && (
                 <>
+                    {!isPlatformAdmin && (<>
                     {currentUser.role !== 'inspector' && (
                     <Link
                         to="/admin"
@@ -121,6 +125,7 @@ const Layout: React.FC = () => {
                             paddingBottom: '2px',
                         }}
                     >Помощ</Link>
+                    </>)}
 
                     <div style={{
                         display: 'flex', alignItems: 'center', gap: '0.5rem',
@@ -202,6 +207,13 @@ const Layout: React.FC = () => {
             )}
         </nav>
     );
+
+    // An unpaid company sees this instead of the system. The rules block its
+    // writes regardless; this is so staff are told why, rather than meeting
+    // permission errors they cannot interpret.
+    if (currentUser && !companyStatus.pending && !companyStatus.active) {
+        return <CompanySuspended companyName={companyStatus.name} reason={companyStatus.suspendedReason} />;
+    }
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative' }}>

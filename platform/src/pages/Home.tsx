@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import {
     PlusCircle, Users, PiggyBank, ShieldCheck, Bell, AlertTriangle,
     ExternalLink, LifeBuoy, Settings, ArrowRight, Clock,
@@ -92,7 +92,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 const Home: React.FC = () => {
-    const { currentUser, tenantId } = useAuth();
+    const { currentUser, tenantId, isPlatformAdmin } = useAuth();
     const [company, setCompany] = useState('');
     const [now, setNow] = useState(new Date());
 
@@ -111,6 +111,11 @@ const Home: React.FC = () => {
     const role = currentUser?.role || '';
     const visible = useMemo(() => SHORTCUTS.filter(s => s.roles.includes(role)), [role]);
     const person = (currentUser?.username || '').split('@')[0];
+
+    // The platform owner administers companies and belongs to none, so the staff
+    // home — and every shortcut on it — is not theirs. After the hooks, never
+    // before: an early return here would change how many run between renders.
+    if (isPlatformAdmin) return <Navigate to="/platform" replace />;
 
     return (
         <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '2.5rem 1rem 4rem', color: '#fff' }}>

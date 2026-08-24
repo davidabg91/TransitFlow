@@ -30,6 +30,48 @@ export const MODULE_LABELS: Record<keyof Modules, string> = {
 
 export const NO_MODULES: Modules = { signals: false, rentals: false, notifications: false };
 
+export interface CompanyStatus {
+    /** False while the subscription is unpaid: the panels stay readable, writes do not. */
+    active: boolean;
+    name: string;
+    suspendedReason: string;
+    /** Still loading — neither the system nor the suspension screen should show yet. */
+    pending: boolean;
+}
+
+/**
+ * A company's standing. Read from the same document as the modules, so checking
+ * for suspension costs nothing extra.
+ */
+export const useCompanyStatus = (): CompanyStatus => {
+    const { tenantId } = useAuth();
+    const [status, setStatus] = useState<CompanyStatus>({ active: true, name: '', suspendedReason: '', pending: true });
+
+    useEffect(() => {
+        if (!tenantId) { setStatus({ active: true, name: '', suspendedReason: '', pending: false }); return; }
+        let cancelled = false;
+        getDoc(tenantDoc(db, tenantId))
+            .then(snap => {
+                if (cancelled) return;
+                const d = snap.data() || {};
+                setStatus({
+                    active: d.active !== false,
+                    name: String(d.name || ''),
+                    suspendedReason: String(d.suspendedReason || ''),
+                    pending: false,
+                });
+            })
+            .catch(() => {
+                // Assume good standing on a read failure: locking a paying company
+                // out because of a transient error would be the worse mistake.
+                if (!cancelled) setStatus({ active: true, name: '', suspendedReason: '', pending: false });
+            });
+        return () => { cancelled = true; };
+    }, [tenantId]);
+
+    return status;
+};
+
 /**
  * Read once per company rather than kept on a live listener: licensing changes
  * when the platform owner flips a switch, not minute to minute, and a permanent

@@ -801,3 +801,45 @@ export const tenantOverview = fn.https.onCall(async (_data, context) => {
     rows.sort((a, b) => a.name.localeCompare(b.name, "bg"));
     return { month, tenants: rows };
 });
+
+/**
+ * Suspends or restores a company, for when an invoice goes unpaid.
+ *
+ * Suspension is enforced in the security rules, not only in the interface — a
+ * lock that lives in the browser is undone by one request from a console. The
+ * rules read this flag before allowing any write, so a suspended company can
+ * still see its data but cannot change anything until it is restored.
+ */
+export const setTenantActive = fn.https.onCall(async (data, context) => {
+    if (!context.auth?.token.platformAdmin) {
+        throw new functions.https.HttpsError("permission-denied", "Само платформеният администратор.");
+    }
+    const tenantId = String(data?.tenantId || "").trim();
+    const active = data?.active === true;
+    const reason = String(data?.reason || "").slice(0, 300);
+
+    if (!tenantId) throw new functions.https.HttpsError("invalid-argument", "Липсва фирма.");
+    const ref = tenantRef(tenantId);
+    if (!(await ref.get()).exists) {
+        throw new functions.https.HttpsError("not-found", "Няма такава фирма.");
+    }
+
+    await ref.update({
+        active,
+        suspendedReason: active ? admin.firestore.FieldValue.delete() : (reason || "Неплатен абонамент"),
+        suspendedAt: active ? admin.firestore.FieldValue.delete() : nowIso(),
+        statusUpdatedAt: nowIso(),
+        statusUpdatedBy: context.auth.token.email || context.auth.uid,
+    });
+
+    // Sign the company's people out, so a suspension takes hold on the spot
+    // instead of waiting for their current session to lapse.
+    if (!active) {
+        const staff = await ref.collection("users").get();
+        await Promise.all(staff.docs.map(d =>
+            admin.auth().revokeRefreshTokens(d.id).catch(() => { /* account already gone */ })
+        ));
+    }
+
+    return { ok: true, active };
+});
