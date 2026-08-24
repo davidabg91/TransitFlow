@@ -28,6 +28,12 @@ interface AuthContextType {
     tenantId: string | null;
     /** The platform owner, who administers companies rather than belonging to one. */
     isPlatformAdmin: boolean;
+    /**
+     * Email of whoever is signed in, even when they have no company and no
+     * platform rights yet. Without this the owner could never reach the screen
+     * that grants those rights in the first place.
+     */
+    signedInEmail: string | null;
     /** Re-reads the token after claims change server-side (e.g. after provisioning). */
     refreshClaims: () => Promise<void>;
     login: (email: string, password: string) => Promise<void>;
@@ -45,6 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [loading, setLoading] = useState(true);
     const [tenantId, setTenantId] = useState<string | null>(null);
     const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+    const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
     const loadingRef = React.useRef(loading);
     useEffect(() => {
         loadingRef.current = loading;
@@ -70,6 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     // means the security rules never have to look a user up, and it
                     // must happen before anything queries Firestore — every path is
                     // built from the active company.
+                    setSignedInEmail(fbUser.email || null);
                     const token = await fbUser.getIdTokenResult();
                     const claimedTenant = (token.claims.tenant as string | undefined) || null;
                     const claimedRole = token.claims.role as UserRole | undefined;
@@ -124,6 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setActiveTenant(null);
                     setTenantId(null);
                     setIsPlatformAdmin(false);
+                    setSignedInEmail(null);
                     setCurrentUser(null);
                 }
             } catch (error) {
@@ -211,7 +220,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     return (
-        <AuthContext.Provider value={{ currentUser, users, loading, tenantId, isPlatformAdmin, refreshClaims, login, logout, addUser, updateUserRole, deleteUser }}>
+        <AuthContext.Provider value={{ currentUser, users, loading, tenantId, isPlatformAdmin, signedInEmail, refreshClaims, login, logout, addUser, updateUserRole, deleteUser }}>
             {children}
         </AuthContext.Provider>
     );

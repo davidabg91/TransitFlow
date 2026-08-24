@@ -14,7 +14,7 @@ const REPORTABLE_AUTH_CODES = [
 ];
 
 const LoginPage: React.FC = () => {
-    const { login, currentUser, isPlatformAdmin } = useAuth();
+    const { login, currentUser, isPlatformAdmin, signedInEmail } = useAuth();
     const navigate = useNavigate();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -24,8 +24,13 @@ const LoginPage: React.FC = () => {
     useEffect(() => {
         if (currentUser) {
             navigate(isPlatformAdmin ? '/platform' : currentUser.role === 'inspector' ? '/inspections' : '/admin');
+        } else if (signedInEmail) {
+            // Signed in, but with no company and no platform rights yet. That is
+            // the owner before the one-time bootstrap, so send them where they can
+            // perform it rather than leaving them on a login form that succeeded.
+            navigate('/platform');
         }
-    }, [currentUser, navigate]);
+    }, [currentUser, isPlatformAdmin, signedInEmail, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

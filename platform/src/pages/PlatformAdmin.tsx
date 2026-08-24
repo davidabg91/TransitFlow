@@ -54,7 +54,7 @@ const input: React.CSSProperties = {
 };
 
 const PlatformAdmin: React.FC = () => {
-    const { currentUser, isPlatformAdmin, refreshClaims } = useAuth();
+    const { signedInEmail, isPlatformAdmin, refreshClaims } = useAuth();
     const [tenants, setTenants] = useState<Tenant[]>([]);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -111,7 +111,9 @@ const PlatformAdmin: React.FC = () => {
         }
     };
 
-    if (!currentUser) {
+    // Gated on being signed in, not on having access — the whole point of this
+    // screen is to grant the owner rights they do not have yet.
+    if (!signedInEmail) {
         return <div style={{ padding: '4rem 1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Трябва да влезете.</div>;
     }
 
