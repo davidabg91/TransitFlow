@@ -18,6 +18,7 @@ const Help = lazy(() => import('./pages/Help'));
 const Signal = lazy(() => import('./pages/Signal'));
 const BusRental = lazy(() => import('./pages/BusRental'));
 const Legal = lazy(() => import('./pages/Legal'));
+const PlatformAdmin = lazy(() => import('./pages/PlatformAdmin'));
 
 const PageLoader = () => <LoadingScreen />;
 
@@ -265,6 +266,9 @@ function App() {
               } />
 
               <Route path="legal" element={<Legal />} />
+
+              {/* Platform owner — administers companies rather than belonging to one */}
+              <Route path="platform" element={<PlatformAdmin />} />
             </Route>
           </Routes>
         </Suspense>

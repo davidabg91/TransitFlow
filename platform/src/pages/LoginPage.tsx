@@ -14,7 +14,7 @@ const REPORTABLE_AUTH_CODES = [
 ];
 
 const LoginPage: React.FC = () => {
-    const { login, currentUser } = useAuth();
+    const { login, currentUser, isPlatformAdmin } = useAuth();
     const navigate = useNavigate();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -23,7 +23,7 @@ const LoginPage: React.FC = () => {
 
     useEffect(() => {
         if (currentUser) {
-            navigate(currentUser.role === 'inspector' ? '/inspections' : '/admin');
+            navigate(isPlatformAdmin ? '/platform' : currentUser.role === 'inspector' ? '/inspections' : '/admin');
         }
     }, [currentUser, navigate]);
 
@@ -34,7 +34,7 @@ const LoginPage: React.FC = () => {
 
         try {
             await login(username.trim(), password);
-            navigate('/admin');
+            // the effect above routes by role once the claims land
         } catch (err: unknown) {
             console.error(err);
             const error = err as { code?: string };

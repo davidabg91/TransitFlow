@@ -24,6 +24,12 @@ interface AuthContextType {
     currentUser: AppUser | null;
     users: AppUser[];
     loading: boolean;
+    /** The company the signed-in account belongs to, from its token claim. */
+    tenantId: string | null;
+    /** The platform owner, who administers companies rather than belonging to one. */
+    isPlatformAdmin: boolean;
+    /** Re-reads the token after claims change server-side (e.g. after provisioning). */
+    refreshClaims: () => Promise<void>;
     login: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
     addUser: (email: string, password: string, role: UserRole) => Promise<void>;
@@ -38,6 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
     const [loading, setLoading] = useState(true);
     const [tenantId, setTenantId] = useState<string | null>(null);
+    const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
     const loadingRef = React.useRef(loading);
     useEffect(() => {
         loadingRef.current = loading;
@@ -66,12 +73,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     const token = await fbUser.getIdTokenResult();
                     const claimedTenant = (token.claims.tenant as string | undefined) || null;
                     const claimedRole = token.claims.role as UserRole | undefined;
+                    const platformAdmin = token.claims.platformAdmin === true;
+                    setIsPlatformAdmin(platformAdmin);
 
                     if (!claimedTenant) {
-                        console.warn(`${fbUser.email || fbUser.uid} has no company assigned. Access denied.`);
+                        // The platform owner administers companies instead of belonging
+                        // to one, so they sign in without a company claim and can only
+                        // reach the platform screen.
                         setActiveTenant(null);
                         setTenantId(null);
-                        setCurrentUser(null);
+                        setCurrentUser(platformAdmin ? {
+                            id: fbUser.uid,
+                            username: fbUser.email || '',
+                            passwordHash: '',
+                            role: 'admin' as UserRole,
+                            createdAt: '',
+                            lastSeen: '',
+                        } : null);
+                        if (!platformAdmin) {
+                            console.warn(`${fbUser.email || fbUser.uid} has no company assigned. Access denied.`);
+                        }
                         return;
                     }
 
@@ -102,6 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 } else {
                     setActiveTenant(null);
                     setTenantId(null);
+                    setIsPlatformAdmin(false);
                     setCurrentUser(null);
                 }
             } catch (error) {
@@ -143,6 +165,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return () => unsubscribeUsers();
     }, [tenantId]);
 
+    /**
+     * Custom claims are set server-side, so an existing token keeps the old ones
+     * until it is refreshed. Called after provisioning to pick them up without
+     * making the user sign out and back in.
+     */
+    const refreshClaims = async () => {
+        const fbUser = auth.currentUser;
+        if (!fbUser) return;
+        await fbUser.getIdToken(true);
+        const token = await fbUser.getIdTokenResult();
+        const claimedTenant = (token.claims.tenant as string | undefined) || null;
+        setIsPlatformAdmin(token.claims.platformAdmin === true);
+        setActiveTenant(claimedTenant);
+        setTenantId(claimedTenant);
+    };
+
     const login = async (email: string, password: string) => {
         const emailToLogin = email.includes('@') ? email : `${email}@transitflow.bg`;
         await signInWithEmailAndPassword(auth, emailToLogin, password);
@@ -173,7 +211,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     return (
-        <AuthContext.Provider value={{ currentUser, users, loading, login, logout, addUser, updateUserRole, deleteUser }}>
+        <AuthContext.Provider value={{ currentUser, users, loading, tenantId, isPlatformAdmin, refreshClaims, login, logout, addUser, updateUserRole, deleteUser }}>
             {children}
         </AuthContext.Provider>
     );
