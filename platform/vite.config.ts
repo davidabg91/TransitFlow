@@ -60,8 +60,8 @@ export default defineConfig({
         name: 'TransitFlow',
         short_name: 'TransitFlow',
         description: 'Система за управление на транспортни карти',
-        theme_color: '#0d7d86',
-        background_color: '#0b1416',
+        theme_color: '#0b1120',
+        background_color: '#0b1120',
         display: 'standalone',
         orientation: 'portrait',
         icons: [
