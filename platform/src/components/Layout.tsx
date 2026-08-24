@@ -63,17 +63,17 @@ const Layout: React.FC = () => {
     const navLinks = (
         <>
             <Link
-                to="/"
-                onClick={(e) => handleGuardedNavigation(e, '/')}
+                to="/admin"
+                onClick={(e) => handleGuardedNavigation(e, '/admin')}
                 style={{
-                    color: location.pathname === '/' ? '#ff5252' : '#fff',
+                    color: location.pathname === '/admin' ? '#ff5252' : '#fff',
                     fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
-                    borderBottom: location.pathname === '/' ? '2px solid #ff5252' : '2px solid transparent',
+                    borderBottom: location.pathname === '/admin' ? '2px solid #ff5252' : '2px solid transparent',
                     paddingBottom: '2px',
                     display: 'flex',
                     alignItems: 'center'
                 }}
-            >Начало</Link>
+            >Табло</Link>
 
 
             {currentUser && (

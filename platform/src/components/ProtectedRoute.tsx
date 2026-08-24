@@ -11,9 +11,13 @@ interface Props {
 }
 
 const ProtectedRoute: React.FC<Props> = ({ children, requiredRole, allowedRoles }) => {
-    const { currentUser, loading } = useAuth();
+    const { currentUser, loading, tenantId, isPlatformAdmin } = useAuth();
 
-    if (loading) {
+    // Every path a page queries is built from the active company, so a page that
+    // renders before the claim has resolved throws on its first query and takes
+    // the whole section down with an unhelpful "something went wrong". Wait for
+    // it the same way we wait for auth.
+    if (loading || (currentUser && !tenantId && !isPlatformAdmin)) {
         return (
             <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-color)' }}>
                 <div style={{ width: '40px', height: '40px', border: '3px solid rgba(0, 173, 181, 0.2)', borderTopColor: 'var(--primary-color)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
