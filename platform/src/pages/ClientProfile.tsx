@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle, Ban, Clock, Settings, Camera, CreditCard, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, Ban, Clock, Settings, Camera, CreditCard, AlertTriangle, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { doc, onSnapshot, setDoc, updateDoc, increment, arrayUnion, addDoc, collection } from '../tenant/db';
@@ -216,6 +216,12 @@ const ClientProfile: React.FC = () => {
     const queryParams = new URLSearchParams(location.search);
     const urlUid = queryParams.get('uid') || '';
     const [client, setClient] = useState<Client | null>(null);
+    // What this card actually costs, from the same tariff the desk charges —
+    // the panel previously showed a fixed 50.80 € regardless of route or type.
+    const onlinePrice = React.useMemo(
+        () => (client?.route ? cardPrice(client.route, client?.cardType) : null),
+        [client?.route, client?.cardType]
+    );
     const [loading, setLoading] = useState(true);
     const [scanTime] = useState(new Date().toLocaleTimeString('bg-BG'));
     const [showPhotoModal, setShowPhotoModal] = useState(false);
@@ -1711,68 +1717,151 @@ const ClientProfile: React.FC = () => {
                 {/* Online Payment Panel */}
                 {!currentUser && !client?.isCanceled && (
                     <div style={{
-                        background: '#18181b',
-                        borderRadius: '28px',
-                        padding: '1.5rem',
-                        border: '1px solid rgba(255,255,255,0.05)',
+                        background: 'linear-gradient(180deg, #1b1b20 0%, #141418 100%)',
+                        borderRadius: '26px',
+                        border: '1px solid rgba(255,255,255,0.07)',
+                        overflow: 'hidden',
+                        boxShadow: '0 18px 40px rgba(0,0,0,0.45)',
                     }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
-                            <div style={{ background: 'rgba(0,230,118,0.1)', padding: '8px', borderRadius: '10px' }}>
-                                <CreditCard size={20} color="#00e676" />
-                            </div>
-                            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800 }}>ОНЛАЙН ПЛАЩАНЕ С КАРТА</h3>
-                        </div>
-
                         {!paymentComplete ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-                                <div style={{ 
-                                    display: 'grid', 
-                                    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
-                                    gap: '1rem' 
-                                }}>
-                                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                        <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px' }}>МЕСЕЦ</div>
-                                        <input 
-                                            type="month" 
-                                            value={paymentMonth} 
-                                            onChange={(e) => setPaymentMonth(e.target.value)} 
-                                            style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '1rem', fontWeight: 800, width: '100%', outline: 'none', colorScheme: 'dark' }} 
-                                        />
-                                    </div>
-                                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                        <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px' }}>СУМА</div>
-                                        <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#00e676' }}>50.80 €</div>
+                            <>
+                                <div style={{ padding: '1.4rem 1.5rem 1.1rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <div style={{ background: 'rgba(0,230,118,0.12)', padding: '8px', borderRadius: '11px', display: 'flex' }}>
+                                                <CreditCard size={18} color="#00e676" />
+                                            </div>
+                                            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, letterSpacing: '-0.01em' }}>
+                                                Плащане на абонамент
+                                            </h3>
+                                        </div>
+                                        <span style={{
+                                            display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                            fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.04em',
+                                            color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase',
+                                        }}>
+                                            <Lock size={11} /> Защитено
+                                        </span>
                                     </div>
                                 </div>
 
-                                <button 
-                                    disabled={true}
-                                    style={{ 
-                                        width: '100%', 
-                                        background: 'rgba(255,255,255,0.03)', 
-                                        color: 'rgba(255,255,255,0.2)', 
-                                        padding: '1.2rem', 
-                                        borderRadius: '18px', 
-                                        border: '1px solid rgba(255,255,255,0.05)', 
-                                        fontWeight: 900, 
-                                        fontSize: '1rem', 
-                                        cursor: 'not-allowed',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '10px'
+                                {/* What is being paid for — the line items a checkout shows before
+                                    it asks for anything. */}
+                                <div style={{ padding: '0 1.5rem' }}>
+                                    <div style={{
+                                        background: 'rgba(255,255,255,0.028)',
+                                        border: '1px solid rgba(255,255,255,0.05)',
+                                        borderRadius: '18px', overflow: 'hidden',
+                                    }}>
+                                        <label style={{
+                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                            gap: '1rem', padding: '0.95rem 1.1rem',
+                                            borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                        }}>
+                                            <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.55)' }}>Месец</span>
+                                            <input
+                                                type="month"
+                                                value={paymentMonth}
+                                                onChange={(e) => setPaymentMonth(e.target.value)}
+                                                style={{
+                                                    background: 'transparent', border: 'none', color: '#fff',
+                                                    fontSize: '0.95rem', fontWeight: 700, outline: 'none',
+                                                    colorScheme: 'dark', textAlign: 'right', maxWidth: '11rem',
+                                                }}
+                                            />
+                                        </label>
+
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                            gap: '1rem', padding: '0.95rem 1.1rem',
+                                            borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                        }}>
+                                            <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.55)' }}>Линия</span>
+                                            <span style={{ fontSize: '0.9rem', fontWeight: 700, textAlign: 'right' }}>
+                                                {client?.route || '—'}
+                                            </span>
+                                        </div>
+
+                                        {client?.cardType && (
+                                            <div style={{
+                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                gap: '1rem', padding: '0.95rem 1.1rem',
+                                                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                            }}>
+                                                <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.55)' }}>Вид карта</span>
+                                                <span style={{ fontSize: '0.9rem', fontWeight: 700, textAlign: 'right' }}>{client.cardType}</span>
+                                            </div>
+                                        )}
+
+                                        <div style={{
+                                            display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+                                            gap: '1rem', padding: '1.1rem',
+                                        }}>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>За плащане</span>
+                                            <span style={{
+                                                fontSize: '1.55rem', fontWeight: 900, color: '#00e676',
+                                                letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums',
+                                            }}>
+                                                {onlinePrice !== null ? `${onlinePrice.toFixed(2)} €` : '—'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Card marks, drawn rather than fetched: the panel must not reach
+                                    out to a third party just to show a logo. */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '1.1rem 1.5rem 0' }}>
+                                    {['VISA', 'MASTERCARD', 'MAESTRO'].map(brand => (
+                                        <span key={brand} style={{
+                                            fontSize: '0.6rem', fontWeight: 900, letterSpacing: '0.06em',
+                                            color: 'rgba(255,255,255,0.4)',
+                                            background: 'rgba(255,255,255,0.05)',
+                                            border: '1px solid rgba(255,255,255,0.07)',
+                                            borderRadius: '6px', padding: '5px 9px',
+                                        }}>{brand}</span>
+                                    ))}
+                                </div>
+
+                                <div style={{ padding: '1rem 1.5rem 1.5rem' }}>
+                                    <button
+                                        disabled
+                                        style={{
+                                            width: '100%', padding: '1.05rem', borderRadius: '16px',
+                                            background: 'rgba(255,255,255,0.045)',
+                                            color: 'rgba(255,255,255,0.4)',
+                                            border: '1px solid rgba(255,255,255,0.07)',
+                                            fontWeight: 800, fontSize: '0.98rem', cursor: 'not-allowed',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '9px',
+                                        }}
+                                    >
+                                        <Clock size={17} /> Онлайн плащането предстои
+                                    </button>
+
+                                    <p style={{
+                                        margin: '0.85rem 0 0', textAlign: 'center',
+                                        fontSize: '0.72rem', lineHeight: 1.55, color: 'rgba(255,255,255,0.35)',
+                                    }}>
+                                        Плащането ще се обработва от лицензиран доставчик и данните на
+                                        картата ви никога не преминават през тази система.
+                                        Междувременно абонаментът се подновява на гише.
+                                    </p>
+                                </div>
+                            </>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: '2.25rem 1.5rem', animation: 'fadeIn 0.4s ease' }}>
+                                <CheckCircle size={44} color="#00e676" style={{ marginBottom: '1rem' }} />
+                                <h4 style={{ margin: '0 0 0.4rem', fontSize: '1.15rem', color: '#00e676', fontWeight: 800 }}>Плащането е успешно</h4>
+                                <p style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>Абонаментът е подновен.</p>
+                                <button
+                                    onClick={() => { setPaymentComplete(false); setPaymentMonth(getSuggestedMonth()); }}
+                                    style={{
+                                        background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+                                        color: '#fff', padding: '0.75rem 1.6rem', borderRadius: '13px',
+                                        marginTop: '1.35rem', fontWeight: 700, cursor: 'pointer',
                                     }}
                                 >
-                                    <Clock size={20} />
-                                    СКОРО
+                                    Затвори
                                 </button>
-                            </div>
-                        ) : (
-                            <div style={{ textAlign: 'center', padding: '1rem 0', animation: 'fadeIn 0.4s ease' }}>
-                                <CheckCircle size={40} color="#00e676" style={{ marginBottom: '1rem' }} />
-                                <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', color: '#00e676' }}>УСПЕШНО ПЛАЩАНЕ!</h4>
-                                <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>Абонаментът беше подновен успешно.</p>
-                                <button onClick={() => { setPaymentComplete(false); setPaymentMonth(getSuggestedMonth()); }} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', padding: '0.8rem 1.5rem', borderRadius: '12px', marginTop: '1rem', fontWeight: 700, cursor: 'pointer' }}>ЗАТВОРИ</button>
                             </div>
                         )}
                     </div>
