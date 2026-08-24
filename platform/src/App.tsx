@@ -1,0 +1,277 @@
+import { lazy, Suspense, useEffect, useState, useCallback, useRef } from 'react';
+import { NFCService } from './services/NFCService';
+import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
+import LoadingScreen from './components/LoadingScreen';
+import ClientProfile from './pages/ClientProfile';
+import LoginPage from './pages/LoginPage';
+
+import SystemAdminPanel from './pages/SystemAdminPanel';
+const Landing = lazy(() => import('./pages/Landing'));
+const Inspections = lazy(() => import('./pages/Inspections'));
+const StaffPortal = lazy(() => import('./pages/StaffPortal'));
+const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+const Help = lazy(() => import('./pages/Help'));
+const Signal = lazy(() => import('./pages/Signal'));
+const BusRental = lazy(() => import('./pages/BusRental'));
+const Legal = lazy(() => import('./pages/Legal'));
+
+const PageLoader = () => <LoadingScreen />;
+
+function ClientProfileWrapper() {
+  return <ClientProfile />;
+}
+
+import TransitView from './components/TransitView';
+
+function DeepLinkHandler() {
+  const navigate = useNavigate();
+  const [isOffline, setIsOffline] = useState(!window.navigator.onLine);
+  const [transitId, setTransitId] = useState<string | null>(null);
+  const [transitPhysicalUid, setTransitPhysicalUid] = useState<string | undefined>(undefined);
+  const [transitNfcCounter, setTransitNfcCounter] = useState<number | undefined>(undefined);
+  // Bumped on every scan so TransitView remounts even when the SAME card is
+  // scanned twice in a row — required for anti-passback to fire on a re-scan.
+  const [scanNonce, setScanNonce] = useState(0);
+  const lastTriggerRef = useRef<{ id: string; t: number }>({ id: '', t: 0 });
+
+  const triggerScan = useCallback((finalId: string, physicalUid?: string, nfcCounter?: number) => {
+    if (!finalId) return;
+    const now = Date.now();
+    // Ignore duplicate events from the same physical tap (some readers fire twice).
+    if (lastTriggerRef.current.id === finalId && now - lastTriggerRef.current.t < 2000) return;
+    lastTriggerRef.current = { id: finalId, t: now };
+    setTransitId(finalId);
+    setTransitPhysicalUid(physicalUid);
+    setTransitNfcCounter(nfcCounter);
+    setScanNonce(n => n + 1);
+  }, []);
+
+  useEffect(() => {
+    window.onNfcRawEvent = (tagId: string, url: string) => {
+      console.log('🚀 NUCLEAR INJECTION:', { tagId, url });
+      let idFromUrl = null;
+      if (url && url.includes('darycommerce.com') && url.includes('client/')) {
+        const match = url.match(/\/client\/([^/?#]+)/);
+        if (match) {
+          idFromUrl = match[1].toUpperCase();
+        }
+      }
+      const pUid = tagId ? tagId.toUpperCase() : undefined;
+      triggerScan(idFromUrl || pUid || '', pUid, undefined);
+    };
+    return () => { delete window.onNfcRawEvent; };
+  }, [triggerScan]);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleInjectedScan = (e: CustomEvent<{ id: string; url: string; nfcCounter?: number }>) => {
+      const { id, url, nfcCounter } = e.detail || {};
+      console.log('🛡️ IRON GUARD SIGNAL RECEIVED:', { id, url, nfcCounter });
+      
+      let idFromUrl = null;
+      if (url && url.includes('darycommerce.com') && url.includes('client/')) {
+        const match = url.match(/\/client\/([^/?#]+)/);
+        if (match) {
+          idFromUrl = match[1].toUpperCase();
+        }
+      }
+      const pUid = id ? id.toUpperCase() : undefined;
+      triggerScan(idFromUrl || pUid || '', pUid, nfcCounter);
+    };
+
+    window.addEventListener('dary-nfc-scan', handleInjectedScan as EventListener);
+    return () => window.removeEventListener('dary-nfc-scan', handleInjectedScan as EventListener);
+  }, [triggerScan]);
+
+  const handleTransitClose = useCallback(() => setTransitId(null), []);
+  const handleTransitUnregistered = useCallback((id: string) => {
+    setTransitId(null);
+    navigate(`/client/${id}`);
+  }, [navigate]);
+
+  return (
+    <div id="transit-id-setter">
+      {transitId && (
+        <TransitView
+            key={scanNonce}
+            id={transitId}
+            physicalUid={transitPhysicalUid}
+            nfcCounter={transitNfcCounter}
+            onClose={handleTransitClose}
+            onUnregistered={handleTransitUnregistered}
+        />
+      )}
+
+      {isOffline && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: '#ff5252',
+          color: 'white',
+          textAlign: 'center',
+          padding: '4px',
+          fontSize: '0.7rem',
+          fontWeight: 'bold',
+          zIndex: 9999
+        }}>
+          НЯМА ВРЪЗКА С ИНТЕРНЕТ
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
+function App() {
+  // 🛡️ NUCLEAR VERSIONING: The true bundle version
+  const INTERNAL_APP_VERSION = "2026.08.22.02.00";
+
+  useEffect(() => {
+    // 🛡️ FORCE UPDATE LOGIC: Reusable check function
+    const checkVersion = async () => {
+      try {
+        const entropy = Math.random().toString(36).substring(7);
+        const response = await fetch(`./version.json?t=${Date.now()}&e=${entropy}`, { cache: 'no-store' });
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        const serverVersion = data.version;
+        
+        console.log(`[Version Check] Internal: ${INTERNAL_APP_VERSION} | Server: ${serverVersion}`);
+
+        if (serverVersion && INTERNAL_APP_VERSION !== serverVersion) {
+          // 🛡️ STOP THE LOOP
+          const urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.get('v') === serverVersion) return;
+
+          console.log('🚀 OUTDATED BUNDLE DETECTED. NUCLEAR REFRESH STARTING...');
+          
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (const registration of registrations) {
+               await registration.unregister();
+            }
+          }
+          
+          localStorage.removeItem('last_tried_version'); 
+          // Redirect with version param to prevent loop
+          window.location.href = window.location.pathname + '?v=' + serverVersion + window.location.hash;
+        }
+      } catch (err) {
+        console.error('⚠️ Version check failed:', err);
+      }
+    };
+
+    checkVersion();
+    
+    // Check every 5 minutes while the app is open
+    const versionInterval = setInterval(checkVersion, 5 * 60 * 1000);
+
+    // 🛡️ CHUNK LOAD ERROR RECOVERY: If a lazy-loaded chunk fails, reload immediately
+    const handleError = (e: ErrorEvent | PromiseRejectionEvent) => {
+      const error = (e instanceof ErrorEvent) ? e.error : (e instanceof PromiseRejectionEvent ? e.reason : e);
+      const message = (error && typeof error === 'object' && 'message' in error) ? String(error.message) : String(error);
+      
+      if (message.includes("loading chunk") || message.includes("Loading chunk") || message.includes("Script error")) {
+        console.warn("🛡️ CHUNK LOAD ERROR DETECTED. FORCING RELOAD...");
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleError);
+
+    // 🛡️ IRON GUARD: Initialize NFC at the ROOF level. Never stops.
+    NFCService.init(
+      (tagId, url, nfcCounter) => {
+        // Find the global entry point or local state update
+        const transitView = document.getElementById('transit-id-setter');
+        if (transitView) {
+           const event = new CustomEvent('dary-nfc-scan', { 
+               detail: { id: tagId, url: url, nfcCounter: nfcCounter } 
+           });
+           window.dispatchEvent(event);
+        }
+      },
+      () => {}
+    );
+
+    const flag = document.getElementById('app-mounted');
+    if (flag) flag.style.display = 'block';
+
+    return () => {
+        clearInterval(versionInterval);
+        window.removeEventListener('error', handleError);
+        window.removeEventListener('unhandledrejection', handleError);
+    };
+  }, []);
+
+  return (
+    <ErrorBoundary>
+    <AuthProvider>
+      <HashRouter>
+        <DeepLinkHandler />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            {/* Public — no login needed */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/client/:id" element={<Layout />}>
+              <Route index element={<ClientProfileWrapper />} />
+            </Route>
+
+            {/* App shell */}
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Landing />} />
+              <Route path="signal" element={<Signal />} />
+              <Route path="rent" element={<BusRental />} />
+              <Route path="portal" element={<StaffPortal />} />
+
+              {/* Moderator + Admin (inspectors are redirected to /inspections) */}
+              <Route path="admin" element={
+                <ProtectedRoute allowedRoles={['admin', 'moderator']}><AdminPanel /></ProtectedRoute>
+              } />
+
+              {/* Inspectors + Admin */}
+              <Route path="inspections" element={
+                <ProtectedRoute allowedRoles={['admin', 'inspector']}><Inspections /></ProtectedRoute>
+              } />
+
+              {/* Admin only */}
+              <Route path="system-admin" element={
+                <ProtectedRoute requiredRole="admin"><SystemAdminPanel /></ProtectedRoute>
+              } />
+
+              <Route path="help" element={
+                <ProtectedRoute><Help /></ProtectedRoute>
+              } />
+
+              <Route path="legal" element={<Legal />} />
+            </Route>
+          </Routes>
+        </Suspense>
+      </HashRouter>
+    </AuthProvider>
+    </ErrorBoundary>
+  );
+}
+
+export default App;

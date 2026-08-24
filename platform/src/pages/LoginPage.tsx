@@ -1,0 +1,176 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { useAuth } from '../context/AuthContext';
+import app from '../firebase';
+import logo from '../assets/logo_main.png';
+
+// Codes that represent a real failed sign-in attempt worth reporting.
+const REPORTABLE_AUTH_CODES = [
+    'auth/wrong-password',
+    'auth/user-not-found',
+    'auth/invalid-credential',
+    'auth/too-many-requests',
+];
+
+const LoginPage: React.FC = () => {
+    const { login, currentUser } = useAuth();
+    const navigate = useNavigate();
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (currentUser) {
+            navigate(currentUser.role === 'inspector' ? '/inspections' : '/admin');
+        }
+    }, [currentUser, navigate]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+        setLoading(true);
+
+        try {
+            await login(username.trim(), password);
+            navigate('/admin');
+        } catch (err: unknown) {
+            console.error(err);
+            const error = err as { code?: string };
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                setError('Грешно потребителско име или парола.');
+            } else {
+                setError('Възникна грешка при вход. Моля, опитайте пак.');
+            }
+
+            // Report the failed attempt (fire-and-forget). The server enriches it
+            // with IP/geolocation and alerts admins on repeated attempts.
+            if (error.code && REPORTABLE_AUTH_CODES.includes(error.code)) {
+                try {
+                    const reportFailedLogin = httpsCallable(getFunctions(app), 'reportFailedLogin');
+                    reportFailedLogin({
+                        email: username.trim(),
+                        errorCode: error.code,
+                        ua: navigator.userAgent,
+                    }).catch(() => { /* ignore reporting errors */ });
+                } catch { /* ignore */ }
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-color)', padding: '1rem', color: '#fff' }}>
+            <div style={{ width: '100%', maxWidth: '400px', textAlign: 'center' }}>
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                        <img src={logo} alt="Logo" style={{ height: '160px', width: 'auto', objectFit: 'contain', marginBottom: '-10px' }} />
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 900, letterSpacing: '-0.02em', color: '#ff5252' }}>DARY CARD</div>
+                            <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>SYSTEM</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: 800 }}>Добре дошли</h2>
+                <div style={{ marginBottom: '2rem' }}>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Влезте в системния панел</p>
+                    <p style={{ color: '#ff5252', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Само за екипа на компанията</p>
+                </div>
+
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <div style={{ textAlign: 'left' }}>
+                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', marginLeft: '0.5rem' }}>Потребителско име</label>
+                        <input
+                            type="text"
+                            placeholder="admin"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            style={{ 
+                                width: '100%', 
+                                padding: '1rem 1.25rem', 
+                                borderRadius: '12px', 
+                                background: 'rgba(255,255,255,0.05)', 
+                                border: '1px solid var(--surface-border)', 
+                                color: '#fff', 
+                                outline: 'none',
+                                fontSize: '1rem'
+                            }}
+                            required
+                        />
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', marginLeft: '0.5rem' }}>Парола</label>
+                        <input
+                            type="password"
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            style={{ 
+                                width: '100%', 
+                                padding: '1rem 1.25rem', 
+                                borderRadius: '12px', 
+                                background: 'rgba(255,255,255,0.05)', 
+                                border: '1px solid var(--surface-border)', 
+                                color: '#fff', 
+                                outline: 'none',
+                                fontSize: '1rem'
+                            }}
+                            required
+                        />
+                    </div>
+
+                    {error && (
+                        <div style={{ padding: '0.75rem', background: 'rgba(255,82,82,0.1)', border: '1px solid rgba(255,82,82,0.2)', borderRadius: '8px', color: '#ff5252', fontSize: '0.85rem' }}>
+                            {error}
+                        </div>
+                    )}
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        style={{ width: '100%', padding: '1rem', borderRadius: '12px', background: 'var(--primary-color)', color: '#fff', border: 'none', fontWeight: 700, fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '0.5rem', boxShadow: '0 4px 15px rgba(0, 173, 181, 0.3)' }}
+                    >
+                        {loading ? 'Зареждане...' : 'Вход'}
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => navigate('/')}
+                        style={{ 
+                            width: '100%', 
+                            padding: '1rem', 
+                            borderRadius: '12px', 
+                            background: 'transparent', 
+                            color: 'var(--text-secondary)', 
+                            border: '1px solid var(--surface-border)', 
+                            fontWeight: 600, 
+                            fontSize: '0.95rem', 
+                            cursor: 'pointer', 
+                            marginTop: '0.5rem',
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => {
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                            e.currentTarget.style.color = '#fff';
+                        }}
+                        onMouseOut={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.color = 'var(--text-secondary)';
+                        }}
+                    >
+                        « Назад към Начало
+                    </button>
+                    
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>
+                        Система за сигурност Dary Commerce © 2026
+                    </p>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+export default LoginPage;

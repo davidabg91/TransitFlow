@@ -1,0 +1,186 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Helpers ----
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function hasProfile() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isStaff() {
+      return hasProfile() && (userRole() == 'admin' || userRole() == 'moderator');
+    }
+    function isAdmin() {
+      return hasProfile() && userRole() == 'admin';
+    }
+    function isInspector() {
+      return hasProfile() && userRole() == 'inspector';
+    }
+
+    // ---- Users (staff accounts) ----
+    // Anyone signed in can read the staff list (only emails + roles, low sensitivity).
+    // Writes are admin-only. New users are created via the createStaffUser Cloud
+    // Function (Admin SDK), which bypasses these rules.
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, delete: if isAdmin();
+      // Admins may edit any user; a signed-in user may update ONLY their own
+      // `lastSeen` stamp (used for the "last online" column). Role changes etc.
+      // stay admin-only.
+      allow update: if isAdmin()
+        || (isSignedIn() && request.auth.uid == userId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen']));
+    }
+
+    // ---- Clients ----
+    // A single card can be read publicly by ID (needed when a passenger/controller
+    // scans an NFC card and opens /client/<id>). Listing the whole collection,
+    // creating and editing require staff. Permanent deletion requires admin.
+    match /clients/{clientId} {
+      allow get: if true;
+      allow list: if isStaff();
+      allow create: if isStaff();
+      // Staff may edit anything. Anonymous devices (drivers do NOT log in) may
+      // bump ONLY the scan counters & scanHistory — never route/expiry/name/photo/etc.
+      allow update: if isStaff()
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scanCount', 'lastScanAt', 'lastScanCounter', 'nfcUid', 'dailyScanCount', 'lastScanDate', 'scanHistory']);
+      allow delete: if isAdmin();
+
+      match /scans/{scanId} {
+        allow read: if isStaff();
+        allow create: if true;
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // ---- Scans Collection Group ----
+    // Per-scan records created on every scan — public, because drivers are not
+    // logged in. Read by staff only (analytics/abuse).
+    // Uses recursive wildcard matching to support collection group queries.
+    match /{path=**}/scans/{scanId} {
+      allow read: if isStaff();
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // ---- NFC UID -> client mapping ----
+    // Lets a terminal that read only the chip's physical UID (fast swipe, printed
+    // URL not read) resolve it to the client id. Public `get` (like a single
+    // client). Written only by the syncNfcUid Cloud Function (Admin SDK).
+    match /nfc_uids/{uid} {
+      allow get: if true;
+      allow list: if isStaff();
+      allow write: if false;
+    }
+
+    // ---- Public intake forms ----
+    // Anonymous visitors can submit a complaint/suggestion or a rental inquiry,
+    // but only staff may read or manage them.
+    match /signals/{signalId} {
+      allow create: if true;
+      allow read, update, delete: if isStaff();
+    }
+    match /rentals/{rentalId} {
+      allow create: if true;
+      allow read, update, delete: if isStaff();
+    }
+
+    // ---- Push subscriptions ----
+    // Anonymous visitors subscribe/unsubscribe to route notifications, so create,
+    // read (the dedup query) and delete (unsubscribe) stay public. No edits.
+    match /push_subscriptions/{subId} {
+      allow create, read, delete: if true;
+      allow update: if isStaff();
+    }
+
+    // ---- Staff-only operational data ----
+    match /push_notifications/{notifId} {
+      allow read: if true;
+      allow create: if isStaff();
+      allow update, delete: if isAdmin();
+    }
+    match /activity_logs/{logId} {
+      allow read, create: if isStaff();
+      allow update, delete: if isAdmin();
+    }
+
+    // ---- Failed-login monitoring ----
+    // Only the reportFailedLogin Cloud Function (Admin SDK) writes attempts and
+    // counters; staff can read the attempt log. Admin devices register their FCM
+    // push token here to receive security alerts.
+    match /login_attempts/{attemptId} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
+    match /login_attempt_counters/{counterId} {
+      allow read, write: if false;
+    }
+    match /admin_push_tokens/{tokenId} {
+      allow read, create, delete: if isStaff();
+      allow update: if isStaff();
+    }
+
+    // ---- NFC registration hand-shake ----
+    // NOTE: an external NFC reader (C2 integration) writes the scanned card id here.
+    // If that reader signs in as a staff account, tighten this to `isStaff()`.
+    // Left open because the doc holds no personal data (only a transient card id).
+    match /admin_actions/{actionId} {
+      allow read, write: if true;
+    }
+
+    // ---- Clone / duplicate-card alerts ----
+    // Any device (including anonymous driver terminals) may create an alert when
+    // it detects a UID mismatch. Staff may read and delete alerts.
+    match /clone_alerts/{alertId} {
+      allow create: if true;
+      allow read: if isStaff();
+      allow delete: if isStaff();
+      allow update: if isAdmin();
+    }
+
+    // ---- Inspector (Проверяващ) scans ----
+    // Separate from the general scan stats. Created by an inspector (or admin)
+    // when checking a card on the bus, with an optional geolocation. An inspector
+    // may read only their OWN scans; admins may read all.
+    match /inspector_scans/{scanId} {
+      allow create: if isInspector() || isAdmin();
+      allow read: if isAdmin()
+        || (isInspector() && resource.data.inspectorId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // ---- Inspector (Проверяващ) reports ----
+    // Free-form report an inspector fills in after checking a bus trip (driver,
+    // bus, destination, client count, any problem found). Same access pattern
+    // as inspector_scans: an inspector may read only their OWN reports; admins
+    // read all.
+    match /inspector_reports/{reportId} {
+      allow create: if isInspector() || isAdmin();
+      allow read: if isAdmin()
+        || (isInspector() && resource.data.inspectorId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // ---- Fines (Глоби) ----
+    // Standalone charges (e.g. a lost-card fee) kept separate from subscription
+    // renewals so they don't affect card validity but still count toward revenue.
+    // Staff may read and create; only admins may edit or delete.
+    match /fines/{fineId} {
+      allow read: if isStaff();
+      allow create: if isStaff();
+      allow update, delete: if isAdmin();
+    }
+
+    // ---- Default deny ----
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

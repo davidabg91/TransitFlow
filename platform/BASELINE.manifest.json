@@ -1,0 +1,507 @@
+[
+ {
+  "path": "capacitor.config.ts",
+  "sha256": "b385e632effed01969b973cdc14a237da62a5eebd2f3c3660e21f98bb8cbab75",
+  "bytes": 235
+ },
+ {
+  "path": "eslint.config.js",
+  "sha256": "cc40a419706b4079e030b0e6ba7e8cb0efce76fbbf3f237012e9a620f4f8cd81",
+  "bytes": 695
+ },
+ {
+  "path": "firebase.json",
+  "sha256": "0b29c9add824c6ec83c34eb91ba9b7ae5c46def913834f4fc6210a0e359b5a8b",
+  "bytes": 465
+ },
+ {
+  "path": "firestore.indexes.json",
+  "sha256": "9259eee15cfaa6bf8f39d38bebd7dd30f940b03d4bdecbd93de011dce3380e26",
+  "bytes": 281
+ },
+ {
+  "path": "firestore.rules",
+  "sha256": "7f38a9d0db604bdad0e8364dfec9b9bf471053cd487029eb38b21fcc6d3d7ec6",
+  "bytes": 7215
+ },
+ {
+  "path": "fix-build.js",
+  "sha256": "1465e2f487023e7664ff00758d384005aaf4f8540bc8f408465aa598945fc81b",
+  "bytes": 4024
+ },
+ {
+  "path": "functions/package.json",
+  "sha256": "f46f3b6b9e5e29a4dd4522aaea7b0f28d4171706d1b725c75b33791266966056",
+  "bytes": 580
+ },
+ {
+  "path": "functions/src/index.ts",
+  "sha256": "ee9897884fba5a60db6532b9b3693a21c98b96e1c539dbe3c8b250ceb72b4aef",
+  "bytes": 16776
+ },
+ {
+  "path": "functions/tsconfig.json",
+  "sha256": "104167d62a412c2776696970de6aac0f6ab5f29e7a567ff7f3072afa69eec1bd",
+  "bytes": 344
+ },
+ {
+  "path": "index.html",
+  "sha256": "d1a3142a1d7c7d345dfc1430a7fab3f1282a006f31914f7138bea3bccef5d604",
+  "bytes": 1680
+ },
+ {
+  "path": "nfc-bridge/DARY-NFC-Chetec.spec",
+  "sha256": "a1baad08a89b27e8887fcb4ea67fef04b9c69908a2a8df6b7c98b0b28ea9b564",
+  "bytes": 946
+ },
+ {
+  "path": "nfc-bridge/bridge.py",
+  "sha256": "cfaa62a8ac5e7d22f9138e3f95a3437e495d1baadb598375d32da925a694333f",
+  "bytes": 29658
+ },
+ {
+  "path": "nfc-bridge/index.js",
+  "sha256": "7a656ea98d933e415d005620b2bf4e48be13669671bae32f901f17c340f9fb67",
+  "bytes": 3995
+ },
+ {
+  "path": "nfc-bridge/package.json",
+  "sha256": "e86ab9b3f81929770def42aa799098f2d2e5e3f100c23d424d6309a94f375ff2",
+  "bytes": 254
+ },
+ {
+  "path": "nfc-bridge/true_icon.ico",
+  "sha256": "edce97b5d235e0b6db30073ffe1c5379c58760741d2bdfc6d10e75700b741166",
+  "bytes": 52924
+ },
+ {
+  "path": "package.json",
+  "sha256": "fc4240b1d13e11d89879c03be94baed37177b9fb142359602da7c465a726012c",
+  "bytes": 1500
+ },
+ {
+  "path": "public/core-js.min.js",
+  "sha256": "b2ed829a9acb6c8116eae7e66cce111f1d83a5ae81fc84ba025fcc63f96b58b1",
+  "bytes": 244192
+ },
+ {
+  "path": "public/favicon.ico",
+  "sha256": "68e83a857d44190d9c1e00e9b4a53c9d84e4b8738176fcd2a4e5f9103d025d0f",
+  "bytes": 404420
+ },
+ {
+  "path": "public/favicon.png",
+  "sha256": "8ad8bb6bf26d87da1f852d10f2d179c42c7b81530444241afda06ab0fef8295c",
+  "bytes": 309341
+ },
+ {
+  "path": "public/firebase-messaging-sw.js",
+  "sha256": "52e9c9e48d92e4cc2e3e137417eabb41905485b9557e112d1462a43349af87f9",
+  "bytes": 1435
+ },
+ {
+  "path": "public/icons.svg",
+  "sha256": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a",
+  "bytes": 5031
+ },
+ {
+  "path": "public/og-image.png",
+  "sha256": "8ad8bb6bf26d87da1f852d10f2d179c42c7b81530444241afda06ab0fef8295c",
+  "bytes": 309341
+ },
+ {
+  "path": "public/pwa-icon.png",
+  "sha256": "8ad8bb6bf26d87da1f852d10f2d179c42c7b81530444241afda06ab0fef8295c",
+  "bytes": 309341
+ },
+ {
+  "path": "public/regenerator-runtime.min.js",
+  "sha256": "7beda998b3fd277f3548e12b277bafc3037d243421f007032d38dffee412224c",
+  "bytes": 25307
+ },
+ {
+  "path": "public/robots.txt",
+  "sha256": "6052cdb0116a9cfab39ae3bdc50a8c1b49b97b8c56fa6281b2ba2ee68a59da11",
+  "bytes": 70
+ },
+ {
+  "path": "public/sitemap.xml",
+  "sha256": "0fcb4373e149d5276774291e4a36e4e67df0764eed2997e11b04e59b643e0c3f",
+  "bytes": 266
+ },
+ {
+  "path": "public/system.min.js",
+  "sha256": "7f25851d228f7f3b893405e8c86a601ff2681de3693d23b1225f8a2003f18b07",
+  "bytes": 12325
+ },
+ {
+  "path": "public/version.json",
+  "sha256": "039598132cf2a328dd61032f4eeb541cd4ef7ece12cce4b8d6ff9c4cb657510c",
+  "bytes": 465
+ },
+ {
+  "path": "src/App.css",
+  "sha256": "6e25a776d3e8102da5bacb3cb99f4a5fc662a2e01e6143140671a556d28c3d5c",
+  "bytes": 2891
+ },
+ {
+  "path": "src/App.tsx",
+  "sha256": "dcb3888c10f18c811c38ab304d90edc1f5879bb37d5ca52cb1e966d3fc3061d1",
+  "bytes": 10351
+ },
+ {
+  "path": "src/assets/ads/ad_promo.png",
+  "sha256": "7db6fdbd84dea9c0725846cc04ceff4fccffd0d80dc2ac445e86c973a5b87336",
+  "bytes": 686108
+ },
+ {
+  "path": "src/assets/ads/ad_scan.png",
+  "sha256": "e52dc94c41124c2fe0409098fcc96a0de1fde0a11f2c0f7e905e3b1883ac9a31",
+  "bytes": 572568
+ },
+ {
+  "path": "src/assets/ads/eu_efficiency_banner.png",
+  "sha256": "6cdf563521f3cf5d3af326d0661ebf27afba87f15acc8370324478c10ab53c50",
+  "bytes": 1269319
+ },
+ {
+  "path": "src/assets/bus_wireframe.png",
+  "sha256": "f1298b5ad8f52f05bcae3bdf050f644359c806542bf96d6adba38bf6634055c8",
+  "bytes": 639986
+ },
+ {
+  "path": "src/assets/hero.png",
+  "sha256": "72a860570eddf1dd9988f26c7106c67be286bc9f2fd3303c465ce87edb1ae6cd",
+  "bytes": 44919
+ },
+ {
+  "path": "src/assets/hero_main.png",
+  "sha256": "fae8bed6a6bdf145cbfb95240a0eb6ff647ecad0e83e5c9f971f4f0c78835dcd",
+  "bytes": 87488
+ },
+ {
+  "path": "src/assets/hero_white_card.png",
+  "sha256": "acec80815bd317fbe40598dd1fe03795ddbc94fa870faaf7fb6cc2d58b57b64a",
+  "bytes": 92746
+ },
+ {
+  "path": "src/assets/logo.png",
+  "sha256": "134ff1a039bcb67ccea884e8ea8cdb2f869be40b97abab3177ea1e286b7cdc26",
+  "bytes": 26049
+ },
+ {
+  "path": "src/assets/logo_main.png",
+  "sha256": "deee064ea920d892f3c31d47397820d6db9ac0bfc189327011674cec452c61aa",
+  "bytes": 34892
+ },
+ {
+  "path": "src/assets/logo_travel.png",
+  "sha256": "cd24f56c4601eba1d95bd9cf9e9aabcc71cc6b64aeacf464d690756b44e44643",
+  "bytes": 27787
+ },
+ {
+  "path": "src/assets/react.svg",
+  "sha256": "35ef61ed53b323ae94a16a8ec659b3d0af3880698791133f23b084085ab1c2e5",
+  "bytes": 4126
+ },
+ {
+  "path": "src/assets/step_analytics.png",
+  "sha256": "d94b32436e45c9718a74672733e305b0068cdbde4cc9b972b60636e2f2883beb",
+  "bytes": 43957
+ },
+ {
+  "path": "src/assets/step_registration.png",
+  "sha256": "0e64cc6fb762c1251b46873b387d7353e77315f8b6be6f21638ac22b18481eb0",
+  "bytes": 45898
+ },
+ {
+  "path": "src/assets/step_scan.png",
+  "sha256": "8e8c837d31773aacec335268d13e58cb2542e4f05c789849def036a19fd30f6b",
+  "bytes": 61172
+ },
+ {
+  "path": "src/assets/step_verify.png",
+  "sha256": "71701b273d7083183cfe7fba2171056eda3773b6bf578d615eb1e3bc6e59af5a",
+  "bytes": 41758
+ },
+ {
+  "path": "src/assets/vite.svg",
+  "sha256": "5be21acd42eb7b896e517f4e0f0f11eb5c5d9e54fbbcebe9453f033008fcca6f",
+  "bytes": 8709
+ },
+ {
+  "path": "src/components/AdSlideshow.tsx",
+  "sha256": "f261dab0db3aff1d9a4cd713a9a6b6f7221cffb42509533d2592a4d3d1263d1b",
+  "bytes": 3513
+ },
+ {
+  "path": "src/components/AdminAlertsButton.tsx",
+  "sha256": "000329f7ea97d13fb98745bc2210dc17b00e7b9df15d19f3c2f3f94e07486ed7",
+  "bytes": 5186
+ },
+ {
+  "path": "src/components/BusSchedule.tsx",
+  "sha256": "750abc25e33ad7fc0d2b68c7b517b2ffb4ee60e4e120a67ee3b10c0ca33e4b50",
+  "bytes": 11920
+ },
+ {
+  "path": "src/components/Card.tsx",
+  "sha256": "81c6df50ed966771298f34359233b259352a32ab213ff812a6b7deb3980d1d70",
+  "bytes": 587
+ },
+ {
+  "path": "src/components/ClientPhoto.tsx",
+  "sha256": "7f8f591f9517d1cabd283191af964eac20e2636a830f5cbdf959c18f359c129c",
+  "bytes": 1944
+ },
+ {
+  "path": "src/components/CloneAlertsLog.tsx",
+  "sha256": "0a9f511820c65f8768e42d9a65ab4ddb8a4590e74a5710658635e1af090ae3e7",
+  "bytes": 6576
+ },
+ {
+  "path": "src/components/ErrorBoundary.tsx",
+  "sha256": "33fe030379e3ba00d1e5401e9e50bf15ff7bf47bc69c3354451e4967d33741aa",
+  "bytes": 2559
+ },
+ {
+  "path": "src/components/InstallPWA.tsx",
+  "sha256": "226ca0d1dd566119cf9ff0ec605bdeba88a94adb21e8dd194ca5c2acc7488f22",
+  "bytes": 10308
+ },
+ {
+  "path": "src/components/Layout.tsx",
+  "sha256": "544fd6e9e38b60bef6bb1b63658491d3fae8fe322dfdca03899c49df3e2de23e",
+  "bytes": 24095
+ },
+ {
+  "path": "src/components/LoadingScreen.tsx",
+  "sha256": "2ecb00b59354eba4377796d4abbe49092e2c40670cdaf09bfe629c32f28ef4ff",
+  "bytes": 2413
+ },
+ {
+  "path": "src/components/LostCardTransfer.tsx",
+  "sha256": "993fde1c4920ea1412ca0121f3211222c0d68c45b5c99cb5ec631ac82d575fac",
+  "bytes": 17730
+ },
+ {
+  "path": "src/components/ModeratorInactivityWarningModal.tsx",
+  "sha256": "1e72f6242661bb64d42a6d91beac0bdc2d2aab114712bb2ed80b04860f2956af",
+  "bytes": 9509
+ },
+ {
+  "path": "src/components/PaymentMethodSelector.tsx",
+  "sha256": "00f9f9ee789a1eef1f5dcef006758a589eb3d19e07d9d57e7259aa0768d0bb18",
+  "bytes": 4154
+ },
+ {
+  "path": "src/components/ProtectedRoute.tsx",
+  "sha256": "3bb0b8b0ccd5b1b47c7cb6b3aec3b206c537c32bdb5975241d16bee5915177e9",
+  "bytes": 3129
+ },
+ {
+  "path": "src/components/PushSubscription.tsx",
+  "sha256": "a6c75374f3d3bd535971c8c7d3369119045bca249fc69ba4deb7ea86dd5da7b9",
+  "bytes": 15777
+ },
+ {
+  "path": "src/components/SecurityLog.tsx",
+  "sha256": "4fbceee6bdd934800f55a96122d691d1a5d453f68ebaa86f5d1b8ee4bc975916",
+  "bytes": 8188
+ },
+ {
+  "path": "src/components/TransitView.tsx",
+  "sha256": "e6b2595d14657f56c971565d80fe8d44c26e50c0e3a008e13e3acf6d78224156",
+  "bytes": 63222
+ },
+ {
+  "path": "src/components/UnpaidAlertsButton.tsx",
+  "sha256": "65e356a46b86a37048a81f76f440872b505fdb44f108bd51f8327245bce9ba05",
+  "bytes": 7228
+ },
+ {
+  "path": "src/context/AuthContext.tsx",
+  "sha256": "e51a8818f568df64c42679085dbde604284e4a35b05188fb4e7e8b8966c961e5",
+  "bytes": 6352
+ },
+ {
+  "path": "src/data/cardsMapping.ts",
+  "sha256": "4667d5a6dc5d75b8306c67d376a434b74f711932bff26b29daee8ce4f3fe0799",
+  "bytes": 31057
+ },
+ {
+  "path": "src/data/lostCard.ts",
+  "sha256": "3b58c3f44d6cd3f51fb2c7110e2dad2fe2c1fda5d6885aeba39cc95abdede636",
+  "bytes": 755
+ },
+ {
+  "path": "src/data/municipalities.ts",
+  "sha256": "29974f100df4b3f1f59c65c3ff247b77096e41db6c99d5e900b91fed7ae84ea7",
+  "bytes": 1254
+ },
+ {
+  "path": "src/data/paymentMethods.ts",
+  "sha256": "c7b081b61b2d8f040683435d4754594c67e8cb7625a21558efb5d6e15e3d4318",
+  "bytes": 206
+ },
+ {
+  "path": "src/data/routeMetadata.ts",
+  "sha256": "ca8d7b6d52665325dc1ff8ef649c16ac37c678fb830c9b429b7768a7398af1e5",
+  "bytes": 13814
+ },
+ {
+  "path": "src/data/schedules.ts",
+  "sha256": "dfafadac6f8d1bcd488a104c362dcc6ccbcd5bbaa1ad79befcd06514dbddb559",
+  "bytes": 13985
+ },
+ {
+  "path": "src/data/schools.ts",
+  "sha256": "7da6d85d6c6fb5e783998eb034feb656aa8afaf92564bf904e67890d299081b9",
+  "bytes": 2726
+ },
+ {
+  "path": "src/data/serviceRosters.ts",
+  "sha256": "e20e7786795f920b76985899acc37021dc2429feca86fc9ee6038cc9c51da0fd",
+  "bytes": 27541
+ },
+ {
+  "path": "src/firebase.ts",
+  "sha256": "d1403fa4f663ceeb209dc68fa19e8d6ef446b736e7f7d526e3ded2928759d3ec",
+  "bytes": 1602
+ },
+ {
+  "path": "src/index.css",
+  "sha256": "54a5e6e05931ef4981bc3d8c10f839bbbe674383b9f7651982d45a6edd8e4a59",
+  "bytes": 64
+ },
+ {
+  "path": "src/main.tsx",
+  "sha256": "27ec4ad1253e65cbf1d83d2b777968430a9cde290de3b354fd9fe55b73ac6e93",
+  "bytes": 300
+ },
+ {
+  "path": "src/pages/AdminPanel.tsx",
+  "sha256": "0b8e035ad28624d75c2cbfd9cc0a34d22baee0472aeabfffb9e80b5e3666d6f5",
+  "bytes": 446419
+ },
+ {
+  "path": "src/pages/BusRental.tsx",
+  "sha256": "1af9edf267ac8c38de2e84c64c49c7f946027868c634f546ff6504ee4acadf0b",
+  "bytes": 30237
+ },
+ {
+  "path": "src/pages/ClientProfile.tsx",
+  "sha256": "158f84917b148bc182e03e2e2db292b827ee4dcb087e2a772f55d8252ef99df4",
+  "bytes": 135249
+ },
+ {
+  "path": "src/pages/Help.tsx",
+  "sha256": "1f4f7e865886612cf1048a4eb6a36e797a96a0de3781d5dd382bebf87581a13f",
+  "bytes": 26800
+ },
+ {
+  "path": "src/pages/Inspections.tsx",
+  "sha256": "8e602c6ab0542ff0d2e4525c38c34815e43cbc55e4f00fb2bb908e812e9a870e",
+  "bytes": 70118
+ },
+ {
+  "path": "src/pages/Landing.tsx",
+  "sha256": "0c6dd3562c6292ff2b0cf461818fb55fa35e15c1afb28161e9a69f117e904ded",
+  "bytes": 104377
+ },
+ {
+  "path": "src/pages/Legal.tsx",
+  "sha256": "ee5ba9442699be9159c85955a7daf912e283a040fe131f750aa44f2edbfefc49",
+  "bytes": 13662
+ },
+ {
+  "path": "src/pages/LoginPage.tsx",
+  "sha256": "bca0a0ecd5c7cccda24a2b25c5775ce4d115c83b4bc925ce3f0c39918a6f933a",
+  "bytes": 8932
+ },
+ {
+  "path": "src/pages/Signal.tsx",
+  "sha256": "faf7fd83f41d2ec3b8eba10ec733b389550cf89d5674194703b4c31834ac1223",
+  "bytes": 15522
+ },
+ {
+  "path": "src/pages/StaffPortal.tsx",
+  "sha256": "5a6c043878c58b31dc5b1fefdf2931e9c6d24c0f6ea9d6cf6bcb53f4eaeb6214",
+  "bytes": 10695
+ },
+ {
+  "path": "src/pages/SystemAdminPanel.tsx",
+  "sha256": "19f0f053593e21cb5fb6dd6382c4a8c0796a63e39d529c04bfc58642f7ff5f66",
+  "bytes": 70034
+ },
+ {
+  "path": "src/services/MyPosSmartSdk.ts",
+  "sha256": "b1b92b21c5af5fa77c6463df56b15b4913e7cbef5312abfbc84e64c07749cdb2",
+  "bytes": 780
+ },
+ {
+  "path": "src/services/NFCService.ts",
+  "sha256": "9171ac788a8091d5853516fe3e733d33e7553d57bed5a80a1fc34cfd71685584",
+  "bytes": 1973
+ },
+ {
+  "path": "src/styles/global.css",
+  "sha256": "0b23b8007a6a97a3ffa5e8a45cd2b20e3bfd1d82bd6416ab294562c153e64420",
+  "bytes": 4133
+ },
+ {
+  "path": "src/styles/variables.css",
+  "sha256": "1411ca63fc0892d691ac8b7f729a0abff36b4e803077c8be7842b7ab0fc699fa",
+  "bytes": 1134
+ },
+ {
+  "path": "src/types.d.ts",
+  "sha256": "280be1057f3f1d4dd2e22b547ceb54471cc2ef10805ea574a030d4ef8228636e",
+  "bytes": 84
+ },
+ {
+  "path": "src/types/auth.ts",
+  "sha256": "d42a9d39ffb526feaa22aa4531e57512dae85d18f1ae35b825c913545ddab31e",
+  "bytes": 297
+ },
+ {
+  "path": "src/types/global.d.ts",
+  "sha256": "954a002f8035ce5b4559959a2840070a91155635e4dc58aec6505005a1418e95",
+  "bytes": 193
+ },
+ {
+  "path": "src/utils/holidays.ts",
+  "sha256": "deb5b01741a8212461660a83243f427766e62abba80019109e18f83e55ff18ad",
+  "bytes": 1979
+ },
+ {
+  "path": "src/utils/photoStorage.ts",
+  "sha256": "5093b846a91f4145232dab8d48aa8aa8c4301fa766370eff963ea6e8f683dd23",
+  "bytes": 884
+ },
+ {
+  "path": "storage.rules",
+  "sha256": "ed421f1edd6ced4dd3299d696d832e37b61c43b6036aaf78ed6088544a721785",
+  "bytes": 929
+ },
+ {
+  "path": "tsconfig.app.json",
+  "sha256": "aa9e68711a716c499b5730aa6664cab7e6a2cb65e9924252cefe2135a4724112",
+  "bytes": 732
+ },
+ {
+  "path": "tsconfig.json",
+  "sha256": "770b4140bbb581e2dfd9ea9946ffc9c75a1d86ba7d2db5f77c83e37cbdf9d808",
+  "bytes": 119
+ },
+ {
+  "path": "tsconfig.node.json",
+  "sha256": "c3dd0fb522feba3596713f51b95bd53d781d845d24aedbfa2ac093d8b39c5120",
+  "bytes": 653
+ },
+ {
+  "path": "vite.config.ts",
+  "sha256": "77c8001dd0a9f1b6da724702ed45410cbe7bba56e2084eb3227ce671cefc604a",
+  "bytes": 2754
+ }
+]

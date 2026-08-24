@@ -1,0 +1,694 @@
+import sys
+import time
+import re
+import os
+
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QUrl, QTimer, QRectF, QCoreApplication
+from PyQt6.QtGui import QIcon, QFont, QTextCursor, QColor, QPainter, QPen, QPixmap
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+                             QHBoxLayout, QLabel, QTextEdit, QSplitter, QMessageBox)
+# Globally loaded dependencies placeholder
+QWebEngineView = None
+QWebEnginePage = None
+CustomWebPage = None
+readers = None
+toHexString = None
+smartcard_available = False
+
+def load_dependencies():
+    global QWebEngineView, QWebEnginePage, CustomWebPage, readers, toHexString, smartcard_available
+    
+    # Import PyQt6 WebEngine
+    from PyQt6.QtWebEngineWidgets import QWebEngineView as _QWebEngineView
+    from PyQt6.QtWebEngineCore import QWebEnginePage as _QWebEnginePage
+    QWebEngineView = _QWebEngineView
+    QWebEnginePage = _QWebEnginePage
+    
+    class _CustomWebPage(QWebEnginePage):
+        def __init__(self, console_signal, parent=None):
+            super().__init__(parent)
+            self.console_signal = console_signal
+            self.browser_view = parent  # Explicit reference to the QWebEngineView
+            self._extra_windows = []
+
+        def javaScriptConsoleMessage(self, level, message, line, sourceID):
+            if message.startswith("[DARY_BRIDGE_LOG]:"):
+                log_content = message[len("[DARY_BRIDGE_LOG]:"):]
+                self.console_signal.emit(log_content)
+            super().javaScriptConsoleMessage(level, message, line, sourceID)
+
+        def createWindow(self, window_type):
+            try:
+                self.console_signal.emit("[DARY_BRIDGE_LOG]: Отваряне на нов прозорец за клиент...")
+                # Use the saved view reference since QWebEnginePage has no .view() in PyQt6
+                view = self.browser_view if self.browser_view else self.view()
+                main_win = view.window()
+                
+                # Create a top-level window without a parent so it opens separately
+                new_window = QMainWindow()
+                new_view = QWebEngineView(new_window)
+                
+                # Use custom page type for logging and recursively handling createWindow
+                new_page = _CustomWebPage(self.console_signal, new_view)
+                new_view.setPage(new_page)
+                
+                # Connect signals to MainWindow handlers
+                if hasattr(main_win, 'handle_permission_requested'):
+                    new_page.featurePermissionRequested.connect(main_win.handle_permission_requested)
+                if hasattr(main_win, 'handle_print_requested'):
+                    new_page.printRequested.connect(main_win.handle_print_requested)
+                
+                # Log new window events for debugging
+                new_page.urlChanged.connect(lambda url: self.console_signal.emit(f"[DARY_BRIDGE_LOG]: Нов прозорец URL: {url.toString()}"))
+                new_page.loadFinished.connect(lambda ok: self.console_signal.emit(f"[DARY_BRIDGE_LOG]: Нов прозорец зареждане: {'Успешно' if ok else 'Грешка'}"))
+                
+                new_window.setCentralWidget(new_view)
+                new_window.setWindowTitle("DARY CARD - Профил на Клиент")
+                new_window.resize(1000, 750)
+                
+                # Keep explicit references to prevent PyQt6 garbage collection
+                new_window.browser_view = new_view
+                new_window.browser_page = new_page
+                
+                new_window.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+                self._extra_windows.append(new_window)
+                new_window.destroyed.connect(lambda: self._extra_windows.remove(new_window) if new_window in self._extra_windows else None)
+                
+                new_window.show()
+                new_window.raise_()
+                new_window.activateWindow()
+                return new_page
+            except Exception as e:
+                print("Error creating window in QWebEnginePage:", e)
+                try:
+                    self.console_signal.emit(f"[DARY_BRIDGE_LOG]: Грешка при отваряне на прозорец: {e}")
+                except:
+                    pass
+                return None
+            
+    CustomWebPage = _CustomWebPage
+    
+    # Try importing smartcard (pyscard)
+    try:
+        from smartcard.System import readers as _readers
+        from smartcard.util import toHexString as _toHexString
+        readers = _readers
+        toHexString = _toHexString
+        smartcard_available = True
+    except ImportError:
+        smartcard_available = False
+
+def read_ndef_url(connection):
+    raw_bytes = bytearray()
+    for block in range(4, 36):
+        try:
+            data, s1, s2 = connection.transmit([0xFF, 0xB0, 0x00, block, 0x04])
+            if s1 == 0x90 and s2 == 0x00:
+                raw_bytes.extend(data)
+            else:
+                break
+        except:
+            break
+    if len(raw_bytes) == 0:
+        return None
+    try:
+        i = 0
+        while i < len(raw_bytes) - 3:
+            if raw_bytes[i] == 0x03:
+                length = raw_bytes[i + 1]
+                if i + 2 + length <= len(raw_bytes):
+                    ndef_data = raw_bytes[i + 2: i + 2 + length]
+                    if len(ndef_data) > 5 and ndef_data[3] == 0x55:
+                        prefix_byte = ndef_data[4]
+                        uri_body = ndef_data[5:].decode('ascii', errors='ignore').rstrip('\x00').rstrip('\xfe')
+                        prefixes = {0x00: '', 0x01: 'http://www.', 0x02: 'https://www.',
+                                    0x03: 'http://', 0x04: 'https://', 0x05: 'tel:'}
+                        return prefixes.get(prefix_byte, '') + uri_body
+            i += 1
+    except:
+        pass
+    try:
+        text = raw_bytes.decode('ascii', errors='ignore')
+        match = re.search(r'(https?://\S+|darycommerce\.com\S+)', text)
+        if match:
+            return re.sub(r'[^\x20-\x7E].*$', '', match.group(1)).strip()
+    except:
+        pass
+    return None
+
+class NFCThread(QThread):
+    # Сигнали
+    reader_status = pyqtSignal(str, str) # text, color_hex
+    main_status = pyqtSignal(str, str, str, str) # icon, text, color_hex, url_text
+    history_add = pyqtSignal(str, bool) # text, is_success
+    card_scanned = pyqtSignal(str) # final_url
+
+    def __init__(self, cards_db):
+        super().__init__()
+        self.cards_db = cards_db
+        self.running = True
+        self.last_uid = None
+        self.last_time = 0
+
+    def run(self):
+        while self.running:
+            try:
+                r = readers()
+                nfc_reader = None
+                for reader in r:
+                    if "PICC" in str(reader).upper():
+                        nfc_reader = reader
+                        break
+                if not nfc_reader and r:
+                    nfc_reader = r[-1]
+
+                if nfc_reader:
+                    name = str(nfc_reader)
+                    self.reader_status.emit(f"✅ Връзка: {name}", "#22c55e")
+                    break
+                else:
+                    self.reader_status.emit("❌ Четецът не е намерен!", "#f87171")
+                    time.sleep(2)
+            except Exception as e:
+                self.reader_status.emit(f"❌ Грешка: {e}", "#f87171")
+                time.sleep(2)
+
+        self.main_status.emit("📡", "Готов за сканиране", "#38bdf8", "Поставете карта върху четеца")
+
+        card_present = False
+        while self.running:
+            try:
+                connection = nfc_reader.createConnection()
+                connection.connect()
+
+                if not card_present:
+                    card_present = True
+                    self.main_status.emit("💳", "Обработка...", "#fbbf24", "Четене на данни...")
+
+                uid_data, sw1, sw2 = connection.transmit([0xFF, 0xCA, 0x00, 0x00, 0x00])
+                if sw1 == 0x90 and sw2 == 0x00:
+                    uid_hex = toHexString(uid_data).replace(' ', '').upper()
+                    current_time = time.time()
+                    if uid_hex == self.last_uid and (current_time - self.last_time) < 3:
+                        time.sleep(0.5)
+                        continue
+
+                    self.last_uid = uid_hex
+                    self.last_time = current_time
+                    url = read_ndef_url(connection)
+
+                    if url:
+                        url = url.strip().rstrip('\x00').strip()
+                        if not url.startswith('http'):
+                            url = 'https://' + url
+                            
+                        card_number = self.cards_db.get(url, None)
+                        
+                        hist_msg = f"💳 Карта {card_number}\n🔗 Линк: {url}\n🆔 UID: {uid_hex}" if card_number else f"🆔 UID: {uid_hex}\n🔗 Линк: {url}"
+                        self.history_add.emit(hist_msg, True)
+                        
+                        separator = '&' if '?' in url else '?'
+                        final_url = f"{url}{separator}uid={uid_hex}"
+
+                        display_url = f"Линк: {url}\nХардуерен номер: {uid_hex}"
+                        if card_number:
+                            display_url = f"Отпечатан номер: {card_number}\n" + display_url
+                            
+                        self.main_status.emit("✅", "Успешно!", "#22c55e", display_url)
+                        self.card_scanned.emit(final_url)
+                        
+                        time.sleep(2)
+                        self.main_status.emit("📡", "Готов за следваща", "#38bdf8", "Поставете карта върху четеца")
+                    else:
+                        self.history_add.emit("Невалидна карта", False)
+                        self.main_status.emit("❌", "Неуспешно четене", "#f87171", "Липсва DARY линк в картата")
+                        time.sleep(2)
+                        self.main_status.emit("📡", "Готов за сканиране", "#38bdf8", "Поставете карта върху четеца")
+
+            except Exception as e:
+                err_str = str(e).lower()
+                if card_present and any(x in err_str for x in ["no smart card", "removed", "not present", "unresponsive", "t0 or t1", "does not recognize"]):
+                    card_present = False
+                    self.main_status.emit("📡", "Готов за сканиране", "#38bdf8", "Поставете карта върху четеца")
+
+            time.sleep(0.3)
+
+    def stop(self):
+        self.running = False
+        self.wait()
+
+class DarySplashScreen(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.SplashScreen)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.resize(300, 300)
+        
+        # Center on screen
+        screen = QApplication.primaryScreen().geometry()
+        self.move((screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2)
+        
+        # Load logo
+        self.logo_pixmap = QPixmap()
+        try:
+            base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+            ico = os.path.join(base, "true_icon.ico")
+            if os.path.exists(ico):
+                self.logo_pixmap = QIcon(ico).pixmap(256, 256)
+        except:
+            pass
+            
+        self.angle = 0
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.rotate)
+        self.timer.start(16) # ~60 FPS
+        
+    def rotate(self):
+        self.angle = (self.angle + 4) % 360
+        self.update()
+        
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Draw semi-transparent dark background card
+        painter.setBrush(QColor(18, 18, 20, 245)) # matching app background #121214
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRoundedRect(QRectF(10, 10, 280, 280), 24, 24)
+        
+        # Draw loading arc
+        pen = QPen(QColor("#dc2626")) # Red spinner
+        pen.setWidth(4)
+        painter.setPen(pen)
+        
+        # Draw rotating arc (Qt draws arc in 1/16th of a degree)
+        rect = QRectF(60, 60, 180, 180)
+        painter.drawArc(rect, self.angle * 16, 120 * 16)
+        
+        # Draw logo in the center
+        if not self.logo_pixmap.isNull():
+            logo_rect = QRectF(100, 100, 100, 100)
+            painter.drawPixmap(logo_rect.toRect(), self.logo_pixmap.scaled(100, 100, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        
+        painter.drawText(QRectF(10, 220, 280, 40), Qt.AlignmentFlag.AlignCenter, "Зареждане...")
+
+
+class MainWindow(QMainWindow):
+    browser_log = pyqtSignal(str)
+
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("DARY NFC Четец - Премиум (Вграден Браузър)")
+        self.setMinimumSize(900, 600)
+        self.resize(1200, 800)
+        
+        # Зареждане на иконата
+        try:
+            base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+            ico = os.path.join(base, "true_icon.ico")
+            if os.path.exists(ico):
+                self.setWindowIcon(QIcon(ico))
+        except Exception:
+            pass
+            
+        # Фикс за лентата на задачите
+        try:
+            import ctypes
+            myappid = 'darycommerce.nfc.reader.3'
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except Exception:
+            pass
+
+        self.cards_db = self.load_cards_database()
+        self.setup_ui()
+        
+        # Стартиране на фоновата нишка
+        self.nfc_thread = NFCThread(self.cards_db)
+        self.nfc_thread.reader_status.connect(self.update_reader_status)
+        self.nfc_thread.main_status.connect(self.update_main_status)
+        self.nfc_thread.history_add.connect(self.add_history_entry)
+        self.nfc_thread.card_scanned.connect(self.load_url)
+        self.browser_log.connect(self.add_browser_history_entry)
+        self.nfc_thread.start()
+
+    def load_cards_database(self):
+        db = {}
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            
+        cards_file = os.path.join(base_dir, "cards.txt")
+        if os.path.exists(cards_file):
+            try:
+                with open(cards_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if len(parts) >= 2:
+                            url = parts[0].strip()
+                            number = parts[1].strip()
+                            db[url] = number
+            except Exception:
+                pass
+        return db
+
+    def setup_ui(self):
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        # QSplitter за разделяне на екрана
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setStyleSheet(
+            "QSplitter::handle {"
+            "  background-color: #27272a;"
+            "}"
+            "QSplitter::handle:horizontal {"
+            "  width: 1px;"
+            "}"
+        )
+        main_layout.addWidget(splitter)
+
+        # --- ЛЯВ ПАНЕЛ (Контрол и Статус) ---
+        left_panel = QWidget()
+        left_panel.setStyleSheet("background-color: #121214;")
+        left_layout = QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(0)
+        
+        # Хедър
+        header = QWidget()
+        header.setStyleSheet("background-color: #121214; border-bottom: 2px solid #27272a;")
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(20, 20, 20, 20)
+        
+        title_layout = QHBoxLayout()
+        title_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        logo_label = QLabel()
+        try:
+            base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+            ico = os.path.join(base, "true_icon.ico")
+            if os.path.exists(ico):
+                # Извличаме 128х128 версията за кристално чисто качество
+                pixmap = QIcon(ico).pixmap(128, 128)
+                if not pixmap.isNull():
+                    pixmap = pixmap.scaled(36, 36, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                    logo_label.setPixmap(pixmap)
+        except Exception:
+            pass
+
+        title = QLabel("DARY CARD")
+        title.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
+        title.setStyleSheet("color: #dc2626;")
+        
+        title_layout.addWidget(logo_label)
+        title_layout.addWidget(title)
+        
+        subtitle = QLabel("Професионален NFC Терминал")
+        subtitle.setFont(QFont("Segoe UI", 11))
+        subtitle.setStyleSheet("color: #ffffff;")
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        header_layout.addLayout(title_layout)
+        header_layout.addWidget(subtitle)
+        left_layout.addWidget(header)
+
+        # Статус четец
+        reader_widget = QWidget()
+        reader_widget.setStyleSheet("background-color: #1a1a1e; border-bottom: 1px solid #27272a;")
+        reader_layout = QVBoxLayout(reader_widget)
+        reader_layout.setContentsMargins(20, 10, 20, 10)
+        
+        self.lbl_reader = QLabel("⏳ Търсене на четец...")
+        self.lbl_reader.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.lbl_reader.setStyleSheet("color: #a1a1aa;")
+        reader_layout.addWidget(self.lbl_reader)
+        left_layout.addWidget(reader_widget)
+
+        # Главен статус
+        status_widget = QWidget()
+        status_layout = QVBoxLayout(status_widget)
+        status_layout.setContentsMargins(20, 30, 20, 30)
+        status_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        
+        self.lbl_icon = QLabel("📡")
+        self.lbl_icon.setFont(QFont("Segoe UI", 48))
+        self.lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        self.lbl_status = QLabel("Готов за сканиране")
+        self.lbl_status.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        self.lbl_status.setStyleSheet("color: #38bdf8;")
+        self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        self.lbl_url = QLabel("Поставете карта върху четеца")
+        self.lbl_url.setFont(QFont("Segoe UI", 10))
+        self.lbl_url.setStyleSheet("color: #a1a1aa;")
+        self.lbl_url.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_url.setWordWrap(True)
+        
+        status_layout.addWidget(self.lbl_icon)
+        status_layout.addWidget(self.lbl_status)
+        status_layout.addWidget(self.lbl_url)
+        left_layout.addWidget(status_widget)
+
+        # Заглавие история
+        hist_header = QWidget()
+        hist_header.setStyleSheet("background-color: #1a1a1e; border-top: 1px solid #27272a; border-bottom: 1px solid #27272a;")
+        hist_header_layout = QVBoxLayout(hist_header)
+        hist_header_layout.setContentsMargins(20, 10, 20, 10)
+        lbl_hist_title = QLabel("📋 История на сканиранията")
+        lbl_hist_title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        lbl_hist_title.setStyleSheet("color: #e4e4e7;")
+        hist_header_layout.addWidget(lbl_hist_title)
+        left_layout.addWidget(hist_header)
+
+        # Поле за история
+        self.txt_history = QTextEdit()
+        self.txt_history.setReadOnly(True)
+        self.txt_history.setFont(QFont("Segoe UI", 10))
+        self.txt_history.setStyleSheet(
+            "QTextEdit {"
+            "  background-color: #121214;"
+            "  border: none;"
+            "  padding: 12px;"
+            "  color: #e4e4e7;"
+            "}"
+            "QScrollBar:vertical {"
+            "  border: none;"
+            "  background: #121214;"
+            "  width: 8px;"
+            "  margin: 0px;"
+            "}"
+            "QScrollBar::handle:vertical {"
+            "  background: #27272a;"
+            "  min-height: 20px;"
+            "  border-radius: 4px;"
+            "}"
+            "QScrollBar::handle:vertical:hover {"
+            "  background: #3f3f46;"
+            "}"
+            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {"
+            "  height: 0px;"
+            "}"
+        )
+        left_layout.addWidget(self.txt_history, 1) # Разпъва се
+
+        # Футър
+        footer = QWidget()
+        footer.setStyleSheet("background-color: #18181b;")
+        footer_layout = QHBoxLayout(footer)
+        footer_layout.setContentsMargins(20, 10, 20, 10)
+        
+        lbl_cards = QLabel(f"Заредени: {len(self.cards_db)} бр.")
+        lbl_cards.setFont(QFont("Segoe UI", 9))
+        lbl_cards.setStyleSheet("color: #cbd5e1;")
+        
+        lbl_phone = QLabel("📞 При проблем: 0876141826")
+        lbl_phone.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        lbl_phone.setStyleSheet("color: #fca5a5;")
+        lbl_phone.setAlignment(Qt.AlignmentFlag.AlignRight)
+        
+        footer_layout.addWidget(lbl_cards)
+        footer_layout.addWidget(lbl_phone)
+        
+        # Червена линия над футъра
+        red_line = QWidget()
+        red_line.setFixedHeight(3)
+        red_line.setStyleSheet("background-color: #dc2626;")
+        left_layout.addWidget(red_line)
+        left_layout.addWidget(footer)
+
+        # --- ДЕСЕН ПАНЕЛ (Уеб браузър) ---
+        right_panel = QWidget()
+        right_layout = QVBoxLayout(right_panel)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.browser = QWebEngineView()
+        self.browser_page = CustomWebPage(self.browser_log, self.browser)
+        self.browser.setPage(self.browser_page)
+        self.browser.page().featurePermissionRequested.connect(self.handle_permission_requested)
+        self.browser.page().printRequested.connect(self.handle_print_requested)
+        
+        # Disable cache to prevent running stale React bundles
+        try:
+            from PyQt6.QtWebEngineCore import QWebEngineProfile
+            profile = self.browser.page().profile()
+            profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.NoCache)
+        except Exception as e:
+            print("Failed to configure QWebEngine profile settings:", e)
+            
+        self.browser.setUrl(QUrl("https://darycommerce.com"))
+        right_layout.addWidget(self.browser)
+
+        # Добавяне в сплитера
+        splitter.addWidget(left_panel)
+        splitter.addWidget(right_panel)
+        
+        # Задаване на първоначални размери (Ляв: 350px, Десен: Останалото)
+        splitter.setSizes([350, 850])
+
+    def handle_permission_requested(self, security_origin, feature):
+        from PyQt6.QtWebEngineCore import QWebEnginePage
+        if feature in (
+            QWebEnginePage.Feature.MediaVideoCapture,
+            QWebEnginePage.Feature.MediaAudioVideoCapture
+        ):
+            self.browser.page().setFeaturePermission(
+                security_origin,
+                feature,
+                QWebEnginePage.PermissionPolicy.PermissionGrantedByUser
+            )
+        else:
+            self.browser.page().setFeaturePermission(
+                security_origin,
+                feature,
+                QWebEnginePage.PermissionPolicy.PermissionDeniedByUser
+            )
+
+    def handle_print_requested(self, *args, **kwargs):
+        try:
+            import os
+            import tempfile
+            
+            sender = self.sender() # This is the QWebEnginePage that requested printing
+            page = sender if sender else self.browser.page()
+            view = page.browser_view if (page and hasattr(page, 'browser_view')) else self.browser
+            
+            if not view:
+                view = self.browser
+                
+            # Create a unique temporary file path for the PDF
+            temp_dir = tempfile.gettempdir()
+            pdf_path = os.path.join(temp_dir, f"dary_report_{int(time.time())}.pdf")
+            
+            # Keep reference to path on view to prevent garbage collection during async print
+            view._printing_pdf_path = pdf_path
+            
+            # Connect callback to pdfPrintingFinished signal
+            def on_pdf_finished(path, success):
+                try:
+                    # Disconnect signal to avoid multiple executions
+                    try:
+                        page.pdfPrintingFinished.disconnect(on_pdf_finished)
+                    except Exception:
+                        pass
+                        
+                    if success:
+                        self.browser_log.emit(f"[DARY_BRIDGE_LOG]: PDF отчетът е генериран успешно: {path}")
+                        # Open the PDF using the system's default viewer (Chrome, Edge, Acrobat, etc.)
+                        os.startfile(path)
+                    else:
+                        self.browser_log.emit("[DARY_BRIDGE_LOG]: Неуспешно генериране на PDF отчет за визуализация.")
+                except Exception as ex:
+                    print(f"Error opening printed PDF: {ex}")
+                    self.browser_log.emit(f"[DARY_BRIDGE_LOG]: Грешка при отваряне на PDF: {ex}")
+                    
+            page.pdfPrintingFinished.connect(on_pdf_finished)
+            
+            # Trigger printing to PDF
+            page.printToPdf(pdf_path)
+            self.browser_log.emit(f"[DARY_BRIDGE_LOG]: Стартирано генериране на PDF отчет за визуализация...")
+            
+        except Exception as e:
+            err_msg = f"Грешка при подготовка на визуализация за печат: {e}"
+            print(err_msg)
+            self.browser_log.emit(err_msg)
+
+    def update_reader_status(self, text, color):
+        self.lbl_reader.setText(text)
+        self.lbl_reader.setStyleSheet(f"color: {color};")
+
+    def update_main_status(self, icon, text, color, url_text):
+        self.lbl_icon.setText(icon)
+        self.lbl_status.setText(text)
+        self.lbl_status.setStyleSheet(f"color: {color};")
+        self.lbl_url.setText(url_text)
+
+    def add_history_entry(self, text, is_success):
+        time_str = time.strftime('%H:%M:%S')
+        icon = "✅" if is_success else "❌"
+        color = "#4ade80" if is_success else "#f87171"
+        
+        full_text = f"{icon} [{time_str}]\n{text}\n\n"
+        
+        self.txt_history.moveCursor(QTextCursor.MoveOperation.Start)
+        self.txt_history.setTextColor(QColor(color))
+        self.txt_history.insertPlainText(full_text)
+        
+    def add_browser_history_entry(self, text):
+        time_str = time.strftime('%H:%M:%S')
+        icon = "💻"
+        color = "#c084fc"
+        
+        full_text = f"{icon} [{time_str}]\n{text}\n\n"
+        
+        self.txt_history.moveCursor(QTextCursor.MoveOperation.Start)
+        self.txt_history.setTextColor(QColor(color))
+        self.txt_history.insertPlainText(full_text)
+        
+    def load_url(self, url):
+        qurl = QUrl(url)
+        if self.browser.url() == qurl:
+            self.browser.reload()
+        else:
+            self.browser.setUrl(qurl)
+
+    def closeEvent(self, event):
+        self.nfc_thread.stop()
+        event.accept()
+
+def main():
+    QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    app = QApplication(sys.argv)
+    app.setStyle("Fusion") # Модерен стил
+
+    # Показване на зареждащия екран веднага
+    splash = DarySplashScreen()
+    splash.show()
+    app.processEvents() # Изрисува го веднага на екрана
+
+    # Зареждане на тежките библиотеки докато се показва зареждащия екран
+    load_dependencies()
+    app.processEvents()
+
+    if not smartcard_available:
+        splash.close()
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Icon.Critical)
+        msg.setText("Липсва библиотеката 'pyscard'!\nНапишете в CMD: pip install pyscard")
+        msg.exec()
+        sys.exit(1)
+        
+    window = MainWindow()
+    window.show()
+    
+    # Скриване на зареждащия екран след като главният прозорец е зареден и показан
+    splash.close()
+    
+    sys.exit(app.exec())
+
+if __name__ == '__main__':
+    main()

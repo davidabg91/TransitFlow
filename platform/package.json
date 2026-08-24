@@ -1,0 +1,54 @@
+{
+  "name": "dary",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "video": "remotion studio remotion/index.ts",
+    "video:render": "remotion render remotion/index.ts HowToGetCard out/how-to-get-card.mp4 --codec h264"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.3.1",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.3.1",
+    "@capacitor/haptics": "^8.0.2",
+    "@capgo/capacitor-nfc": "^8.0.22",
+    "core-js-bundle": "^3.49.0",
+    "firebase": "^12.11.0",
+    "lucide-react": "^0.577.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.3.1",
+    "@eslint/js": "^9.39.4",
+    "@remotion/cli": "^4.0.484",
+    "@types/node": "^24.12.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-legacy": "^8.0.1",
+    "@vitejs/plugin-react": "^6.0.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.4.0",
+    "remotion": "^4.0.484",
+    "sharp": "^0.34.5",
+    "terser": "^5.46.1",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.56.1",
+    "vite": "^8.0.0",
+    "vite-plugin-image-optimizer": "^2.0.3",
+    "vite-plugin-pwa": "^1.2.0"
+  },
+  "overrides": {
+    "vite-plugin-pwa": {
+      "vite": "$vite"
+    }
+  }
+}

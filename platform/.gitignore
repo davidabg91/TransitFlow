@@ -1,0 +1,22 @@
+node_modules
+dist
+dist-ssr
+*.local
+
+# Firebase
+.firebase
+firebase-debug.log
+.firebaserc
+
+# Python bridge build artifacts
+__pycache__/
+*.pyc
+build/
+
+# Secrets — never commit signing keys, service accounts or env files
+*.jks
+*.p12
+*.keystore
+*-service-account*.json
+.env
+.env.*
