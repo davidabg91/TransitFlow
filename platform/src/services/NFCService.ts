@@ -24,7 +24,7 @@ export class NFCService {
                     console.log('NFCService: Binding DaryScanner Hardware...');
                     
                     await MyPosSmartSdk.addListener('nfcEvent', async (event) => {
-                        console.log('!!! DARY SCAN RECEIVED !!!', event);
+                        console.log('!!! NFC SCAN RECEIVED !!!', event);
                         if (event.tagId) {
                             onStatusUpdate('КАРТА ПРОЧЕТЕНА!');
                             onScan(event.tagId, event.url, event.nfcCounter);

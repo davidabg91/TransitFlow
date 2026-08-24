@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { NFCService } from './services/NFCService';
-import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -10,13 +10,10 @@ import ClientProfile from './pages/ClientProfile';
 import LoginPage from './pages/LoginPage';
 
 import SystemAdminPanel from './pages/SystemAdminPanel';
-const Landing = lazy(() => import('./pages/Landing'));
 const Inspections = lazy(() => import('./pages/Inspections'));
 const StaffPortal = lazy(() => import('./pages/StaffPortal'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 const Help = lazy(() => import('./pages/Help'));
-const Signal = lazy(() => import('./pages/Signal'));
-const BusRental = lazy(() => import('./pages/BusRental'));
 const Legal = lazy(() => import('./pages/Legal'));
 const PlatformAdmin = lazy(() => import('./pages/PlatformAdmin'));
 
@@ -55,7 +52,7 @@ function DeepLinkHandler() {
     window.onNfcRawEvent = (tagId: string, url: string) => {
       console.log('🚀 NUCLEAR INJECTION:', { tagId, url });
       let idFromUrl = null;
-      if (url && url.includes('darycommerce.com') && url.includes('client/')) {
+      if (url && url.includes('app.transitflow.org') && url.includes('client/')) {
         const match = url.match(/\/client\/([^/?#]+)/);
         if (match) {
           idFromUrl = match[1].toUpperCase();
@@ -86,7 +83,7 @@ function DeepLinkHandler() {
       console.log('🛡️ IRON GUARD SIGNAL RECEIVED:', { id, url, nfcCounter });
       
       let idFromUrl = null;
-      if (url && url.includes('darycommerce.com') && url.includes('client/')) {
+      if (url && url.includes('app.transitflow.org') && url.includes('client/')) {
         const match = url.match(/\/client\/([^/?#]+)/);
         if (match) {
           idFromUrl = match[1].toUpperCase();
@@ -241,9 +238,9 @@ function App() {
 
             {/* App shell */}
             <Route path="/" element={<Layout />}>
-              <Route index element={<Landing />} />
-              <Route path="signal" element={<Signal />} />
-              <Route path="rent" element={<BusRental />} />
+              {/* Signing in lands straight on the dashboard — there is no
+                  public page in front of the system any more. */}
+              <Route index element={<Navigate to="/admin" replace />} />
               <Route path="portal" element={<StaffPortal />} />
 
               {/* Moderator + Admin (inspectors are redirected to /inspections) */}

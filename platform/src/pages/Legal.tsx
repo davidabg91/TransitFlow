@@ -1,8 +1,49 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Shield, FileText, Info, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { getDoc, tenantDoc } from '../tenant/db';
+import { db } from '../firebase';
+import { useAuth } from '../context/AuthContext';
 
+interface CompanyDetails {
+    name: string;
+    vat: string;
+    address: string;
+    manager: string;
+}
+
+const PLACEHOLDER: CompanyDetails = {
+    name: 'Не са попълнени',
+    vat: 'Не е попълнен',
+    address: 'Не е попълнен',
+    manager: 'Не е попълнен',
+};
+
+/**
+ * Each operator publishes its own legal details, so the imprint is read from
+ * that company's record rather than hard-coded. Until an admin fills them in,
+ * the fields say so plainly instead of showing someone else's company.
+ */
 const Legal: React.FC = () => {
+    const { tenantId } = useAuth();
+    const [company, setCompany] = useState<CompanyDetails>(PLACEHOLDER);
+
+    useEffect(() => {
+        if (!tenantId) return;
+        getDoc(tenantDoc(db, tenantId))
+            .then(snap => {
+                const d = snap.data() as Partial<CompanyDetails & { legal?: Partial<CompanyDetails> }> | undefined;
+                const legal = d?.legal || {};
+                setCompany({
+                    name: legal.name || d?.name || PLACEHOLDER.name,
+                    vat: legal.vat || PLACEHOLDER.vat,
+                    address: legal.address || PLACEHOLDER.address,
+                    manager: legal.manager || PLACEHOLDER.manager,
+                });
+            })
+            .catch(() => { /* keep the placeholders */ });
+    }, [tenantId]);
+
     return (
         <div style={{ 
             minHeight: '100vh', 
@@ -48,19 +89,19 @@ const Legal: React.FC = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
                         <div>
                             <div style={{ opacity: 0.5, fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.3rem' }}>Наименование</div>
-                            <div style={{ fontWeight: 600 }}>„ДАРИ КОМЕРС - НА“ ООД</div>
+                            <div style={{ fontWeight: 600 }}>{company.name}</div>
                         </div>
                         <div>
                             <div style={{ opacity: 0.5, fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.3rem' }}>ЕИК/ДДС</div>
-                            <div style={{ fontWeight: 600 }}>BG114601542</div>
+                            <div style={{ fontWeight: 600 }}>{company.vat}</div>
                         </div>
                         <div>
                             <div style={{ opacity: 0.5, fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.3rem' }}>Седалище и Адрес</div>
-                            <div style={{ fontWeight: 600 }}>гр. Плевен, ул. ДАНАИЛ ПОПОВ 12</div>
+                            <div style={{ fontWeight: 600 }}>{company.address}</div>
                         </div>
                         <div>
                             <div style={{ opacity: 0.5, fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.3rem' }}>Управител</div>
-                            <div style={{ fontWeight: 600 }}>ДАРИНКА ЦВЕТАНОВА КРЪСТЕВА</div>
+                            <div style={{ fontWeight: 600 }}>{company.manager}</div>
                         </div>
                     </div>
                 </section>
@@ -78,7 +119,7 @@ const Legal: React.FC = () => {
                         <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>Политика за Поверителност (GDPR)</h2>
                     </div>
                     <div style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <p>Ние, <strong>„ДАРИ КОМЕРС - НА“ ООД</strong> (ЕИК 114601542), в качеството си на <strong>администратор на лични данни</strong>, уважаваме Вашата неприкосновеност и се ангажираме със защитата на Вашите лични данни съгласно Регламент (ЕС) 2016/679 (GDPR) и Закона за защита на личните данни (ЗЗЛД).</p>
+                        <p>Ние, <strong>{company.name}</strong>, в качеството си на <strong>администратор на лични данни</strong>, уважаваме Вашата неприкосновеност и се ангажираме със защитата на Вашите лични данни съгласно Регламент (ЕС) 2016/679 (GDPR) и Закона за защита на личните данни (ЗЗЛД).</p>
 
                         <div>
                             <h4 style={{ color: '#fff', marginBottom: '0.5rem' }}>1. Какви данни събираме?</h4>
@@ -137,7 +178,7 @@ const Legal: React.FC = () => {
                         <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>Общи Условия</h2>
                     </div>
                     <div style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <p>Настоящите условия уреждат ползването на платформата DARY CARD за дигитален транспортен контрол.</p>
+                        <p>Настоящите условия уреждат ползването на платформата TransitFlow за дигитален транспортен контрол.</p>
                         
                         <div>
                             <h4 style={{ color: '#fff', marginBottom: '0.5rem' }}>1. Валидация на карти</h4>

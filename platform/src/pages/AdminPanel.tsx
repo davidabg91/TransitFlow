@@ -81,27 +81,7 @@ interface Client {
     serviceApprovedAt?: string;
 }
 
-interface Signal {
-    id: string;
-    type: 'complaint' | 'suggestion';
-    name: string;
-    phone: string;
-    email: string;
-    message: string;
-    timestamp: string;
-    status: 'new' | 'read' | 'resolved';
-}
 
-interface Rental {
-    id: string;
-    name: string;
-    phone: string;
-    date: string;
-    passengers: string;
-    destination: string;
-    timestamp: string;
-    status: 'new' | 'read' | 'contacted' | 'completed';
-}
 
 interface PushNotification {
     id: string;
@@ -315,12 +295,12 @@ const RevenueSplit: React.FC<{ b: { cash: number; card: number; bank: number }; 
 );
 
 interface TabButtonProps {
-    id: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid';
+    id: 'clients' | 'register' | 'nfc' | 'finances' | 'notifications' | 'unpaid';
     icon: React.ElementType;
     badgeColor?: string;
     label: string;
-    activeTab: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid';
-    setActiveTab: (id: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid') => void;
+    activeTab: 'clients' | 'register' | 'nfc' | 'finances' | 'notifications' | 'unpaid';
+    setActiveTab: (id: 'clients' | 'register' | 'nfc' | 'finances' | 'notifications' | 'unpaid') => void;
     activeColor?: string;
     badge?: number;
     isMobile?: boolean;
@@ -396,13 +376,11 @@ const AdminPanel: React.FC = () => {
     // Moderators share most day-to-day client actions with admins (changing a
     // direction, renewing); only destructive ones stay admin-only.
     const isStaff = isAdmin || currentUser?.role === 'moderator';
-    const [activeTab, setActiveTab] = useState<'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid'>(
+    const [activeTab, setActiveTab] = useState<'clients' | 'register' | 'nfc' | 'finances' | 'notifications' | 'unpaid'>(
         'clients'
     );
     const [clients, setClients] = useState<Client[]>([]);
     const [fines, setFines] = useState<{ amount: number; date: string }[]>([]);
-    const [signals, setSignals] = useState<Signal[]>([]);
-    const [rentals, setRentals] = useState<Rental[]>([]);
     const [notifications, setNotifications] = useState<PushNotification[]>([]);
     const [subscribers, setSubscribers] = useState<{ courseId: string; token: string }[]>([]);
     const [sendingNotification, setSendingNotification] = useState(false);
@@ -897,7 +875,7 @@ const AdminPanel: React.FC = () => {
             } else {
                 bridgeMsg = `${action}: ${targetName} - ${details}`;
             }
-            console.log(`[DARY_BRIDGE_LOG]: ${bridgeMsg}`);
+            console.log(`[TRANSITFLOW_BRIDGE_LOG]: ${bridgeMsg}`);
         } catch (err) {
             console.error("Error logging global activity:", err);
         }
@@ -931,26 +909,6 @@ const AdminPanel: React.FC = () => {
             console.error("Firestore error:", err);
         });
 
-        // 2. Listen for Signals in Real-time
-        const signalsQ = query(collection(db, 'signals'));
-        const unsubscribeSignals = onSnapshot(signalsQ, (snapshot) => {
-            const signalList: Signal[] = [];
-            snapshot.forEach((doc) => {
-                signalList.push({ id: doc.id, ...doc.data() } as Signal);
-            });
-            // Sort by latest first
-            setSignals(signalList.sort((a, b) => b.timestamp.localeCompare(a.timestamp)));
-        });
-
-        // 3. Listen for Rentals in Real-time
-        const rentalsQ = query(collection(db, 'rentals'));
-        const unsubscribeRentals = onSnapshot(rentalsQ, (snapshot) => {
-            const rentalList: Rental[] = [];
-            snapshot.forEach((doc) => {
-                rentalList.push({ id: doc.id, ...doc.data() } as Rental);
-            });
-            setRentals(rentalList.sort((a, b) => b.timestamp.localeCompare(a.timestamp)));
-        });
 
         // 4. Listen for Admin Actions (Cloud Scan)
         const actionUnsubscribe = onSnapshot(doc(db, 'admin_actions', 'current'), (snapshot) => {
@@ -995,8 +953,6 @@ const AdminPanel: React.FC = () => {
 
         return () => {
             unsubscribe();
-            unsubscribeSignals();
-            unsubscribeRentals();
             unsubscribeNotifications();
             unsubscribeSub();
             actionUnsubscribe();
@@ -1928,6 +1884,24 @@ const AdminPanel: React.FC = () => {
         const allEntries: { roster: ServiceRoster; entry: ServiceRosterEntry }[] = [];
         for (const r of SERVICE_ROSTERS) for (const e of r.entries) allEntries.push({ roster: r, entry: e });
 
+        // Without a roster there is nothing to compare against. Reporting every
+        // service card as unauthorised would be worse than reporting nothing —
+        // a company that has not uploaded its list yet would see a panel full of
+        // false accusations.
+        if (allEntries.length === 0) {
+            return {
+                year,
+                totalServiceCards: serviceCards.length,
+                matchedCount: 0,
+                unauthorized: [],
+                approved: [],
+                duplicates: [],
+                missing: [],
+                coverage: [],
+                noRoster: true,
+            };
+        }
+
         const cardMatch = new Map<string, { roster: ServiceRoster; entry: ServiceRosterEntry }>();
         const outside: { client: Client; issuedBy?: string; issuedAt?: string; relative?: boolean }[] = [];
         for (const c of serviceCards) {
@@ -1977,6 +1951,7 @@ const AdminPanel: React.FC = () => {
             duplicates,
             missing,
             coverage,
+            noRoster: false,
         };
     }, [clients]);
 
@@ -2032,8 +2007,6 @@ const AdminPanel: React.FC = () => {
     });
     const monthlyTrendMax = Math.max(1, ...monthlyTrend.map(m => m.revenue));
 
-    const unreadSignalsCount = signals.filter(s => s.status === 'new').length;
-    const unreadRentalsCount = rentals.filter(r => r.status === 'new').length;
 
     const last7Days = [...Array(7)].map((_, i) => {
         const d = new Date();
@@ -2126,8 +2099,6 @@ const AdminPanel: React.FC = () => {
                     <TabButton id="register" icon={PlusCircle} label={isMobile ? "ДОБАВИ КАРТА" : "ДОБАВИ КАРТИ"} activeColor="#00c853" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                     <TabButton id="clients" icon={Users} label="КЛИЕНТИ" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                     <TabButton id="finances" icon={PiggyBank} label="ФИНАНСИ" activeColor="#ff9800" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
-                    <TabButton id="rentals" icon={Bus} label="НАЕМИ" activeColor="#0091ea" activeTab={activeTab} setActiveTab={setActiveTab} badge={unreadRentalsCount} isMobile={isMobile} />
-                    <TabButton id="signals" icon={AlertCircle} label="СИГНАЛИ" activeColor="#ff5252" activeTab={activeTab} setActiveTab={setActiveTab} badge={unreadSignalsCount} isMobile={isMobile} />
                     {isAdmin && (
                         <>
                             <TabButton id="notifications" icon={Bell} label="ИЗВЕСТИЯ" activeColor="#ff4081" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
@@ -3143,7 +3114,7 @@ const AdminPanel: React.FC = () => {
                             
                             const handleShareReport = async () => {
                                 const periodStr = reportPeriodType === 'month' ? `Месец: ${reportMonth === 'all' ? 'Всички' : reportMonth}` : `Ден: ${reportDate}`;
-                                const header = `Финансов Отчет DARY COMMERCE\n${periodStr} | Начин на плащане: ${reportPaymentMethod === 'all' ? 'Всички' : reportPaymentMethod} | Вид: ${reportCardType === 'all' ? 'Всички' : reportCardType} | Маршрут: ${reportRoutes.includes('all') ? 'Всички' : reportRoutes.join(', ')} | Община: ${reportMunicipality === 'all' ? 'Всички' : reportMunicipality} | Дистанция: ${reportDistanceFilter === 'all' ? 'Всички' : (reportDistanceFilter === 'under10' ? 'До 10 км' : 'Над 10 км')}\n---\n`;
+                                const header = `Финансов Отчет TRANSITFLOW\n${periodStr} | Начин на плащане: ${reportPaymentMethod === 'all' ? 'Всички' : reportPaymentMethod} | Вид: ${reportCardType === 'all' ? 'Всички' : reportCardType} | Маршрут: ${reportRoutes.includes('all') ? 'Всички' : reportRoutes.join(', ')} | Община: ${reportMunicipality === 'all' ? 'Всички' : reportMunicipality} | Дистанция: ${reportDistanceFilter === 'all' ? 'Всички' : (reportDistanceFilter === 'under10' ? 'До 10 км' : 'Над 10 км')}\n---\n`;
                                 const rows = filteredReportClients.map(c => {
                                     const isShort = ["Ясен", "Опанец", "Ясен-Дисевица"].includes(c.route);
                                     const distStr = isShort ? "До 10 км" : "Над 10 км";
@@ -3161,7 +3132,7 @@ const AdminPanel: React.FC = () => {
                                 if (navigator.share) {
                                     try {
                                         await navigator.share({
-                                            title: 'Финансов Отчет DARY COMMERCE',
+                                            title: 'Финансов Отчет TRANSITFLOW',
                                             text: shareText
                                         });
                                     } catch (err) {
@@ -3327,7 +3298,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                     <div style={{ display: 'none' }} className="print-only-header">
                                         <div style={{ borderBottom: '3px double #222', paddingBottom: '1.25rem', marginBottom: '1.5rem', fontFamily: 'sans-serif' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                                                <img src={logoMain} alt="Dary Commerce" style={{ height: '44px', width: 'auto', objectFit: 'contain', display: 'block', margin: '0' }} />
+                                                <img src={logoMain} alt="TransitFlow" style={{ height: '44px', width: 'auto', objectFit: 'contain', display: 'block', margin: '0' }} />
                                                 {!reportByContract && <span style={{ fontSize: '11px', color: '#666' }}>Дата на съставяне: {new Date().toLocaleDateString('bg-BG')} г.</span>}
                                             </div>
                                             <h1 style={{ fontSize: '22px', fontWeight: 900, color: '#000', margin: '0 0 1rem 0', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '1px', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>
@@ -4782,327 +4753,6 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                     </div>
                 )}
 
-                {activeTab === 'signals' && (
-                    <div style={{ animation: 'fadeIn 0.4s ease' }}>
-                        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#e53935', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <AlertCircle size={24} /> СИГНАЛИ И ПРЕПОРЪКИ
-                        </h2>
-                        
-                        <Card style={{ padding: '0', overflow: 'hidden' }}>
-                            {/* Desktop View */}
-                            <div className="table-container desktop-table">
-                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                                    <thead>
-                                        <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--surface-border)' }}>
-                                            <th style={{ padding: '1.25rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>ДАТА</th>
-                                            <th style={{ padding: '1.25rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>ТИП</th>
-                                            <th style={{ padding: '1.25rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>КОНТАКТ</th>
-                                            <th style={{ padding: '1.25rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>СЪОБЩЕНИЕ</th>
-                                            <th style={{ padding: '1.25rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>СТАТУС</th>
-                                            <th style={{ padding: '1.25rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', textAlign: 'center' }}>ДЕЙСТВИЕ</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {signals.length > 0 ? (
-                                            signals.map((signal) => (
-                                                <tr key={signal.id} style={{ borderBottom: '1px solid var(--surface-border)', transition: 'background 0.2s', background: signal.status === 'new' ? 'rgba(229,57,53,0.03)' : 'transparent' }}>
-                                                    <td style={{ padding: '1.25rem', fontSize: '0.9rem' }}>
-                                                        {new Date(signal.timestamp).toLocaleString('bg-BG', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                                                    </td>
-                                                    <td style={{ padding: '1.25rem' }}>
-                                                        <span style={{ 
-                                                            padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 800,
-                                                            background: signal.type === 'complaint' ? 'rgba(229,57,53,0.1)' : 'rgba(0,145,234,0.1)',
-                                                            color: signal.type === 'complaint' ? '#ff5252' : '#0091ea',
-                                                            border: `1px solid ${signal.type === 'complaint' ? 'rgba(229,57,53,0.2)' : 'rgba(0,145,234,0.2)'}`
-                                                        }}>
-                                                            {signal.type === 'complaint' ? 'ОПЛАКВАНЕ' : 'СЪВЕТ'}
-                                                        </span>
-                                                    </td>
-                                                    <td style={{ padding: '1.25rem', fontSize: '0.9rem' }}>
-                                                        <div style={{ fontWeight: 600 }}>{signal.name}</div>
-                                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{signal.phone !== 'N/A' ? signal.phone : signal.email}</div>
-                                                    </td>
-                                                    <td style={{ padding: '1.25rem', fontSize: '0.9rem', maxWidth: '300px' }}>
-                                                        <div style={{ 
-                                                            maxHeight: '60px', overflowY: 'auto', lineHeight: 1.4, color: 'var(--text-primary)',
-                                                            paddingRight: '0.5rem'
-                                                        }}>
-                                                            {signal.message}
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ padding: '1.25rem' }}>
-                                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                            {['new', 'read', 'resolved'].map((s) => (
-                                                                <button
-                                                                    key={s}
-                                                                    onClick={() => {
-                                                                        const ref = doc(db, 'signals', signal.id);
-                                                                        updateDoc(ref, { status: s });
-                                                                    }}
-                                                                    style={{
-                                                                        padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer',
-                                                                        background: signal.status === s ? 'var(--primary-color)' : 'rgba(255,255,255,0.05)',
-                                                                        color: signal.status === s ? '#fff' : 'var(--text-secondary)',
-                                                                        border: 'none', transition: 'all 0.2s'
-                                                                    }}
-                                                                >
-                                                                    {s.toUpperCase()}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ padding: '1.25rem', textAlign: 'center' }}>
-                                                        <button
-                                                            onClick={async () => {
-                                                                if (window.confirm('Изтриване на този сигнал?')) {
-                                                                    await deleteDoc(doc(db, 'signals', signal.id));
-                                                                }
-                                                            }}
-                                                            style={{ background: 'rgba(229,57,53,0.1)', color: '#ff5252', border: 'none', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer' }}
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr>
-                                                <td colSpan={6} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Няма постъпили сигнали.</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Mobile View */}
-                            <div className="mobile-cards" style={{ padding: '1rem' }}>
-                                {signals.length > 0 ? (
-                                    signals.map((signal) => (
-                                        <div key={signal.id} style={{ 
-                                            background: 'rgba(255,255,255,0.03)', border: '1px solid var(--surface-border)', 
-                                            borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', 
-                                            gap: '1rem', position: 'relative', borderLeft: signal.status === 'new' ? '4px solid #ff5252' : '1px solid var(--surface-border)'
-                                        }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                <div>
-                                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                                                        {new Date(signal.timestamp).toLocaleString('bg-BG')}
-                                                    </div>
-                                                    <span style={{ 
-                                                        padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800,
-                                                        background: signal.type === 'complaint' ? 'rgba(229,57,53,0.1)' : 'rgba(0,145,234,0.1)',
-                                                        color: signal.type === 'complaint' ? '#ff5252' : '#0091ea'
-                                                    }}>
-                                                        {signal.type === 'complaint' ? 'ОПЛАКВАНЕ' : 'СЪВЕТ'}
-                                                    </span>
-                                                </div>
-                                                <button
-                                                    onClick={async () => {
-                                                        if (window.confirm('Изтриване?')) await deleteDoc(doc(db, 'signals', signal.id));
-                                                    }}
-                                                    style={{ background: 'rgba(229,57,53,0.1)', color: '#ff5252', border: 'none', padding: '0.4rem', borderRadius: '6px' }}
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
-
-                                            <div>
-                                                <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{signal.name}</div>
-                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                                    {signal.phone !== 'N/A' && <span>📞 {signal.phone} </span>}
-                                                    {signal.email !== 'N/A' && <span>📧 {signal.email}</span>}
-                                                </div>
-                                            </div>
-
-                                            <div style={{ 
-                                                padding: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: '10px', 
-                                                fontSize: '0.9rem', lineHeight: 1.5, color: '#fff' 
-                                            }}>
-                                                {signal.message}
-                                            </div>
-
-                                            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                                {['new', 'read', 'resolved'].map((s) => (
-                                                    <button
-                                                        key={s}
-                                                        onClick={() => updateDoc(doc(db, 'signals', signal.id), { status: s })}
-                                                        style={{
-                                                            flex: 1, padding: '0.5rem', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 800,
-                                                            background: signal.status === s ? 'var(--primary-color)' : 'rgba(255,255,255,0.05)',
-                                                            color: signal.status === s ? '#fff' : 'var(--text-secondary)',
-                                                            border: 'none'
-                                                        }}
-                                                    >
-                                                        {s.toUpperCase()}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>Няма сигнали.</div>
-                                )}
-                            </div>
-                        </Card>
-                    </div>
-                )}
-
-                {activeTab === 'rentals' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', animation: 'fadeIn 0.4s ease' }}>
-                        <Card style={{ padding: 0, overflow: 'hidden' }}>
-                            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#ff5252' }}>
-                                    <Bus size={20} /> Запитвания за Наем на Автобус
-                                </h3>
-                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                                    Общо: <b>{rentals.length}</b> запитвания
-                                </div>
-                            </div>
-
-                            {/* Desktop Table */}
-                            <div className="desktop-table" style={{ overflowX: 'auto' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                    <thead>
-                                        <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
-                                            <th style={{ padding: '1.25rem', textAlign: 'left' }}>Дата/Час</th>
-                                            <th style={{ padding: '1.25rem', textAlign: 'left' }}>Клиент</th>
-                                            <th style={{ padding: '1.25rem', textAlign: 'left' }}>Детайли (Пътници/Дата)</th>
-                                            <th style={{ padding: '1.25rem', textAlign: 'left' }}>Дестинация</th>
-                                            <th style={{ padding: '1.25rem', textAlign: 'left' }}>Статус</th>
-                                            <th style={{ padding: '1.25rem', textAlign: 'center' }}>Действия</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {rentals.length > 0 ? (
-                                            rentals.map((rental) => (
-                                                <tr key={rental.id} style={{ 
-                                                    borderBottom: '1px solid var(--surface-border)',
-                                                    background: rental.status === 'new' ? 'rgba(255,82,82,0.03)' : 'transparent',
-                                                    transition: 'background 0.2s'
-                                                }}>
-                                                    <td style={{ padding: '1.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                                        {new Date(rental.timestamp).toLocaleString('bg-BG')}
-                                                    </td>
-                                                    <td style={{ padding: '1.25rem' }}>
-                                                        <div style={{ fontWeight: 700 }}>{rental.name}</div>
-                                                        <div style={{ fontSize: '0.85rem', color: 'var(--primary-color)' }}>📞 {rental.phone}</div>
-                                                    </td>
-                                                    <td style={{ padding: '1.25rem' }}>
-                                                        <div style={{ fontSize: '0.9rem' }}>👥 {rental.passengers || 'N/A'} места</div>
-                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>📅 {rental.date ? new Date(rental.date).toLocaleDateString('bg-BG') : 'Непосочена'}</div>
-                                                    </td>
-                                                    <td style={{ padding: '1.25rem', maxWidth: '250px' }}>
-                                                        <div style={{ fontSize: '0.9rem', maxHeight: '60px', overflowY: 'auto' }}>{rental.destination}</div>
-                                                    </td>
-                                                    <td style={{ padding: '1.25rem' }}>
-                                                        <select 
-                                                            value={rental.status} 
-                                                            onChange={(e) => {
-                                                                const ref = doc(db, 'rentals', rental.id);
-                                                                updateDoc(ref, { status: e.target.value });
-                                                            }}
-                                                            style={{ 
-                                                                padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid var(--surface-border)', 
-                                                                background: rental.status === 'new' ? 'rgba(255,82,82,0.1)' : 'rgba(0,0,0,0.2)',
-                                                                color: rental.status === 'new' ? '#ff5252' : '#fff',
-                                                                fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', outline: 'none'
-                                                            }}
-                                                        >
-                                                            <option value="new">НОВО</option>
-                                                            <option value="read">ПРОЧЕТЕНО</option>
-                                                            <option value="contacted">СВЪРЗАНО СЕ</option>
-                                                            <option value="completed">ЗАВЪРШЕНО</option>
-                                                        </select>
-                                                    </td>
-                                                    <td style={{ padding: '1.25rem', textAlign: 'center' }}>
-                                                        <button
-                                                            onClick={async () => {
-                                                                if (window.confirm('Сигурни ли сте, че искате да изтриете това запитване?')) {
-                                                                    await deleteDoc(doc(db, 'rentals', rental.id));
-                                                                }
-                                                            }}
-                                                            style={{ background: 'rgba(255,82,82,0.1)', color: '#ff5252', border: 'none', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer' }}
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr>
-                                                <td colSpan={6} style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Все още няма запитвания за наем на автобус.</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Mobile View */}
-                            <div className="mobile-cards" style={{ padding: '1rem' }}>
-                                {rentals.length > 0 ? rentals.map((rental) => (
-                                    <div key={rental.id} style={{ 
-                                        background: 'rgba(255,255,255,0.03)', border: '1px solid var(--surface-border)', 
-                                        borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', 
-                                        gap: '1rem', borderLeft: rental.status === 'new' ? '4px solid #ff5252' : '1px solid var(--surface-border)'
-                                    }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                            <div>
-                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                                                    {new Date(rental.timestamp).toLocaleString('bg-BG')}
-                                                </div>
-                                                <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{rental.name}</div>
-                                                <div style={{ fontSize: '0.9rem', color: 'var(--primary-color)', marginTop: '0.25rem' }}>📞 {rental.phone}</div>
-                                            </div>
-                                            <button
-                                                onClick={async () => {
-                                                    if (window.confirm('Изтриване?')) await deleteDoc(doc(db, 'rentals', rental.id));
-                                                }}
-                                                style={{ background: 'rgba(255,82,82,0.1)', color: '#ff5252', border: 'none', padding: '0.5rem', borderRadius: '8px' }}
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', padding: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: '12px' }}>
-                                            <div>
-                                                <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>ПЪТНИЦИ</div>
-                                                <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{rental.passengers || 'N/A'}</div>
-                                            </div>
-                                            <div>
-                                                <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>ДАТА</div>
-                                                <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{rental.date ? new Date(rental.date).toLocaleDateString('bg-BG') : '---'}</div>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>ДЕСТИНАЦИЯ И ДЕТАЙЛИ</div>
-                                            <div style={{ fontSize: '0.95rem', lineHeight: 1.5, background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '10px' }}>
-                                                {rental.destination}
-                                            </div>
-                                        </div>
-
-                                        <select 
-                                            value={rental.status} 
-                                            onChange={(e) => updateDoc(doc(db, 'rentals', rental.id), { status: e.target.value })}
-                                            style={{ 
-                                                padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--surface-border)', 
-                                                background: rental.status === 'new' ? 'rgba(255,82,82,0.1)' : 'rgba(255,255,255,0.05)',
-                                                color: rental.status === 'new' ? '#ff5252' : '#fff',
-                                                fontSize: '0.85rem', fontWeight: 800, cursor: 'pointer', outline: 'none', width: '100%'
-                                            }}
-                                        >
-                                            <option value="new">НОВО ЗАПИТВАНЕ</option>
-                                            <option value="read">ПРОЧЕТЕНО</option>
-                                            <option value="contacted">СВЪРЗАНО СЕ</option>
-                                            <option value="completed">ЗАВЪРШЕНО</option>
-                                        </select>
-                                    </div>
-                                )) : <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Няма запитвания.</div>}
-                            </div>
-                        </Card>
-                    </div>
-                )}
 
 
                 {/* Action Modal */}

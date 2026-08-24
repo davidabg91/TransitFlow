@@ -736,7 +736,7 @@ const ClientProfile: React.FC = () => {
                 });
                 const cardNum = CARDS_MAPPING[id] || '';
                 const nameWithCard = cardNum ? `${regName} (Карта № ${cardNum})` : regName;
-                console.log(`[DARY_BRIDGE_LOG]: Нов профил на ${nameWithCard} (${regRoute}) - Сума: ${regAmount} €`);
+                console.log(`[TRANSITFLOW_BRIDGE_LOG]: Нов профил на ${nameWithCard} (${regRoute}) - Сума: ${regAmount} €`);
             } catch (logErr) {
                 console.error("Error logging activity:", logErr);
             }
@@ -784,7 +784,7 @@ const ClientProfile: React.FC = () => {
                     const cardNum = clientData.cardNumber || CARDS_MAPPING[clientData.id] || '';
                     const cardPart = cardNum ? ` (Карта № ${cardNum})` : '';
                     const statusStr = clientData.isCanceled ? 'Анулиран' : (hasPaidCurrentMonth ? 'Платен' : 'Неплатен');
-                    console.log(`[DARY_BRIDGE_LOG]: Сканиран профил: ${clientData.name}${cardPart} - Статус: ${statusStr}`);
+                    console.log(`[TRANSITFLOW_BRIDGE_LOG]: Сканиран профил: ${clientData.name}${cardPart} - Статус: ${statusStr}`);
                     
                     hasPlayedSound.current = true;
 
@@ -1495,7 +1495,7 @@ const ClientProfile: React.FC = () => {
                     <>
                         {/* Card Top Branding */}
                         <div style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: themeColor, letterSpacing: '2px' }}>DARY CARD</span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: themeColor, letterSpacing: '2px' }}>TRANSITFLOW CARD</span>
                             <span style={{ fontSize: '0.75rem', fontWeight: 900, color: cardTypeColor, opacity: 0.9, background: `${cardTypeColor}15`, padding: '4px 10px', borderRadius: '8px', border: `1px solid ${cardTypeColor}33` }}>{client?.cardType?.toUpperCase() || 'УДОСТОВЕРЕНИЕ'}</span>
                         </div>
 
@@ -1959,7 +1959,7 @@ const ClientProfile: React.FC = () => {
                                                     });
                                                     const cardNum = client ? (client.cardNumber || CARDS_MAPPING[client.id] || '') : '';
                                                     const nameWithCard = cardNum ? `${client?.name} (Карта № ${cardNum})` : (client?.name || 'Клиент');
-                                                    console.log(`[DARY_BRIDGE_LOG]: Подновяване на ${nameWithCard} за месец ${renewalMonth} - Сума: ${qrAmount.toFixed(2)} €`);
+                                                    console.log(`[TRANSITFLOW_BRIDGE_LOG]: Подновяване на ${nameWithCard} за месец ${renewalMonth} - Сума: ${qrAmount.toFixed(2)} €`);
                                                 } catch (logErr) { console.error("Log error", logErr); }
 
                                                 setHasMadeChange(true);

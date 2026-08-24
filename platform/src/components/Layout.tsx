@@ -3,19 +3,19 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo_main.png';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, ShieldCheck, Shield, Menu, X } from 'lucide-react';
-import { db } from '../firebase';
-import { collection, query, where, onSnapshot } from '../tenant/db';
 import InstallPWA from './InstallPWA';
+import { getDoc, tenantDoc } from '../tenant/db';
+import { db } from '../firebase';
 
 
 const Layout: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const isClientProfilePath = location.pathname.startsWith('/client/');
-    const isRentPath = location.pathname === '/rent';
     const isAdminPath = location.pathname === '/admin' || location.pathname === '/system-admin' || location.pathname === '/inspections';
-    const isFullScreen = isClientProfilePath || isRentPath || isAdminPath;
-    const { currentUser, logout } = useAuth();
+    const isFullScreen = isClientProfilePath || isAdminPath;
+    const { currentUser, logout, tenantId } = useAuth();
+    const [companyName, setCompanyName] = useState<string>('');
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     
@@ -25,28 +25,14 @@ const Layout: React.FC = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
     
-    const [unreadSignals, setUnreadSignals] = useState(0);
-    const [unreadRentals, setUnreadRentals] = useState(0);
 
-    const totalUnread = unreadSignals + unreadRentals;
-
+    // The operator's own name, so staff can see at a glance whose system this is.
     useEffect(() => {
-        if (!currentUser) return;
-
-        // Listen for new signals
-        const qSignals = query(collection(db, 'signals'), where('status', '==', 'new'));
-        const unsubSignals = onSnapshot(qSignals, (snap) => {
-            setUnreadSignals(snap.size);
-        });
-
-        // Listen for new rentals
-        const qRentals = query(collection(db, 'rentals'), where('status', '==', 'new'));
-        const unsubRentals = onSnapshot(qRentals, (snap) => {
-            setUnreadRentals(snap.size);
-        });
-
-        return () => { unsubSignals(); unsubRentals(); };
-    }, [currentUser]);
+        if (!tenantId) { setCompanyName(''); return; }
+        getDoc(tenantDoc(db, tenantId))
+            .then(snap => setCompanyName(String(snap.data()?.name || '')))
+            .catch(() => setCompanyName(''));
+    }, [tenantId]);
 
     const handleLogout = () => {
         logout();
@@ -89,34 +75,6 @@ const Layout: React.FC = () => {
                 }}
             >Начало</Link>
 
-            {(!currentUser || currentUser.role === 'admin') && (
-                <>
-                    <Link
-                        to="/signal"
-                        onClick={(e) => handleGuardedNavigation(e, '/signal')}
-                        style={{
-                            color: location.pathname === '/signal' ? '#ff5252' : '#fff',
-                            fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
-                            borderBottom: location.pathname === '/signal' ? '2px solid #ff5252' : '2px solid transparent',
-                            paddingBottom: '2px',
-                            display: 'flex',
-                            alignItems: 'center'
-                        }}
-                    >Сигнал</Link>
-                    <Link
-                        to="/rent"
-                        onClick={(e) => handleGuardedNavigation(e, '/rent')}
-                        style={{
-                            color: location.pathname === '/rent' ? '#ff5252' : '#fff',
-                            fontWeight: 600, fontSize: '0.95rem', transition: 'color 0.2s',
-                            borderBottom: location.pathname === '/rent' ? '2px solid #ff5252' : '2px solid transparent',
-                            paddingBottom: '2px',
-                            display: 'flex',
-                            alignItems: 'center'
-                        }}
-                    >Наеми автобус</Link>
-                </>
-            )}
 
             {currentUser && (
                 <>
@@ -136,12 +94,6 @@ const Layout: React.FC = () => {
                         }}
                     >
                         Мениджър
-                        {totalUnread > 0 && (
-                            <span style={{
-                                width: '8px', height: '8px', background: '#ff5252', borderRadius: '50%',
-                                display: 'inline-block', boxShadow: '0 0 8px #ff5252'
-                            }}></span>
-                        )}
                     </Link>
                     )}
 
@@ -230,11 +182,9 @@ const Layout: React.FC = () => {
 
     const mobileNavLinks = (
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <Link to="/" onClick={(e) => handleGuardedNavigation(e, '/')} className="mobile-nav-link">Начало</Link>
+            <Link to="/admin" onClick={(e) => handleGuardedNavigation(e, '/admin')} className="mobile-nav-link">Табло</Link>
             {(!currentUser || currentUser.role === 'admin') && (
                 <>
-                    <Link to="/signal" onClick={(e) => handleGuardedNavigation(e, '/signal')} className="mobile-nav-link">Сигнал</Link>
-                    <Link to="/rent" onClick={(e) => handleGuardedNavigation(e, '/rent')} className="mobile-nav-link">Наеми автобус</Link>
                 </>
             )}
             {currentUser && (
@@ -242,12 +192,6 @@ const Layout: React.FC = () => {
                     {currentUser.role !== 'inspector' && (
                     <Link to="/admin" onClick={(e) => handleGuardedNavigation(e, '/admin')} className="mobile-nav-link" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         Мениджър
-                        {totalUnread > 0 && (
-                            <span style={{
-                                background: '#e53935', color: '#fff', fontSize: '0.7rem',
-                                padding: '2px 8px', borderRadius: '10px', fontWeight: 900
-                            }}>{totalUnread}</span>
-                        )}
                     </Link>
                     )}
                     {(currentUser.role === 'admin' || currentUser.role === 'inspector') && (
@@ -297,9 +241,9 @@ const Layout: React.FC = () => {
                     }}>
                         <img
                             src={logo}
-                            alt="Dary Commerce"
+                            alt="TransitFlow"
                             style={{
-                                height: isMobile ? '40px' : '55px',
+                                height: isMobile ? '34px' : '46px',
                                 width: 'auto',
                                 objectFit: 'contain',
                                 display: 'block'
@@ -323,7 +267,7 @@ const Layout: React.FC = () => {
                             letterSpacing: '0.05em',
                             textTransform: 'uppercase',
                             color: location.pathname === '/' ? 'var(--primary-color)' : '#ff5252',
-                        }}>{location.pathname === '/' ? 'TRANSPORT' : 'CARD'}</span>
+                        }}>{companyName || 'TRANSIT'}</span>
                         <span style={{
                             fontSize: '0.55rem',
                             fontWeight: 700,
@@ -426,7 +370,7 @@ const Layout: React.FC = () => {
                     gap: '0.75rem',
                     textAlign: 'center'
                 }}>
-                    <span>© {new Date().getFullYear()} Dary Commerce</span>
+                    <span>© {new Date().getFullYear()} TransitFlow</span>
                     <span style={{ opacity: 0.3 }}>•</span>
                     <Link to="/legal" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.color = '#fff'} onMouseOut={(e) => e.currentTarget.style.color = 'inherit'}>Правна информация</Link>
                     <span style={{ opacity: 0.3 }}>•</span>

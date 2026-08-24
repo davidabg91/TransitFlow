@@ -231,7 +231,7 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
          try {
             // no-cors: we only care that the request reaches the network (opaque
             // response). Reaching the server => online; a network error => offline.
-            await fetch(`https://darycommerce.com/version.json?t=${Date.now()}`, {
+            await fetch(`${window.location.origin}/favicon.png?t=${Date.now()}`, {
                 method: 'HEAD',
                 mode: 'no-cors',
                 cache: 'no-store',
@@ -782,7 +782,7 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
 
                                 {/* Card Top Branding */}
                                 <div style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                                    <span style={{ fontSize: '0.8rem', fontWeight: 900, color: themeColor, letterSpacing: '2px' }}>DARY CARD</span>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 900, color: themeColor, letterSpacing: '2px' }}>TRANSITFLOW CARD</span>
                                     <span style={{ fontSize: '0.8rem', fontWeight: 900, color: cardTypeColor, opacity: 0.9, background: `${cardTypeColor}15`, padding: '4px 12px', borderRadius: '8px', border: `1px solid ${cardTypeColor}33` }}>{client?.cardType?.toUpperCase() || 'УДОСТОВЕРЕНИЕ'}</span>
                                 </div>
 
