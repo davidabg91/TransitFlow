@@ -7,9 +7,11 @@ import {
     ShieldCheck, Shield, TrendingUp,
     PiggyBank, AlertTriangle, Share2,
     AlertCircle, Bus, Send, Bell, BarChart3,
-    Eye, EyeOff, ArrowLeftRight, GraduationCap, CheckCircle, Undo2
+    Eye, EyeOff, ArrowLeftRight, GraduationCap, CheckCircle, Undo2, Lock
 } from 'lucide-react';
 import Card from '../components/Card';
+import ModuleLocked from '../components/ModuleLocked';
+import { useModules } from '../tenant/modules';
 import UnpaidAlertsButton from '../components/UnpaidAlertsButton';
 import ClientPhoto from '../components/ClientPhoto';
 import logoMain from '../assets/logo_main.png';
@@ -294,21 +296,46 @@ const RevenueSplit: React.FC<{ b: { cash: number; card: number; bank: number }; 
     </div>
 );
 
+interface Signal {
+    id: string;
+    type: 'complaint' | 'suggestion';
+    name: string;
+    phone: string;
+    email: string;
+    message: string;
+    timestamp: string;
+    status: 'new' | 'read' | 'resolved';
+}
+
+interface Rental {
+    id: string;
+    name: string;
+    phone: string;
+    date: string;
+    passengers: string;
+    destination: string;
+    timestamp: string;
+    status: 'new' | 'read' | 'contacted' | 'completed';
+}
+
 interface TabButtonProps {
-    id: 'clients' | 'register' | 'nfc' | 'finances' | 'notifications' | 'unpaid';
+    id: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid';
     icon: React.ElementType;
     badgeColor?: string;
     label: string;
-    activeTab: 'clients' | 'register' | 'nfc' | 'finances' | 'notifications' | 'unpaid';
-    setActiveTab: (id: 'clients' | 'register' | 'nfc' | 'finances' | 'notifications' | 'unpaid') => void;
+    activeTab: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid';
+    setActiveTab: (id: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid') => void;
     activeColor?: string;
     badge?: number;
     isMobile?: boolean;
+    /** Module the company has not licensed: visible, but not usable. */
+    locked?: boolean;
 }
 
-const TabButton = ({ id, icon: Icon, label, activeTab, setActiveTab, activeColor = 'var(--primary-color)', badge, isMobile }: TabButtonProps) => (
+const TabButton = ({ id, icon: Icon, label, activeTab, setActiveTab, activeColor = 'var(--primary-color)', badge, isMobile, locked }: TabButtonProps) => (
     <button
         onClick={() => setActiveTab(id)}
+        title={locked ? 'Модулът не е активиран за вашата фирма' : undefined}
         style={{
             display: 'flex', alignItems: 'center', gap: isMobile ? '0.3rem' : '0.5rem', padding: isMobile ? '0.6rem 0.9rem' : '0.75rem 1.25rem', borderRadius: '50px',
             fontWeight: 700, 
@@ -320,11 +347,12 @@ const TabButton = ({ id, icon: Icon, label, activeTab, setActiveTab, activeColor
             fontSize: isMobile ? '0.75rem' : '0.9rem',
             position: 'relative',
             whiteSpace: 'nowrap',
-            flexShrink: 0
+            flexShrink: 0,
+            opacity: locked ? 0.45 : 1,
         }}
     >
-        <Icon size={isMobile ? 16 : 18} /> <span className="tab-label">{label}</span>
-        {badge && badge > 0 ? (
+        {locked ? <Lock size={isMobile ? 15 : 17} /> : <Icon size={isMobile ? 16 : 18} />} <span className="tab-label">{label}</span>
+        {!locked && badge && badge > 0 ? (
             <span style={{
                 position: 'absolute', top: isMobile ? '-3px' : '-5px', right: isMobile ? '-3px' : '-5px',
                 background: '#ff5252', color: '#fff', fontSize: isMobile ? '0.6rem' : '0.7rem',
@@ -377,15 +405,18 @@ const AdminPanel: React.FC = () => {
     // direction, renewing); only destructive ones stay admin-only.
     const isStaff = isAdmin || currentUser?.role === 'moderator';
     // Openable straight from a shortcut, e.g. /#/admin?tab=register.
-    const [activeTab, setActiveTab] = useState<'clients' | 'register' | 'nfc' | 'finances' | 'notifications' | 'unpaid'>(
+    const [activeTab, setActiveTab] = useState<'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid'>(
         () => {
             const wanted = new URLSearchParams(window.location.hash.split('?')[1] || '').get('tab');
-            const allowed = ['clients', 'register', 'nfc', 'finances', 'notifications', 'unpaid'] as const;
+            const allowed = ['clients', 'register', 'nfc', 'finances', 'signals', 'rentals', 'notifications', 'unpaid'] as const;
             return (allowed as readonly string[]).includes(wanted || '')
                 ? (wanted as typeof allowed[number])
                 : 'clients';
         }
     );
+    const modules = useModules();
+    const [signals, setSignals] = useState<Signal[]>([]);
+    const [rentals, setRentals] = useState<Rental[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [fines, setFines] = useState<{ amount: number; date: string }[]>([]);
     const [notifications, setNotifications] = useState<PushNotification[]>([]);
@@ -918,6 +949,27 @@ const AdminPanel: React.FC = () => {
 
 
         // 4. Listen for Admin Actions (Cloud Scan)
+        // 2. Listen for Signals in Real-time
+        const signalsQ = query(collection(db, 'signals'));
+        const unsubscribeSignals = onSnapshot(signalsQ, (snapshot) => {
+            const signalList: Signal[] = [];
+            snapshot.forEach((doc) => {
+                signalList.push({ id: doc.id, ...doc.data() } as Signal);
+            });
+            // Sort by latest first
+            setSignals(signalList.sort((a, b) => b.timestamp.localeCompare(a.timestamp)));
+        });
+
+        // 3. Listen for Rentals in Real-time
+        const rentalsQ = query(collection(db, 'rentals'));
+        const unsubscribeRentals = onSnapshot(rentalsQ, (snapshot) => {
+            const rentalList: Rental[] = [];
+            snapshot.forEach((doc) => {
+                rentalList.push({ id: doc.id, ...doc.data() } as Rental);
+            });
+            setRentals(rentalList.sort((a, b) => b.timestamp.localeCompare(a.timestamp)));
+        });
+
         const actionUnsubscribe = onSnapshot(doc(db, 'admin_actions', 'current'), (snapshot) => {
             if (snapshot.exists()) {
                 const data = snapshot.data();
@@ -960,6 +1012,8 @@ const AdminPanel: React.FC = () => {
 
         return () => {
             unsubscribe();
+            unsubscribeSignals();
+            unsubscribeRentals();
             unsubscribeNotifications();
             unsubscribeSub();
             actionUnsubscribe();
@@ -2029,6 +2083,8 @@ const AdminPanel: React.FC = () => {
 
 
 
+    const unreadSignalsCount = signals.filter(x => x.status === 'new').length;
+    const unreadRentalsCount = rentals.filter(x => x.status === 'new').length;
     return (
         <div style={{ width: '100%', animation: 'fadeIn 0.4s ease', padding: isMobile ? '0' : '0 1.5rem 1.5rem' }}>
 
@@ -2106,9 +2162,11 @@ const AdminPanel: React.FC = () => {
                     <TabButton id="register" icon={PlusCircle} label={isMobile ? "ДОБАВИ КАРТА" : "ДОБАВИ КАРТИ"} activeColor="#00c853" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                     <TabButton id="clients" icon={Users} label="КЛИЕНТИ" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                     <TabButton id="finances" icon={PiggyBank} label="ФИНАНСИ" activeColor="#ff9800" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
+                    <TabButton id="rentals" icon={Bus} label="НАЕМИ" activeColor="#0091ea" activeTab={activeTab} setActiveTab={setActiveTab} badge={unreadRentalsCount} isMobile={isMobile} locked={!modules.rentals} />
+                    <TabButton id="signals" icon={AlertCircle} label="СИГНАЛИ" activeColor="#ff5252" activeTab={activeTab} setActiveTab={setActiveTab} badge={unreadSignalsCount} isMobile={isMobile} locked={!modules.signals} />
                     {isAdmin && (
                         <>
-                            <TabButton id="notifications" icon={Bell} label="ИЗВЕСТИЯ" activeColor="#ff4081" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
+                            <TabButton id="notifications" icon={Bell} label="ИЗВЕСТИЯ" activeColor="#ff4081" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} locked={!modules.notifications} />
                             <TabButton id="unpaid" icon={AlertTriangle} label={isMobile ? "БЕЗ АБОНАМЕНТ" : "БЕЗ АБОНАМЕНТ"} activeColor="#ff5252" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                             <TabButton id="nfc" icon={ExternalLink} label="NFC КОДОВЕ" activeColor="var(--accent-color)" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                         </>
@@ -2183,7 +2241,9 @@ const AdminPanel: React.FC = () => {
         }
       `}</style>
 
-            {activeTab === 'notifications' && (
+            {activeTab === 'notifications' && !modules.notifications && <ModuleLocked module="notifications" />}
+
+            {activeTab === 'notifications' && modules.notifications && (
                 <div style={{ animation: 'fadeIn 0.4s ease', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '2rem' }}>
                         <Card>
@@ -4760,6 +4820,333 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                     </div>
                 )}
 
+
+                {activeTab === 'signals' && !modules.signals && <ModuleLocked module="signals" />}
+
+
+                {activeTab === 'signals' && modules.signals && (
+                    <div style={{ animation: 'fadeIn 0.4s ease' }}>
+                        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#e53935', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <AlertCircle size={24} /> СИГНАЛИ И ПРЕПОРЪКИ
+                        </h2>
+                        
+                        <Card style={{ padding: '0', overflow: 'hidden' }}>
+                            {/* Desktop View */}
+                            <div className="table-container desktop-table">
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                    <thead>
+                                        <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--surface-border)' }}>
+                                            <th style={{ padding: '1.25rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>ДАТА</th>
+                                            <th style={{ padding: '1.25rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>ТИП</th>
+                                            <th style={{ padding: '1.25rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>КОНТАКТ</th>
+                                            <th style={{ padding: '1.25rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>СЪОБЩЕНИЕ</th>
+                                            <th style={{ padding: '1.25rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>СТАТУС</th>
+                                            <th style={{ padding: '1.25rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', textAlign: 'center' }}>ДЕЙСТВИЕ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {signals.length > 0 ? (
+                                            signals.map((signal) => (
+                                                <tr key={signal.id} style={{ borderBottom: '1px solid var(--surface-border)', transition: 'background 0.2s', background: signal.status === 'new' ? 'rgba(229,57,53,0.03)' : 'transparent' }}>
+                                                    <td style={{ padding: '1.25rem', fontSize: '0.9rem' }}>
+                                                        {new Date(signal.timestamp).toLocaleString('bg-BG', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                                    </td>
+                                                    <td style={{ padding: '1.25rem' }}>
+                                                        <span style={{ 
+                                                            padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 800,
+                                                            background: signal.type === 'complaint' ? 'rgba(229,57,53,0.1)' : 'rgba(0,145,234,0.1)',
+                                                            color: signal.type === 'complaint' ? '#ff5252' : '#0091ea',
+                                                            border: `1px solid ${signal.type === 'complaint' ? 'rgba(229,57,53,0.2)' : 'rgba(0,145,234,0.2)'}`
+                                                        }}>
+                                                            {signal.type === 'complaint' ? 'ОПЛАКВАНЕ' : 'СЪВЕТ'}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '1.25rem', fontSize: '0.9rem' }}>
+                                                        <div style={{ fontWeight: 600 }}>{signal.name}</div>
+                                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{signal.phone !== 'N/A' ? signal.phone : signal.email}</div>
+                                                    </td>
+                                                    <td style={{ padding: '1.25rem', fontSize: '0.9rem', maxWidth: '300px' }}>
+                                                        <div style={{ 
+                                                            maxHeight: '60px', overflowY: 'auto', lineHeight: 1.4, color: 'var(--text-primary)',
+                                                            paddingRight: '0.5rem'
+                                                        }}>
+                                                            {signal.message}
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ padding: '1.25rem' }}>
+                                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                            {['new', 'read', 'resolved'].map((s) => (
+                                                                <button
+                                                                    key={s}
+                                                                    onClick={() => {
+                                                                        const ref = doc(db, 'signals', signal.id);
+                                                                        updateDoc(ref, { status: s });
+                                                                    }}
+                                                                    style={{
+                                                                        padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer',
+                                                                        background: signal.status === s ? 'var(--primary-color)' : 'rgba(255,255,255,0.05)',
+                                                                        color: signal.status === s ? '#fff' : 'var(--text-secondary)',
+                                                                        border: 'none', transition: 'all 0.2s'
+                                                                    }}
+                                                                >
+                                                                    {s.toUpperCase()}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ padding: '1.25rem', textAlign: 'center' }}>
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (window.confirm('Изтриване на този сигнал?')) {
+                                                                    await deleteDoc(doc(db, 'signals', signal.id));
+                                                                }
+                                                            }}
+                                                            style={{ background: 'rgba(229,57,53,0.1)', color: '#ff5252', border: 'none', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer' }}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={6} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Няма постъпили сигнали.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Mobile View */}
+                            <div className="mobile-cards" style={{ padding: '1rem' }}>
+                                {signals.length > 0 ? (
+                                    signals.map((signal) => (
+                                        <div key={signal.id} style={{ 
+                                            background: 'rgba(255,255,255,0.03)', border: '1px solid var(--surface-border)', 
+                                            borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', 
+                                            gap: '1rem', position: 'relative', borderLeft: signal.status === 'new' ? '4px solid #ff5252' : '1px solid var(--surface-border)'
+                                        }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                <div>
+                                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                                                        {new Date(signal.timestamp).toLocaleString('bg-BG')}
+                                                    </div>
+                                                    <span style={{ 
+                                                        padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800,
+                                                        background: signal.type === 'complaint' ? 'rgba(229,57,53,0.1)' : 'rgba(0,145,234,0.1)',
+                                                        color: signal.type === 'complaint' ? '#ff5252' : '#0091ea'
+                                                    }}>
+                                                        {signal.type === 'complaint' ? 'ОПЛАКВАНЕ' : 'СЪВЕТ'}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (window.confirm('Изтриване?')) await deleteDoc(doc(db, 'signals', signal.id));
+                                                    }}
+                                                    style={{ background: 'rgba(229,57,53,0.1)', color: '#ff5252', border: 'none', padding: '0.4rem', borderRadius: '6px' }}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+
+                                            <div>
+                                                <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{signal.name}</div>
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                                    {signal.phone !== 'N/A' && <span>📞 {signal.phone} </span>}
+                                                    {signal.email !== 'N/A' && <span>📧 {signal.email}</span>}
+                                                </div>
+                                            </div>
+
+                                            <div style={{ 
+                                                padding: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: '10px', 
+                                                fontSize: '0.9rem', lineHeight: 1.5, color: '#fff' 
+                                            }}>
+                                                {signal.message}
+                                            </div>
+
+                                            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                                {['new', 'read', 'resolved'].map((s) => (
+                                                    <button
+                                                        key={s}
+                                                        onClick={() => updateDoc(doc(db, 'signals', signal.id), { status: s })}
+                                                        style={{
+                                                            flex: 1, padding: '0.5rem', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 800,
+                                                            background: signal.status === s ? 'var(--primary-color)' : 'rgba(255,255,255,0.05)',
+                                                            color: signal.status === s ? '#fff' : 'var(--text-secondary)',
+                                                            border: 'none'
+                                                        }}
+                                                    >
+                                                        {s.toUpperCase()}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>Няма сигнали.</div>
+                                )}
+                            </div>
+                        </Card>
+                    </div>
+                )}
+
+                {activeTab === 'rentals' && !modules.rentals && <ModuleLocked module="rentals" />}
+
+                {activeTab === 'rentals' && modules.rentals && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', animation: 'fadeIn 0.4s ease' }}>
+                        <Card style={{ padding: 0, overflow: 'hidden' }}>
+                            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#ff5252' }}>
+                                    <Bus size={20} /> Запитвания за Наем на Автобус
+                                </h3>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                    Общо: <b>{rentals.length}</b> запитвания
+                                </div>
+                            </div>
+
+                            {/* Desktop Table */}
+                            <div className="desktop-table" style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                        <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
+                                            <th style={{ padding: '1.25rem', textAlign: 'left' }}>Дата/Час</th>
+                                            <th style={{ padding: '1.25rem', textAlign: 'left' }}>Клиент</th>
+                                            <th style={{ padding: '1.25rem', textAlign: 'left' }}>Детайли (Пътници/Дата)</th>
+                                            <th style={{ padding: '1.25rem', textAlign: 'left' }}>Дестинация</th>
+                                            <th style={{ padding: '1.25rem', textAlign: 'left' }}>Статус</th>
+                                            <th style={{ padding: '1.25rem', textAlign: 'center' }}>Действия</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {rentals.length > 0 ? (
+                                            rentals.map((rental) => (
+                                                <tr key={rental.id} style={{ 
+                                                    borderBottom: '1px solid var(--surface-border)',
+                                                    background: rental.status === 'new' ? 'rgba(255,82,82,0.03)' : 'transparent',
+                                                    transition: 'background 0.2s'
+                                                }}>
+                                                    <td style={{ padding: '1.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                                        {new Date(rental.timestamp).toLocaleString('bg-BG')}
+                                                    </td>
+                                                    <td style={{ padding: '1.25rem' }}>
+                                                        <div style={{ fontWeight: 700 }}>{rental.name}</div>
+                                                        <div style={{ fontSize: '0.85rem', color: 'var(--primary-color)' }}>📞 {rental.phone}</div>
+                                                    </td>
+                                                    <td style={{ padding: '1.25rem' }}>
+                                                        <div style={{ fontSize: '0.9rem' }}>👥 {rental.passengers || 'N/A'} места</div>
+                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>📅 {rental.date ? new Date(rental.date).toLocaleDateString('bg-BG') : 'Непосочена'}</div>
+                                                    </td>
+                                                    <td style={{ padding: '1.25rem', maxWidth: '250px' }}>
+                                                        <div style={{ fontSize: '0.9rem', maxHeight: '60px', overflowY: 'auto' }}>{rental.destination}</div>
+                                                    </td>
+                                                    <td style={{ padding: '1.25rem' }}>
+                                                        <select 
+                                                            value={rental.status} 
+                                                            onChange={(e) => {
+                                                                const ref = doc(db, 'rentals', rental.id);
+                                                                updateDoc(ref, { status: e.target.value });
+                                                            }}
+                                                            style={{ 
+                                                                padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid var(--surface-border)', 
+                                                                background: rental.status === 'new' ? 'rgba(255,82,82,0.1)' : 'rgba(0,0,0,0.2)',
+                                                                color: rental.status === 'new' ? '#ff5252' : '#fff',
+                                                                fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', outline: 'none'
+                                                            }}
+                                                        >
+                                                            <option value="new">НОВО</option>
+                                                            <option value="read">ПРОЧЕТЕНО</option>
+                                                            <option value="contacted">СВЪРЗАНО СЕ</option>
+                                                            <option value="completed">ЗАВЪРШЕНО</option>
+                                                        </select>
+                                                    </td>
+                                                    <td style={{ padding: '1.25rem', textAlign: 'center' }}>
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (window.confirm('Сигурни ли сте, че искате да изтриете това запитване?')) {
+                                                                    await deleteDoc(doc(db, 'rentals', rental.id));
+                                                                }
+                                                            }}
+                                                            style={{ background: 'rgba(255,82,82,0.1)', color: '#ff5252', border: 'none', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer' }}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={6} style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Все още няма запитвания за наем на автобус.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Mobile View */}
+                            <div className="mobile-cards" style={{ padding: '1rem' }}>
+                                {rentals.length > 0 ? rentals.map((rental) => (
+                                    <div key={rental.id} style={{ 
+                                        background: 'rgba(255,255,255,0.03)', border: '1px solid var(--surface-border)', 
+                                        borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', 
+                                        gap: '1rem', borderLeft: rental.status === 'new' ? '4px solid #ff5252' : '1px solid var(--surface-border)'
+                                    }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                            <div>
+                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                                                    {new Date(rental.timestamp).toLocaleString('bg-BG')}
+                                                </div>
+                                                <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{rental.name}</div>
+                                                <div style={{ fontSize: '0.9rem', color: 'var(--primary-color)', marginTop: '0.25rem' }}>📞 {rental.phone}</div>
+                                            </div>
+                                            <button
+                                                onClick={async () => {
+                                                    if (window.confirm('Изтриване?')) await deleteDoc(doc(db, 'rentals', rental.id));
+                                                }}
+                                                style={{ background: 'rgba(255,82,82,0.1)', color: '#ff5252', border: 'none', padding: '0.5rem', borderRadius: '8px' }}
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', padding: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: '12px' }}>
+                                            <div>
+                                                <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>ПЪТНИЦИ</div>
+                                                <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{rental.passengers || 'N/A'}</div>
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>ДАТА</div>
+                                                <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{rental.date ? new Date(rental.date).toLocaleDateString('bg-BG') : '---'}</div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>ДЕСТИНАЦИЯ И ДЕТАЙЛИ</div>
+                                            <div style={{ fontSize: '0.95rem', lineHeight: 1.5, background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '10px' }}>
+                                                {rental.destination}
+                                            </div>
+                                        </div>
+
+                                        <select 
+                                            value={rental.status} 
+                                            onChange={(e) => updateDoc(doc(db, 'rentals', rental.id), { status: e.target.value })}
+                                            style={{ 
+                                                padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--surface-border)', 
+                                                background: rental.status === 'new' ? 'rgba(255,82,82,0.1)' : 'rgba(255,255,255,0.05)',
+                                                color: rental.status === 'new' ? '#ff5252' : '#fff',
+                                                fontSize: '0.85rem', fontWeight: 800, cursor: 'pointer', outline: 'none', width: '100%'
+                                            }}
+                                        >
+                                            <option value="new">НОВО ЗАПИТВАНЕ</option>
+                                            <option value="read">ПРОЧЕТЕНО</option>
+                                            <option value="contacted">СВЪРЗАНО СЕ</option>
+                                            <option value="completed">ЗАВЪРШЕНО</option>
+                                        </select>
+                                    </div>
+                                )) : <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Няма запитвания.</div>}
+                            </div>
+                        </Card>
+                    </div>
+                )}
 
 
                 {/* Action Modal */}

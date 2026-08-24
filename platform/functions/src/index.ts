@@ -729,3 +729,75 @@ export const rebuildRollups = fn.runWith({ timeoutSeconds: 540, memory: "512MB" 
 
         return { months: totals.size, cardsScanned: snap.size };
     });
+
+/**
+ * Switches an optional module on or off for one company.
+ *
+ * Licensing lives on the company's record, which companies cannot write — only
+ * the platform. Otherwise a company could grant itself what it has not paid for.
+ */
+export const setTenantModules = fn.https.onCall(async (data, context) => {
+    if (!context.auth?.token.platformAdmin) {
+        throw new functions.https.HttpsError("permission-denied", "Само платформеният администратор може да променя модули.");
+    }
+    const tenantId = String(data?.tenantId || "").trim();
+    if (!tenantId) throw new functions.https.HttpsError("invalid-argument", "Липсва фирма.");
+
+    const ref = tenantRef(tenantId);
+    if (!(await ref.get()).exists) {
+        throw new functions.https.HttpsError("not-found", "Няма такава фирма.");
+    }
+
+    const wanted = (data?.modules || {}) as Record<string, unknown>;
+    const modules: Record<string, boolean> = {};
+    for (const key of ["signals", "rentals", "notifications"]) {
+        if (key in wanted) modules[`modules.${key}`] = wanted[key] === true;
+    }
+    if (Object.keys(modules).length === 0) {
+        throw new functions.https.HttpsError("invalid-argument", "Няма подадени модули.");
+    }
+
+    await ref.update({ ...modules, modulesUpdatedAt: nowIso() });
+    return { ok: true };
+});
+
+/**
+ * What the platform owner needs to follow how each company is doing: size,
+ * activity and turnover, read from the rollups rather than from the cards.
+ *
+ * Reads counts, never passenger records — the operator's passengers are not the
+ * platform's to look at.
+ */
+export const tenantOverview = fn.https.onCall(async (_data, context) => {
+    if (!context.auth?.token.platformAdmin) {
+        throw new functions.https.HttpsError("permission-denied", "Само платформеният администратор.");
+    }
+
+    const month = new Date().toISOString().slice(0, 7);
+    const tenants = await db().collection("tenants").get();
+
+    const rows = await Promise.all(tenants.docs.map(async (t) => {
+        const id = t.id;
+        const [cards, staff, rollup] = await Promise.all([
+            t.ref.collection("clients").count().get().catch((): null => null),
+            t.ref.collection("users").count().get().catch((): null => null),
+            t.ref.collection("rollups").doc(month).get().catch((): null => null),
+        ]);
+        const data = t.data() || {};
+        const r = rollup?.exists ? rollup.data() || {} : {};
+        return {
+            id,
+            name: String(data.name || id),
+            active: data.active !== false,
+            createdAt: String(data.createdAt || ""),
+            modules: data.modules || {},
+            cards: cards ? cards.data().count : null,
+            staff: staff ? staff.data().count : null,
+            revenueThisMonth: Number(r.revenue) || 0,
+            paymentsThisMonth: Number(r.payments) || 0,
+        };
+    }));
+
+    rows.sort((a, b) => a.name.localeCompare(b.name, "bg"));
+    return { month, tenants: rows };
+});

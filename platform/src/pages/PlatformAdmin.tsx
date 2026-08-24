@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { onSnapshot, query } from '../tenant/db';
-import { collection as fsCollection } from 'firebase/firestore';
-import app, { db } from '../firebase';
+import app from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
-import { Building2, Plus, ShieldCheck, Loader2, AlertTriangle, CheckCircle2, CreditCard } from 'lucide-react';
+import { Building2, Plus, ShieldCheck, Loader2, AlertTriangle, CheckCircle2, CreditCard, Users2, Wallet, RefreshCw } from 'lucide-react';
 
 /**
  * Platform owner's screen: create the companies that use TransitFlow.
@@ -20,11 +18,23 @@ const REGION = 'europe-west3';
 
 interface Tenant {
     id: string;
-    name?: string;
-    createdAt?: string;
-    cardUrlPrefix?: string;
-    active?: boolean;
+    name: string;
+    active: boolean;
+    createdAt: string;
+    modules: Partial<Record<ModuleKey, boolean>>;
+    cards: number | null;
+    staff: number | null;
+    revenueThisMonth: number;
+    paymentsThisMonth: number;
 }
+
+type ModuleKey = 'signals' | 'rentals' | 'notifications';
+
+const MODULES: { key: ModuleKey; label: string }[] = [
+    { key: 'signals', label: 'Сигнали' },
+    { key: 'rentals', label: 'Наеми' },
+    { key: 'notifications', label: 'Известия' },
+];
 
 const card: React.CSSProperties = {
     background: 'rgba(255,255,255,0.03)',
@@ -57,6 +67,8 @@ const input: React.CSSProperties = {
 const PlatformAdmin: React.FC = () => {
     const { signedInEmail, isPlatformAdmin, refreshClaims, tenantId: ownCompany } = useAuth();
     const [tenants, setTenants] = useState<Tenant[]>([]);
+    const [month, setMonth] = useState('');
+    const [loadingList, setLoadingList] = useState(false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [done, setDone] = useState<string | null>(null);
@@ -66,17 +78,24 @@ const PlatformAdmin: React.FC = () => {
     const [adminEmail, setAdminEmail] = useState('');
     const [adminPassword, setAdminPassword] = useState('');
 
-    // The company registry sits outside any company, so it is read directly
-    // rather than through the tenant-scoped helpers.
-    useEffect(() => {
+    // Size, activity and turnover per company, assembled server-side from counts
+    // and the monthly rollups — never from the cards themselves.
+    const loadOverview = React.useCallback(async () => {
         if (!isPlatformAdmin) return;
-        const unsub = onSnapshot(
-            query(fsCollection(db, 'tenants')),
-            snap => setTenants(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Tenant, 'id'>) }))),
-            err => console.error('Tenant list unavailable:', err)
-        );
-        return () => unsub();
+        setLoadingList(true);
+        try {
+            const res = await call('tenantOverview')({});
+            const payload = res.data as { month: string; tenants: Tenant[] };
+            setTenants(payload.tenants || []);
+            setMonth(payload.month || '');
+        } catch (e) {
+            console.error('Overview unavailable:', e);
+        } finally {
+            setLoadingList(false);
+        }
     }, [isPlatformAdmin]);
+
+    useEffect(() => { loadOverview(); }, [loadOverview]);
 
     const call = (fnName: string) => httpsCallable(getFunctions(app, REGION), fnName);
 
@@ -93,6 +112,20 @@ const PlatformAdmin: React.FC = () => {
         }
     };
 
+    const toggleModule = async (t: Tenant, key: ModuleKey) => {
+        const next = !t.modules?.[key];
+        // Optimistic: the switch answers immediately, and a failure puts it back.
+        setTenants(list => list.map(x => x.id === t.id
+            ? { ...x, modules: { ...x.modules, [key]: next } } : x));
+        try {
+            await call('setTenantModules')({ tenantId: t.id, modules: { [key]: next } });
+        } catch (e) {
+            setTenants(list => list.map(x => x.id === t.id
+                ? { ...x, modules: { ...x.modules, [key]: !next } } : x));
+            setError((e as { message?: string }).message || 'Промяната не беше записана.');
+        }
+    };
+
     const createTenant = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true); setError(null); setDone(null);
@@ -105,6 +138,7 @@ const PlatformAdmin: React.FC = () => {
             });
             setDone(`Фирма „${name}“ е създадена. Администраторът може да влезе с ${adminEmail}.`);
             setTenantId(''); setName(''); setAdminEmail(''); setAdminPassword('');
+            loadOverview();
         } catch (e) {
             setError((e as { message?: string }).message || 'Неуспешно създаване.');
         } finally {
@@ -128,10 +162,10 @@ const PlatformAdmin: React.FC = () => {
         <div style={{ maxWidth: '860px', margin: '0 auto', padding: '2rem 1rem 4rem', color: '#fff' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.4rem' }}>
                 <ShieldCheck size={26} color="var(--primary-color)" />
-                <h1 style={{ margin: 0, fontSize: '1.8rem', fontWeight: 900 }}>Платформа</h1>
+                <h1 style={{ margin: 0, fontSize: '1.8rem', fontWeight: 900 }}>Администраторски панел</h1>
             </div>
             <p style={{ color: 'var(--text-secondary)', marginTop: 0, marginBottom: '2rem' }}>
-                Управление на фирмите, които използват TransitFlow.
+                Фирмите, които използват TransitFlow — състояние, обем и платени модули.
             </p>
 
             {error && (
@@ -224,34 +258,94 @@ const PlatformAdmin: React.FC = () => {
                     </form>
 
                     <div style={card}>
-                        <h2 style={{ margin: '0 0 1.1rem', fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Building2 size={20} color="var(--primary-color)" /> Фирми ({tenants.length})
-                        </h2>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                            <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Building2 size={20} color="var(--primary-color)" /> Фирми ({tenants.length})
+                            </h2>
+                            <button onClick={loadOverview} disabled={loadingList} style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                                padding: '0.45rem 0.9rem', borderRadius: '10px', cursor: 'pointer',
+                                background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)',
+                                color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 700,
+                            }}>
+                                <RefreshCw size={14} className={loadingList ? 'spin' : undefined} /> Обнови
+                            </button>
+                        </div>
+
                         {tenants.length === 0 ? (
                             <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', margin: 0 }}>
-                                Още няма създадени фирми.
+                                {loadingList ? 'Зареждане…' : 'Още няма създадени фирми.'}
                             </p>
                         ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
                                 {tenants.map(t => (
                                     <div key={t.id} style={{
-                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                        gap: '1rem', flexWrap: 'wrap',
-                                        padding: '0.85rem 1rem', borderRadius: '12px',
+                                        padding: '1.1rem 1.2rem', borderRadius: '16px',
                                         background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.06)',
                                     }}>
-                                        <div>
-                                            <div style={{ fontWeight: 700 }}>{t.name || t.id}</div>
-                                            <div style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{t.id}</div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.9rem' }}>
+                                            <div>
+                                                <div style={{ fontWeight: 800, fontSize: '1.02rem' }}>{t.name}</div>
+                                                <div style={{ fontFamily: 'monospace', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                                                    {t.id}{t.createdAt ? ' \u00b7 от ' + new Date(t.createdAt).toLocaleDateString('bg-BG') : ''}
+                                                </div>
+                                            </div>
+                                            <span style={{
+                                                fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.06em',
+                                                padding: '3px 9px', borderRadius: '20px',
+                                                background: t.active ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)',
+                                                color: t.active ? '#00e676' : '#ff5252',
+                                            }}>
+                                                {t.active ? 'АКТИВНА' : 'СПРЯНА'}
+                                            </span>
                                         </div>
-                                        <span style={{
-                                            fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.06em',
-                                            padding: '3px 9px', borderRadius: '20px',
-                                            background: t.active === false ? 'rgba(255,82,82,0.15)' : 'rgba(0,230,118,0.15)',
-                                            color: t.active === false ? '#ff5252' : '#00e676',
-                                        }}>
-                                            {t.active === false ? 'СПРЯНА' : 'АКТИВНА'}
-                                        </span>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+                                            {[
+                                                { icon: CreditCard, label: 'карти', value: t.cards ?? '—' },
+                                                { icon: Users2, label: 'служители', value: t.staff ?? '—' },
+                                                { icon: Wallet, label: 'оборот ' + month, value: t.revenueThisMonth.toFixed(2) + ' €' },
+                                                { icon: CheckCircle2, label: 'плащания', value: t.paymentsThisMonth },
+                                            ].map(({ icon: Icon, label: statLabel, value }) => (
+                                                <div key={statLabel} style={{ padding: '0.6rem 0.75rem', borderRadius: '11px', background: 'rgba(255,255,255,0.03)' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+                                                        <Icon size={12} /> {statLabel}
+                                                    </div>
+                                                    <div style={{ fontWeight: 800, fontSize: '1.05rem', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                                            <span style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                                                Платени модули:
+                                            </span>
+                                            {MODULES.map(({ key, label: moduleLabel }) => {
+                                                const on = t.modules?.[key] === true;
+                                                return (
+                                                    <button
+                                                        key={key}
+                                                        onClick={() => toggleModule(t, key)}
+                                                        aria-pressed={on}
+                                                        style={{
+                                                            display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                                                            padding: '0.35rem 0.8rem', borderRadius: '50px', cursor: 'pointer',
+                                                            fontSize: '0.78rem', fontWeight: 700,
+                                                            background: on ? 'rgba(0,230,118,0.12)' : 'rgba(255,255,255,0.04)',
+                                                            border: '1px solid ' + (on ? 'rgba(0,230,118,0.4)' : 'var(--surface-border)'),
+                                                            color: on ? '#00e676' : 'var(--text-secondary)',
+                                                            transition: 'all .15s ease',
+                                                        }}
+                                                    >
+                                                        <span style={{
+                                                            width: '7px', height: '7px', borderRadius: '50%',
+                                                            background: on ? '#00e676' : 'var(--text-secondary)',
+                                                        }} />
+                                                        {moduleLabel}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 ))}
                             </div>

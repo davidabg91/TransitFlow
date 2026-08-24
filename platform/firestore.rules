@@ -122,6 +122,19 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // ---- Passenger intake forms (optional modules) ----
+      // Anyone the company has issued a token to may submit; staff manage them.
+      // Whether the module is usable at all is decided by the company's record,
+      // which only the platform can write.
+      match /signals/{signalId} {
+        allow create: if belongs(tenantId) && stampedCorrectly(tenantId);
+        allow read, update, delete: if isStaff(tenantId);
+      }
+      match /rentals/{rentalId} {
+        allow create: if belongs(tenantId) && stampedCorrectly(tenantId);
+        allow read, update, delete: if isStaff(tenantId);
+      }
+
       // ---- Notifications ----
       match /push_subscriptions/{subId} {
         allow read, create, delete: if belongs(tenantId);

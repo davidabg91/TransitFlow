@@ -14,7 +14,7 @@ const Layout: React.FC = () => {
     const isClientProfilePath = location.pathname.startsWith('/client/');
     const isAdminPath = location.pathname === '/admin' || location.pathname === '/system-admin' || location.pathname === '/inspections';
     const isFullScreen = isClientProfilePath || isAdminPath;
-    const { currentUser, logout, tenantId } = useAuth();
+    const { currentUser, logout, tenantId, isPlatformAdmin } = useAuth();
     const [companyName, setCompanyName] = useState<string>('');
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -64,7 +64,7 @@ const Layout: React.FC = () => {
         <>
 
 
-            {currentUser && (
+            {currentUser && !isPlatformAdmin && (
                 <>
                     {currentUser.role !== 'inspector' && (
                     <Link

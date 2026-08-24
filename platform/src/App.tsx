@@ -17,6 +17,8 @@ const Help = lazy(() => import('./pages/Help'));
 const Legal = lazy(() => import('./pages/Legal'));
 const PlatformAdmin = lazy(() => import('./pages/PlatformAdmin'));
 const Home = lazy(() => import('./pages/Home'));
+const Signal = lazy(() => import('./pages/Signal'));
+const BusRental = lazy(() => import('./pages/BusRental'));
 
 const PageLoader = () => <LoadingScreen />;
 
@@ -263,6 +265,11 @@ function App() {
               <Route path="help" element={
                 <ProtectedRoute><Help /></ProtectedRoute>
               } />
+
+              {/* Optional modules — the panel shows them locked when a company
+                  has not licensed them; these are the forms that feed them. */}
+              <Route path="signal" element={<Signal />} />
+              <Route path="rent" element={<BusRental />} />
 
               <Route path="legal" element={<Legal />} />
 
