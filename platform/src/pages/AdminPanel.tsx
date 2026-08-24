@@ -14,6 +14,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from '../firebase';
 import ModuleLocked from '../components/ModuleLocked';
 import { cardProfileHref, useCardResolver } from '../tenant/cards';
+import { FUNCTIONS_REGION } from '../tenant/db';
 import { useModules } from '../tenant/modules';
 import UnpaidAlertsButton from '../components/UnpaidAlertsButton';
 import ClientPhoto from '../components/ClientPhoto';
@@ -1686,7 +1687,7 @@ const AdminPanel: React.FC = () => {
         if (nfcBusy) return;
         setNfcBusy(true);
         try {
-            const res = await httpsCallable(getFunctions(app, 'europe-west3'), 'generateCardBatch')({ quantity: nfcQuantity });
+            const res = await httpsCallable(getFunctions(app, FUNCTIONS_REGION), 'generateCardBatch')({ quantity: nfcQuantity });
             const payload = res.data as { tenant: string; codes: { code: string; cardNumber: string }[] };
             const base = `${window.location.origin}${window.location.pathname}#/t/${payload.tenant}/client/`;
             setGeneratedLinks(payload.codes.map(c => `${base}${c.code}`));

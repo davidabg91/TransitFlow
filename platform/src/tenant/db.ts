@@ -181,3 +181,10 @@ export const globalCollection = (dbInstance: Firestore, path: string, ...rest: s
 
 export const globalDoc = (dbInstance: Firestore, path: string, ...rest: string[]) =>
     fsDoc(dbInstance, path, ...rest);
+
+/**
+ * Where the callable functions are deployed. Without this the SDK defaults to
+ * us-central1 and the browser calls a host with nothing on it, which surfaces as
+ * a CORS failure rather than anything that names the real problem.
+ */
+export const FUNCTIONS_REGION = 'europe-west3';

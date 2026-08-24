@@ -174,7 +174,8 @@ service cloud.firestore {
 
       // ---- Notifications ----
       match /push_subscriptions/{subId} {
-        allow read, create, delete: if belongs(tenantId);
+        allow read: if belongs(tenantId);
+        allow create, delete: if canWrite(tenantId);
         allow update: if canStaff(tenantId);
       }
       match /push_notifications/{notifId} {
@@ -183,7 +184,8 @@ service cloud.firestore {
         allow update, delete: if canAdmin(tenantId);
       }
       match /admin_push_tokens/{tokenId} {
-        allow read, create, delete, update: if isStaff(tenantId);
+        allow read: if isStaff(tenantId);
+        allow create, delete, update: if canStaff(tenantId);
       }
 
       // ---- Audit trail ----
@@ -214,7 +216,8 @@ service cloud.firestore {
       // ---- Terminal hand-shake ----
       // Holds a transient card id while a card is being registered at the desk.
       match /admin_actions/{actionId} {
-        allow read, write: if belongs(tenantId);
+        allow read: if belongs(tenantId);
+        allow write: if canWrite(tenantId);
       }
 
       // ---- Inspections ----
@@ -236,7 +239,8 @@ service cloud.firestore {
       // Standalone charges (a lost-card fee) kept apart from renewals so they
       // count toward revenue without extending a subscription.
       match /fines/{fineId} {
-        allow read, create: if isStaff(tenantId) && stampedCorrectly(tenantId);
+        allow read: if isStaff(tenantId);
+        allow create: if canStaff(tenantId) && stampedCorrectly(tenantId);
         allow update, delete: if canAdmin(tenantId);
       }
 

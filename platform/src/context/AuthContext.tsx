@@ -17,6 +17,7 @@ import {
 } from '../tenant/db';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app, { auth, db } from '../firebase';
+import { FUNCTIONS_REGION } from '../tenant/db';
 import { setActiveTenant } from '../tenant/db';
 import type { AppUser, UserRole } from '../types/auth';
 
@@ -205,7 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // would switch the active session to the new user) and lets Firestore rules
         // keep `users` writes admin-only.
         const email = username.includes('@') ? username : `${username}@transitflow.bg`;
-        const fns = getFunctions(app);
+        const fns = getFunctions(app, FUNCTIONS_REGION);
         const createStaffUser = httpsCallable(fns, 'createStaffUser');
         await createStaffUser({ email, password, role });
     };

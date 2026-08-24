@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useAuth } from '../context/AuthContext';
 import app from '../firebase';
+import { FUNCTIONS_REGION } from '../tenant/db';
 import logo from '../assets/logo_main.png';
 
 // Codes that represent a real failed sign-in attempt worth reporting.
@@ -53,7 +54,7 @@ const LoginPage: React.FC = () => {
             // with IP/geolocation and alerts admins on repeated attempts.
             if (error.code && REPORTABLE_AUTH_CODES.includes(error.code)) {
                 try {
-                    const reportFailedLogin = httpsCallable(getFunctions(app), 'reportFailedLogin');
+                    const reportFailedLogin = httpsCallable(getFunctions(app, FUNCTIONS_REGION), 'reportFailedLogin');
                     reportFailedLogin({
                         email: username.trim(),
                         errorCode: error.code,

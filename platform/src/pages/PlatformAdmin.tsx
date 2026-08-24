@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from '../firebase';
+import { FUNCTIONS_REGION } from '../tenant/db';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Building2, Plus, ShieldCheck, Loader2, AlertTriangle, CheckCircle2, CreditCard, Users2, Wallet, RefreshCw, Lock, Unlock } from 'lucide-react';
@@ -13,8 +14,6 @@ import { Building2, Plus, ShieldCheck, Loader2, AlertTriangle, CheckCircle2, Cre
  * which a browser is allowed to do. The page only collects the details and
  * reports what happened.
  */
-
-const REGION = 'europe-west3';
 
 interface Tenant {
     id: string;
@@ -97,7 +96,7 @@ const PlatformAdmin: React.FC = () => {
 
     useEffect(() => { loadOverview(); }, [loadOverview]);
 
-    const call = (fnName: string) => httpsCallable(getFunctions(app, REGION), fnName);
+    const call = (fnName: string) => httpsCallable(getFunctions(app, FUNCTIONS_REGION), fnName);
 
     const runBootstrap = async () => {
         setBusy(true); setError(null); setDone(null);
