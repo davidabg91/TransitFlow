@@ -186,12 +186,22 @@ const formatBGMonth = (monthStr: string) => {
 
 const ClientProfile: React.FC = () => {
     const { id: rawId, tenant: tenantFromUrl } = useParams<{ id: string; tenant?: string }>();
+    const { currentUser, loading: authLoading, tenantId } = useAuth();
     // A card is scanned by someone who is not signed in to anything, so the
     // company comes from the address written on the card. It grants nothing on
     // its own — the rules still decide what may be read.
     useEffect(() => {
-        if (tenantFromUrl) setActiveTenant(tenantFromUrl);
-    }, [tenantFromUrl]);
+        // The signed-in account's own company always wins. The address is only
+        // consulted for a visitor who has none — otherwise opening another
+        // company's card link would repoint this browser at that company, and
+        // every panel afterwards would query a company the account has no claim
+        // to and come back denied.
+        if (tenantId) {
+            setActiveTenant(tenantId);
+        } else if (tenantFromUrl) {
+            setActiveTenant(tenantFromUrl);
+        }
+    }, [tenantFromUrl, tenantId]);
 
     // What this company's card stock says about the scanned card: its number if
     // the card was minted here, nothing if it was not. Activation depends on it,
@@ -202,7 +212,6 @@ const ClientProfile: React.FC = () => {
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
     const urlUid = queryParams.get('uid') || '';
-    const { currentUser, loading: authLoading } = useAuth();
     const [client, setClient] = useState<Client | null>(null);
     const [loading, setLoading] = useState(true);
     const [scanTime] = useState(new Date().toLocaleTimeString('bg-BG'));
