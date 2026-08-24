@@ -7,7 +7,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { getDoc, tenantDoc } from '../tenant/db';
 import { db } from '../firebase';
-import { resolveCardInput } from '../data/cardsMapping';
+import { findCard, findClientsByName, normalizeCardInput, cardProfileHref, type FoundClient } from '../tenant/cards';
 
 /**
  * What staff see when they open the system.
@@ -61,6 +61,8 @@ const Home: React.FC = () => {
     const [now, setNow] = useState(new Date());
     const [cardInput, setCardInput] = useState('');
     const [lookupError, setLookupError] = useState<string | null>(null);
+    const [searching, setSearching] = useState(false);
+    const [matches, setMatches] = useState<FoundClient[]>([]);
     const scanFieldRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -80,8 +82,10 @@ const Home: React.FC = () => {
     useEffect(() => {
         const onScan = (e: Event) => {
             const detail = (e as CustomEvent<{ id?: string; url?: string }>).detail || {};
-            const code = resolveCardInput(String(detail.url || detail.id || ''));
-            if (code) navigate(`/client/${code}`);
+            const code = normalizeCardInput(String(detail.url || detail.id || ''));
+            // Straight through: the profile page decides whether the card is
+            // known, and a reader tap should not wait on a lookup here first.
+            if (code) navigate(cardProfileHref(code).replace('#', ''));
         };
         window.addEventListener('dary-nfc-scan', onScan);
         return () => window.removeEventListener('dary-nfc-scan', onScan);
@@ -95,16 +99,43 @@ const Home: React.FC = () => {
     // many run between renders.
     if (isPlatformAdmin) return <Navigate to="/platform" replace />;
 
-    const lookup = (e: React.FormEvent) => {
+    /**
+     * One field, three ways in: the number printed on the card, its code, or the
+     * passenger's name. A card goes straight to the profile; a name that matches
+     * several people offers the list rather than guessing.
+     */
+    const lookup = async (e: React.FormEvent) => {
         e.preventDefault();
-        const code = resolveCardInput(cardInput);
-        if (!code) {
-            setLookupError('Няма карта с този номер. Проверете и опитайте отново.');
-            scanFieldRef.current?.focus();
-            return;
-        }
+        const raw = cardInput.trim();
+        if (!raw) return;
+
         setLookupError(null);
-        navigate(`/client/${code}`);
+        setMatches([]);
+        setSearching(true);
+        try {
+            const card = await findCard(raw);
+            if (card) {
+                navigate(cardProfileHref(card.code).replace('#', ''));
+                return;
+            }
+
+            const people = await findClientsByName(raw);
+            if (people.length === 1) {
+                navigate(cardProfileHref(people[0].id).replace('#', ''));
+                return;
+            }
+            if (people.length > 1) {
+                setMatches(people);
+                return;
+            }
+
+            setLookupError('Няма карта или клиент по това търсене.');
+            scanFieldRef.current?.focus();
+        } catch {
+            setLookupError('Търсенето не успя. Опитайте отново.');
+        } finally {
+            setSearching(false);
+        }
     };
 
     return (
@@ -170,8 +201,9 @@ const Home: React.FC = () => {
                     position: 'relative', margin: '0 0 1.35rem', maxWidth: '58ch',
                     color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.6,
                 }}>
-                    Допрете картата до четеца или въведете номера ѝ. Ако картата е издадена, ще
-                    се отвори профилът на притежателя; ако е нова — ще предложи да я активирате.
+                    Допрете картата до четеца, или потърсете по номера от картата, по кода ѝ,
+                    или по име на клиент. Издадена карта отваря профила на притежателя; нова
+                    предлага да я активирате.
                 </p>
 
                 <form onSubmit={lookup} style={{ position: 'relative', display: 'flex', gap: '0.7rem', flexWrap: 'wrap' }}>
@@ -184,9 +216,9 @@ const Home: React.FC = () => {
                             ref={scanFieldRef}
                             value={cardInput}
                             onChange={e => { setCardInput(e.target.value); setLookupError(null); }}
-                            placeholder="Номер на карта или код"
+                            placeholder="Номер на карта, код или име на клиент"
                             autoComplete="off"
-                            aria-label="Номер на карта"
+                            aria-label="Търсене на карта или клиент"
                             style={{
                                 width: '100%', padding: '1rem 1rem 1rem 3rem',
                                 borderRadius: '14px', fontSize: '1.05rem',
@@ -203,7 +235,7 @@ const Home: React.FC = () => {
                         background: 'var(--primary-color)', color: '#00252a',
                         fontWeight: 850, fontSize: '1rem', whiteSpace: 'nowrap',
                     }}>
-                        Отвори профил <ArrowRight size={17} />
+                        {searching ? 'Търсене…' : 'Отвори профил'} <ArrowRight size={17} />
                     </button>
 
                     {(role === 'admin' || role === 'moderator') && (
@@ -218,6 +250,31 @@ const Home: React.FC = () => {
                         </Link>
                     )}
                 </form>
+
+                {matches.length > 0 && (
+                    <div style={{ position: 'relative', marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <span style={{ fontSize: '0.76rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                            Намерени клиенти ({matches.length})
+                        </span>
+                        {matches.map(m => (
+                            <Link
+                                key={m.id}
+                                to={cardProfileHref(m.id).replace('#', '')}
+                                style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    gap: '1rem', padding: '0.7rem 0.95rem', borderRadius: '12px',
+                                    textDecoration: 'none', color: '#fff',
+                                    background: 'rgba(0,0,0,0.25)', border: '1px solid var(--surface-border)',
+                                }}
+                            >
+                                <span style={{ fontWeight: 700, fontSize: '0.92rem' }}>{m.name}</span>
+                                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+                                    {m.cardNumber ? `№ ${m.cardNumber}` : ''}{m.route ? ` · ${m.route}` : ''}
+                                </span>
+                            </Link>
+                        ))}
+                    </div>
+                )}
 
                 {lookupError && (
                     <p style={{ position: 'relative', margin: '0.85rem 0 0', color: '#ff5252', fontSize: '0.88rem', fontWeight: 600 }}>

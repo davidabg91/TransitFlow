@@ -13,6 +13,7 @@ import Card from '../components/Card';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from '../firebase';
 import ModuleLocked from '../components/ModuleLocked';
+import { cardProfileHref, useCardResolver } from '../tenant/cards';
 import { useModules } from '../tenant/modules';
 import UnpaidAlertsButton from '../components/UnpaidAlertsButton';
 import ClientPhoto from '../components/ClientPhoto';
@@ -461,6 +462,7 @@ const AdminPanel: React.FC = () => {
     const [cashAmount, setCashAmount] = useState('');
     const [photoDataURL, setPhotoDataURL] = useState<string | null>(null);
     const [nfcLinkId, setNfcLinkId] = useState('');
+    const { card: linkedCard, checking: linkChecking } = useCardResolver(nfcLinkId);
     const [address, setAddress] = useState('');
     // Service cards ("Служебна"): a free-text reason why the card is issued
     // (relative of a driver, contract with a община, etc.) and the year the
@@ -2587,7 +2589,7 @@ const AdminPanel: React.FC = () => {
                                         return (
                                             <a
                                                 key={m.client.id}
-                                                href={`#/client/${m.client.id}`}
+                                                href={cardProfileHref(m.client.id)}
                                                 style={{
                                                     display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem',
                                                     flexWrap: 'wrap', textDecoration: 'none',
@@ -2700,7 +2702,7 @@ const AdminPanel: React.FC = () => {
                                                             border: '1px solid rgba(255,82,82,0.2)', borderLeft: '4px solid #ff5252', borderRadius: '12px'
                                                         }}
                                                     >
-                                                        <a href={`#/client/${u.client.id}`} style={{ minWidth: 0, flex: '1 1 12rem', textDecoration: 'none' }}>
+                                                        <a href={cardProfileHref(u.client.id)} style={{ minWidth: 0, flex: '1 1 12rem', textDecoration: 'none' }}>
                                                             <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>
                                                                 {u.client.name}
                                                                 {getClientCardNumber(u.client) ? <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}> · №{getClientCardNumber(u.client)}</span> : null}
@@ -2772,7 +2774,7 @@ const AdminPanel: React.FC = () => {
                                                                 border: '1px solid rgba(0,200,83,0.2)', borderLeft: '4px solid #00c853', borderRadius: '12px'
                                                             }}
                                                         >
-                                                            <a href={`#/client/${u.client.id}`} style={{ minWidth: 0, flex: '1 1 12rem', textDecoration: 'none' }}>
+                                                            <a href={cardProfileHref(u.client.id)} style={{ minWidth: 0, flex: '1 1 12rem', textDecoration: 'none' }}>
                                                                 <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>
                                                                     {u.client.name}
                                                                     {getClientCardNumber(u.client) ? <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}> · №{getClientCardNumber(u.client)}</span> : null}
@@ -2828,7 +2830,7 @@ const AdminPanel: React.FC = () => {
                                                         </div>
                                                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
                                                             {d.cards.map(c => (
-                                                                <a key={c.id} href={`#/client/${c.id}`} style={{ fontSize: '0.7rem', padding: '0.2rem 0.55rem', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', color: 'var(--primary-color)', textDecoration: 'none' }}>
+                                                                <a key={c.id} href={cardProfileHref(c.id)} style={{ fontSize: '0.7rem', padding: '0.2rem 0.55rem', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', color: 'var(--primary-color)', textDecoration: 'none' }}>
                                                                     {c.name} · {c.route || '—'}{getClientCardNumber(c) ? ` · №${getClientCardNumber(c)}` : ''}
                                                                 </a>
                                                             ))}
@@ -4046,7 +4048,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                             </button>
                                                         )}
                                                         <a 
-                                                            href={`${import.meta.env.BASE_URL}#/client/${client.id}`} 
+                                                            href={`${import.meta.env.BASE_URL}${cardProfileHref(client.id)}`} 
                                                             target="_blank" 
                                                             rel="noopener noreferrer"
                                                             style={{ padding: '0.4rem 0.8rem', borderRadius: '6px', border: '1px solid var(--primary-color)', fontSize: '0.75rem', color: 'var(--primary-color)', display: 'flex', alignItems: 'center', gap: '0.3rem', textDecoration: 'none' }}
@@ -4152,7 +4154,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                 Управление
                                             </button>
                                             <a 
-                                                href={`#/client/${client.id}`} target="_blank" rel="noopener noreferrer"
+                                                href={cardProfileHref(client.id)} target="_blank" rel="noopener noreferrer"
                                                 style={{ padding: '0.7rem', borderRadius: '8px', border: '1px solid var(--primary-color)', color: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                             >
                                                 <ExternalLink size={18} />
@@ -4572,29 +4574,35 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                     </div>
                                     )}
                                     <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
-                                        <label style={{ display: 'block', marginBottom: '0.8rem', color: 'var(--accent-color)', fontWeight: 800, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Свързване на Карта (NFC/Link)</label>
+                                        <label style={{ display: 'block', marginBottom: '0.8rem', color: 'var(--accent-color)', fontWeight: 800, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Свързване на карта</label>
                                         <div className="nfc-connect-container" style={{ display: 'flex', gap: '0.75rem' }}>
                                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                 <input 
                                                     type="text" 
-                                                    placeholder="ID от Карта (напр. ABC123)" 
+                                                    placeholder="Номер на карта (0000000001) или код" 
                                                     style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--surface-border)', color: 'var(--primary-color)', fontWeight: 700, fontFamily: 'monospace' }} 
                                                     value={nfcLinkId} 
                                                     onChange={e => setNfcLinkId(e.target.value.toUpperCase())} 
                                                 />
-                                                {(() => {
-                                                    const mappedCard = CARDS_MAPPING[sanitizeId(nfcLinkId)];
-                                                    if (!nfcLinkId) return null;
-                                                    return (
-                                                        <div style={{ fontSize: '0.75rem', color: mappedCard ? '#00e676' : 'var(--text-secondary)', padding: '2px 4px', fontWeight: mappedCard ? 800 : 500 }}>
-                                                            {mappedCard ? (
-                                                                <span>Автоматично разпозната Карта № <b>{mappedCard}</b></span>
-                                                            ) : (
-                                                                <span>Разпознат ID: <b>{sanitizeId(nfcLinkId)}</b></span>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })()}
+                                                {/* Resolved against this company's card stock, so the
+                                                    number printed on the card works as well as the code,
+                                                    and a card the system never issued says so here rather
+                                                    than at the end of the form. */}
+                                                {nfcLinkId && (
+                                                    <div style={{
+                                                        fontSize: '0.75rem', padding: '2px 4px',
+                                                        fontWeight: linkedCard ? 800 : 500,
+                                                        color: linkChecking ? 'var(--text-secondary)' : (linkedCard ? '#00e676' : '#ff5252'),
+                                                    }}>
+                                                        {linkChecking ? (
+                                                            <span>Проверка…</span>
+                                                        ) : linkedCard ? (
+                                                            <span>Разпозната Карта № <b>{linkedCard.cardNumber}</b>{linkedCard.status === 'assigned' ? ' — вече е издадена на клиент' : ''}</span>
+                                                        ) : (
+                                                            <span>Тази карта не е издадена от системата</span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                             <button 
                                                 type="button"
