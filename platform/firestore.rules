@@ -53,6 +53,12 @@ service cloud.firestore {
     function belongs(tenantId) {
       return inTenant(tenantId);
     }
+    // The platform owner administers the companies but is not a member of any.
+    // They may see which companies exist and how much each one uses the system —
+    // never the passengers' personal data, which belongs to the operator.
+    function isPlatformOwner() {
+      return signedIn() && request.auth.token.platformAdmin == true;
+    }
 
     // Writes must stamp the document with the company they belong to, and may
     // never claim a different one. This is what makes collection-group queries
@@ -65,8 +71,9 @@ service cloud.firestore {
     // Readable by that company's own users (name, logo, colours, enabled
     // modules). Only the platform, through the Admin SDK, may write it.
     match /tenants/{tenantId} {
-      allow get: if belongs(tenantId);
-      allow list, write: if false;
+      allow get: if belongs(tenantId) || isPlatformOwner();
+      allow list: if isPlatformOwner();
+      allow write: if false;
 
       // ---- Staff accounts ----
       // Everyone in the company can see the staff list (emails and roles only).
@@ -187,7 +194,7 @@ service cloud.firestore {
       // Maintained by a Cloud Function so the dashboard reads one document
       // instead of every card in the company.
       match /rollups/{month} {
-        allow read: if isStaff(tenantId);
+        allow read: if isStaff(tenantId) || isPlatformOwner();
         allow write: if false;
       }
     }
