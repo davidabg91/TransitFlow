@@ -228,6 +228,7 @@ const Layout: React.FC = () => {
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
                 padding: isMobile ? '0 0.75rem' : '0 1.5rem',
+                minHeight: isMobile ? '34px' : '46px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
@@ -245,7 +246,7 @@ const Layout: React.FC = () => {
                             src={logo}
                             alt="TransitFlow"
                             style={{
-                                height: isMobile ? '29px' : '39px',
+                                height: isMobile ? '32px' : '43px',
                                 width: 'auto',
                                 objectFit: 'contain',
                                 display: 'block'
