@@ -57,20 +57,19 @@ export default defineConfig({
         ]
       },
       manifest: {
-        name: 'DARY CARD',
-        short_name: 'DARY',
-        description: 'Дигитална Идентичност в Една Карта',
-        theme_color: '#000000',
-        background_color: '#000000',
+        name: 'TransitFlow',
+        short_name: 'TransitFlow',
+        description: 'Система за управление на транспортни карти',
+        theme_color: '#0d7d86',
+        background_color: '#0b1416',
         display: 'standalone',
         orientation: 'portrait',
         icons: [
-          {
-            src: 'pwa-icon.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
+          { src: 'pwa-icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-icon.png', sizes: '512x512', type: 'image/png' },
+          // Purpose kept separate: a launcher that crops a 'any' icon would cut
+          // into the mark, so the maskable one carries its own safe zone.
+          { src: 'pwa-icon-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       }
     })

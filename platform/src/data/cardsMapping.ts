@@ -1000,3 +1000,33 @@ export const CARDS_MAPPING: Record<string, string> = {
     "AFO34PQG6": "0000000999",
     "6CODR4FT6": "0000001000",
 };
+
+/**
+ * Card number → printed code. Staff read the number off the card (it is what is
+ * printed largest), while the system keys everything by the code, so a desk
+ * lookup has to work from either.
+ */
+export const CARD_NUMBER_TO_CODE: Record<string, string> = Object.fromEntries(
+    Object.entries(CARDS_MAPPING).map(([code, number]) => [number, code])
+);
+
+/**
+ * Resolve whatever was typed or scanned into a card code: the code itself, the
+ * printed number with or without its leading zeros, or a full card URL.
+ */
+export const resolveCardInput = (input: string): string | null => {
+    const raw = input.trim();
+    if (!raw) return null;
+
+    const fromUrl = raw.match(/\/client\/([^/?#\s]+)/i);
+    const candidate = (fromUrl ? fromUrl[1] : raw).toUpperCase();
+
+    if (CARDS_MAPPING[candidate]) return candidate;
+
+    const digits = candidate.replace(/\D/g, '');
+    if (digits) {
+        const padded = digits.padStart(10, '0');
+        if (CARD_NUMBER_TO_CODE[padded]) return CARD_NUMBER_TO_CODE[padded];
+    }
+    return null;
+};
