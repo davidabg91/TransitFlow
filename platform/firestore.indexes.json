@@ -1,5 +1,22 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "scans",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "tenant", "order": "ASCENDING" },
+        { "fieldPath": "at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "scans",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "tenant", "order": "ASCENDING" },
+        { "fieldPath": "at", "order": "DESCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": [
     {
       "collectionGroup": "scans",
@@ -7,6 +24,13 @@
       "indexes": [
         { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" },
         { "queryScope": "COLLECTION_GROUP", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "scans",
+      "fieldPath": "tenant",
+      "indexes": [
+        { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" }
       ]
     }
   ]

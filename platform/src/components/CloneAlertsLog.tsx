@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, orderBy, limit, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, doc, deleteDoc } from '../tenant/db';
 import { Clock, AlertTriangle, CreditCard, MapPin, Trash2 } from 'lucide-react';
 import { db } from '../firebase';
 import { CARDS_MAPPING } from '../data/cardsMapping';

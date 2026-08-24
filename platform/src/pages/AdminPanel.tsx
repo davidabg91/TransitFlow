@@ -30,7 +30,7 @@ import {
     getDocs,
     collectionGroup,
     where
-} from 'firebase/firestore';
+} from '../tenant/db';
 import { useAuth } from '../context/AuthContext';
 import { ROUTE_METADATA, cardPrice } from '../data/routeMetadata';
 import { uploadClientPhoto } from '../utils/photoStorage';

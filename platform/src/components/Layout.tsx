@@ -4,7 +4,7 @@ import logo from '../assets/logo_main.png';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, ShieldCheck, Shield, Menu, X } from 'lucide-react';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from '../tenant/db';
 import InstallPWA from './InstallPWA';
 
 

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { collection, query, where, orderBy, onSnapshot, limit, addDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, limit, addDoc } from '../tenant/db';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../data/routeMetadata';

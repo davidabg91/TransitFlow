@@ -1,20 +1,31 @@
 rules_version = '2';
 
+// Card photos, one folder per company.
+//
+// Like the Firestore rules, these read the company and the role straight from
+// the token's claims. The original looked each user up in Firestore on every
+// single file request, which cost a document read and a round trip per photo.
+
 service firebase.storage {
   match /b/{bucket}/o {
 
-    function isStaff() {
-      return request.auth != null
-        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
-        && (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'
-            || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'moderator');
+    function signedIn() {
+      return request.auth != null;
+    }
+    function inTenant(tenantId) {
+      return signedIn() && request.auth.token.tenant == tenantId;
+    }
+    function isStaff(tenantId) {
+      return inTenant(tenantId)
+        && (request.auth.token.role == 'admin' || request.auth.token.role == 'moderator');
     }
 
-    // Client photos. Readable by anyone (the public card-scan page shows the photo),
-    // but only staff may upload, and only reasonably sized image files.
-    match /client_photos/{file} {
-      allow read: if true;
-      allow write: if isStaff()
+    // A photo is readable by anyone enrolled to that company — staff at the
+    // desk, an inspector on the bus, or the terminal showing the card on screen.
+    // Only staff may upload, and only reasonably sized images.
+    match /tenants/{tenantId}/client_photos/{file} {
+      allow read: if inTenant(tenantId);
+      allow write: if isStaff(tenantId)
         && request.resource.size < 2 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
     }

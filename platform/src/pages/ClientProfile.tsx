@@ -3,7 +3,7 @@ import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Ban, Clock, Settings, Camera, CreditCard, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { doc, onSnapshot, setDoc, updateDoc, increment, arrayUnion, addDoc, collection } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, updateDoc, increment, arrayUnion, addDoc, collection } from '../tenant/db';
 import LoadingScreen from '../components/LoadingScreen';
 import { ROUTE_METADATA, ROUTES, cardPrice } from '../data/routeMetadata';
 import { uploadClientPhoto } from '../utils/photoStorage';

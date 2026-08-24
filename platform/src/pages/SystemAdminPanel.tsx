@@ -5,7 +5,7 @@ import {
     RefreshCw, Search, Clock, Shield,
     UserPlus, Trash2, AlertTriangle
 } from 'lucide-react';
-import { collection, collectionGroup, query, where, orderBy, limit, onSnapshot, updateDoc, doc, writeBatch, deleteField, getDocs } from 'firebase/firestore';
+import { collection, collectionGroup, query, where, orderBy, limit, onSnapshot, updateDoc, doc, writeBatch, deleteField, getDocs } from '../tenant/db';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/Card';

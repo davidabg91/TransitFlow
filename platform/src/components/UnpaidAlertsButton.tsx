@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { getToken } from 'firebase/messaging';
-import { collection, query, where, getDocs, addDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc } from '../tenant/db';
 import { AlertTriangle, BellRing, BellOff, Loader2, CheckCircle2 } from 'lucide-react';
 import { db, getSafeMessaging } from '../firebase';
 import { useAuth } from '../context/AuthContext';

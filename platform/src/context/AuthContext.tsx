@@ -14,9 +14,10 @@ import {
     updateDoc,
     deleteDoc,
     query
-} from 'firebase/firestore';
+} from '../tenant/db';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app, { auth, db } from '../firebase';
+import { setActiveTenant } from '../tenant/db';
 import type { AppUser, UserRole } from '../types/auth';
 
 interface AuthContextType {
@@ -36,6 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [users, setUsers] = useState<AppUser[]>([]);
     const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
     const [loading, setLoading] = useState(true);
+    const [tenantId, setTenantId] = useState<string | null>(null);
     const loadingRef = React.useRef(loading);
     useEffect(() => {
         loadingRef.current = loading;
@@ -56,6 +58,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLoading(true);
             try {
                 if (fbUser) {
+                    // The company and the role live in the token's custom claims, set
+                    // server-side when the account was provisioned. Reading them here
+                    // means the security rules never have to look a user up, and it
+                    // must happen before anything queries Firestore — every path is
+                    // built from the active company.
+                    const token = await fbUser.getIdTokenResult();
+                    const claimedTenant = (token.claims.tenant as string | undefined) || null;
+                    const claimedRole = token.claims.role as UserRole | undefined;
+
+                    if (!claimedTenant) {
+                        console.warn(`${fbUser.email || fbUser.uid} has no company assigned. Access denied.`);
+                        setActiveTenant(null);
+                        setTenantId(null);
+                        setCurrentUser(null);
+                        return;
+                    }
+
+                    setActiveTenant(claimedTenant);
+                    setTenantId(claimedTenant);
+
                     // Get user role from Firestore
                     const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
                     if (userDoc.exists()) {
@@ -64,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             id: fbUser.uid,
                             username: data.username || fbUser.email || '',
                             passwordHash: '', // Not needed for Firebase
-                            role: data.role as UserRole,
+                            role: claimedRole || (data.role as UserRole),
                             createdAt: data.createdAt || new Date().toISOString(),
                             lastSeen: data.lastSeen || ''
                         });
@@ -78,6 +100,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         setCurrentUser(null);
                     }
                 } else {
+                    setActiveTenant(null);
+                    setTenantId(null);
                     setCurrentUser(null);
                 }
             } catch (error) {
@@ -87,14 +111,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         });
 
-        // 2. Listen for all users
+        return () => {
+            unsubscribeAuth();
+        };
+    }, []);
+
+    // The staff list can only be read once the company is known, so it waits for
+    // the claim rather than running alongside the auth listener.
+    useEffect(() => {
+        if (!tenantId) {
+            setUsers([]);
+            return;
+        }
         const q = query(collection(db, 'users'));
         const unsubscribeUsers = onSnapshot(q, (snapshot) => {
             const userList: AppUser[] = [];
-            snapshot.forEach((doc) => {
-                const data = doc.data();
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
                 userList.push({
-                    id: doc.id,
+                    id: docSnap.id,
                     username: data.username || '',
                     passwordHash: '',
                     role: data.role as UserRole,
@@ -103,21 +138,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 });
             });
             setUsers(userList);
+        }, (err) => console.error('Staff list unavailable:', err));
 
-            // AUTO-MIGRATION of default admin if users collection is empty
-            if (snapshot.empty) {
-                console.log('No users found. You should register your first admin account.');
-            }
-        });
-
-        return () => {
-            unsubscribeAuth();
-            unsubscribeUsers();
-        };
-    }, []);
+        return () => unsubscribeUsers();
+    }, [tenantId]);
 
     const login = async (email: string, password: string) => {
-        const emailToLogin = email.includes('@') ? email : `${email}@dary.com`;
+        const emailToLogin = email.includes('@') ? email : `${email}@transitflow.bg`;
         await signInWithEmailAndPassword(auth, emailToLogin, password);
     };
 
@@ -130,7 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // current admin signed in (the client SDK's createUserWithEmailAndPassword
         // would switch the active session to the new user) and lets Firestore rules
         // keep `users` writes admin-only.
-        const email = username.includes('@') ? username : `${username}@dary.com`;
+        const email = username.includes('@') ? username : `${username}@transitflow.bg`;
         const fns = getFunctions(app);
         const createStaffUser = httpsCallable(fns, 'createStaffUser');
         await createStaffUser({ email, password, role });

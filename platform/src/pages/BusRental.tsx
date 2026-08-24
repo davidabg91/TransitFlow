@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc } from '../tenant/db';
 import {
     Bus, BusFront, Users, Send, Check, CheckCircle, ShieldCheck,
     Clock, ArrowRight, MapPin, CalendarDays, Phone, User,

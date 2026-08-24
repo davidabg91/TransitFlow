@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { doc, getDoc, updateDoc, arrayUnion, increment, setDoc, collection, addDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, increment, setDoc, collection, addDoc } from '../tenant/db';
 import { db } from '../firebase';
 import { CheckCircle, XCircle, RefreshCw, Settings, UserPlus, Zap, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

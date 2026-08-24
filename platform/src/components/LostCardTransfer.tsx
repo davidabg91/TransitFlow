@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { collection, getDocs, doc, writeBatch, arrayUnion } from 'firebase/firestore';
+import { collection, getDocs, doc, writeBatch, arrayUnion } from '../tenant/db';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { uploadClientPhoto } from '../utils/photoStorage';
