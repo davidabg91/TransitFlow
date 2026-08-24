@@ -11,7 +11,6 @@ import ModeratorInactivityWarningModal from './ModeratorInactivityWarningModal';
 import { MIXED_METHOD } from '../data/paymentMethods';
 import MyPosSmartSdk from '../services/MyPosSmartSdk';
 import { Capacitor } from '@capacitor/core';
-import { CARDS_MAPPING } from '../data/cardsMapping';
 
 interface Client {
     id: string;
@@ -342,6 +341,9 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
                             timestamp: new Date().toISOString(),
                             clientId: snap.id,
                             clientName: data.name,
+                            // Carried on the alert so the log can show it without
+                            // reading the card back.
+                            cardNumber: data.cardNumber || '',
                             route: data.route || '',
                             registeredUid: registeredNfcUid,
                             scannedUid: scannedNfcUid,
@@ -819,9 +821,9 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
                                     </div>
 
                                     <div style={{ textAlign: 'center' }}>
-                                        {client && (client.cardNumber || CARDS_MAPPING[client.id]) && (
+                                        {client && client.cardNumber && (
                                             <div style={{ fontSize: '0.95rem', color: themeColor, fontWeight: 900, marginBottom: '0.3rem', letterSpacing: '1px' }}>
-                                                КАРТА № {client.cardNumber || CARDS_MAPPING[client.id]} {nfcCounter !== undefined && nfcCounter !== null && `(Брояч: ${nfcCounter})`}
+                                                КАРТА № {client.cardNumber} {nfcCounter !== undefined && nfcCounter !== null && `(Брояч: ${nfcCounter})`}
                                             </div>
                                         )}
                                         <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 0.2rem 0', letterSpacing: '-0.2px', opacity: 0.6 }}>{client?.name?.toUpperCase()}</h2>
@@ -1085,7 +1087,7 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
                 reason={inactivityModalReason}
                 clientName={client?.name || 'Клиент'}
                 clientRoute={client?.route}
-                cardNumber={client?.cardNumber || (client ? CARDS_MAPPING[client.id] : '')}
+                cardNumber={client?.cardNumber || ''}
                 lastPaidMonth={client?.renewalHistory && client.renewalHistory.length > 0 ? formatBGMonth(client.renewalHistory[client.renewalHistory.length - 1].month) : undefined}
                 isPaidCurrentMonth={client?.renewalHistory ? client.renewalHistory.some(rh => rh.month === new Date().toISOString().slice(0, 7)) : false}
                 onStayAndRenew={handleStayAndRenew}

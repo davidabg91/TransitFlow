@@ -3,8 +3,8 @@ import { collection, getDocs, doc, writeBatch, arrayUnion } from '../tenant/db';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { uploadClientPhoto } from '../utils/photoStorage';
-import { CARDS_MAPPING } from '../data/cardsMapping';
 import { LOST_CARD_FINE } from '../data/lostCard';
+import { useCardResolver } from '../tenant/cards';
 import { Search, X, AlertTriangle, CreditCard, CheckCircle, Loader2, ArrowRight } from 'lucide-react';
 
 /** Minimal client shape needed for the transfer (mirrors the clients collection). */
@@ -69,6 +69,10 @@ const LostCardTransfer: React.FC<Props> = ({ newCardId, newCardUid = '', onClose
     const [month, setMonth] = useState(currentMonthStr());
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
+    // The card being transferred to has no profile yet, so its number comes from
+    // the company's stock rather than from a client document.
+    const { card: newCardStock } = useCardResolver(newCardId);
+    const newCardNumber = newCardStock?.cardNumber || '';
 
     useEffect(() => {
         let cancelled = false;
@@ -95,7 +99,7 @@ const LostCardTransfer: React.FC<Props> = ({ newCardId, newCardUid = '', onClose
             .filter(c =>
                 (c.name || '').toLowerCase().includes(q) ||
                 (c.id || '').toLowerCase().includes(q) ||
-                (c.cardNumber || CARDS_MAPPING[c.id] || '').toLowerCase().includes(q) ||
+                (c.cardNumber || '').toLowerCase().includes(q) ||
                 (c.route || '').toLowerCase().includes(q)
             )
             .slice(0, 25);
@@ -137,7 +141,7 @@ const LostCardTransfer: React.FC<Props> = ({ newCardId, newCardUid = '', onClose
                 serviceReason: selected.serviceReason || '',
                 school: selected.school || '',
                 municipality: selected.municipality || '',
-                cardNumber: CARDS_MAPPING[newCardId] || '',
+                cardNumber: newCardNumber,
                 expiryDate: hasSubForMonth ? month : '',
                 photo: photoValue,
                 photoThumb: selected.photoThumb || '',
@@ -212,7 +216,7 @@ const LostCardTransfer: React.FC<Props> = ({ newCardId, newCardUid = '', onClose
                 {!selected ? (
                     <>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 1rem', lineHeight: 1.5 }}>
-                            Намери клиента, чиято карта е загубена. Профилът му ще се прехвърли на новата карта <b style={{ color: '#fff', fontFamily: 'monospace' }}>{CARDS_MAPPING[newCardId] || newCardId}</b>.
+                            Намери клиента, чиято карта е загубена. Профилът му ще се прехвърли на новата карта <b style={{ color: '#fff', fontFamily: 'monospace' }}>{newCardNumber || newCardId}</b>.
                         </p>
                         <div style={{ position: 'relative', marginBottom: '1rem' }}>
                             <Search size={18} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
@@ -231,7 +235,7 @@ const LostCardTransfer: React.FC<Props> = ({ newCardId, newCardUid = '', onClose
                                         {c.photoThumb ? <img src={c.photoThumb} alt="" style={{ width: '38px', height: '38px', borderRadius: '9px', objectFit: 'cover', flexShrink: 0 }} /> : <span style={{ width: '38px', height: '38px', borderRadius: '9px', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><CreditCard size={17} color="var(--text-secondary)" /></span>}
                                         <span style={{ flex: 1, minWidth: 0 }}>
                                             <span style={{ display: 'block', fontWeight: 700, fontSize: '0.92rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name || '—'}{c.isCanceled ? ' · анулиран' : ''}</span>
-                                            <span style={{ display: 'block', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>№{c.cardNumber || CARDS_MAPPING[c.id] || c.id} · {c.route || '—'}</span>
+                                            <span style={{ display: 'block', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>№{c.cardNumber || c.id} · {c.route || '—'}</span>
                                         </span>
                                         <ArrowRight size={16} color="var(--text-secondary)" />
                                     </button>
@@ -246,7 +250,7 @@ const LostCardTransfer: React.FC<Props> = ({ newCardId, newCardUid = '', onClose
                             {selected.photoThumb ? <img src={selected.photoThumb} alt="" style={{ width: '46px', height: '46px', borderRadius: '10px', objectFit: 'cover' }} /> : <span style={{ width: '46px', height: '46px', borderRadius: '10px', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CreditCard size={20} color="var(--text-secondary)" /></span>}
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontWeight: 800, fontSize: '1rem' }}>{selected.name}</div>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Стара карта №{selected.cardNumber || CARDS_MAPPING[selected.id] || selected.id} · {selected.route || '—'}</div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Стара карта №{selected.cardNumber || selected.id} · {selected.route || '—'}</div>
                             </div>
                             <button onClick={() => setSelected(null)} style={{ background: 'transparent', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>Смени</button>
                         </div>

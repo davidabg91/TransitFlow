@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { collection, query, orderBy, limit, onSnapshot, doc, deleteDoc } from '../tenant/db';
 import { Clock, AlertTriangle, CreditCard, MapPin, Trash2 } from 'lucide-react';
 import { db } from '../firebase';
-import { CARDS_MAPPING } from '../data/cardsMapping';
 
 interface CloneAlert {
     id: string;
     timestamp: string;
     clientId: string;
     clientName: string;
+    cardNumber?: string;
     route: string;
     registeredUid: string;
     scannedUid: string;
@@ -52,7 +52,7 @@ const CloneAlertsLog: React.FC = () => {
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                     {alerts.map((a) => {
-                        const cardNum = CARDS_MAPPING[a.clientId] || '';
+                        const cardNum = a.cardNumber || '';
                         return (
                             <div key={a.id} style={{
                                 background: 'rgba(255,23,68,0.04)', border: '1px solid rgba(255,23,68,0.15)',

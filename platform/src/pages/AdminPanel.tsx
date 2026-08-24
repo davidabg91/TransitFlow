@@ -42,7 +42,6 @@ import { ROUTE_METADATA, cardPrice } from '../data/routeMetadata';
 import { uploadClientPhoto } from '../utils/photoStorage';
 import PaymentMethodSelector from '../components/PaymentMethodSelector';
 import { MIXED_METHOD, PAYMENT_METHODS } from '../data/paymentMethods';
-import { CARDS_MAPPING } from '../data/cardsMapping';
 import { MUNICIPALITIES, MUNICIPALITY_CUSTOM, DEFAULT_MUNICIPALITY, needsMunicipality } from '../data/municipalities';
 import { SCHOOLS, SCHOOL_MUNICIPALITY } from '../data/schools';
 import { SERVICE_ROSTERS } from '../data/serviceRosters';
@@ -193,7 +192,7 @@ const sanitizeId = (id: string | null | undefined): string => {
 };
 
 const getClientCardNumber = (c: Client): string => {
-    return c.cardNumber || CARDS_MAPPING[c.id] || '';
+    return c.cardNumber || '';
 };
 
 const getDefaultExpiryMonth = () => {
@@ -1198,7 +1197,7 @@ const AdminPanel: React.FC = () => {
             serviceReason: isServiceCard ? serviceReason.trim() : '',
             school: cardType === 'Ученическа карта' ? (selectedSchool === 'custom' ? customSchool : selectedSchool) : '',
             municipality: needsMunicipality(cardType) ? resolvedMunicipality : '',
-            cardNumber: CARDS_MAPPING[sanitizedNfcId] || '',
+            cardNumber: linkedCard?.cardNumber || '',
             createdAt: nowIso,
             renewalHistory: initialRenewalHistory,
             history: [{
@@ -1805,7 +1804,7 @@ const AdminPanel: React.FC = () => {
             try {
                 await deleteDoc(doc(db, 'clients', id));
                 setMessage({ text: `Клиентът "${name}" бе изтрит постоянно.`, type: 'success' });
-                const cardNum = CARDS_MAPPING[id] || '';
+                const cardNum = clients.find(c => c.id === id)?.cardNumber || '';
                 const nameWithCard = cardNum ? `${name} (Карта № ${cardNum})` : name;
                 await logGlobalActivity('Изтриване на клиент', nameWithCard, `Клиентът "${name}" (ID: ${id}) беше изтрит постоянно.`);
                 if (selectedClient?.id === id) {
