@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import {
     Settings as SettingsIcon, Route as RouteIcon, Plus, Trash2, Save,
-    CalendarRange, MapPin, X, Check, AlertTriangle, Loader2,
+    CalendarRange, MapPin, X, Check, AlertTriangle, Loader2, Wand2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { doc, deleteDoc, setDoc } from '../tenant/db';
+import { collection, doc, deleteDoc, getDocs, setDoc } from '../tenant/db';
 import { db } from '../firebase';
 import {
     ALL_PERIODS, DEFAULT_CARD_TYPES, emptyRoute, useCompanySettings, useRoutes,
@@ -77,6 +77,50 @@ const Settings: React.FC = () => {
             setMessage({ text: (e as { message?: string }).message || 'Неуспешен запис.', ok: false });
         } finally {
             setSavingSettings(false);
+        }
+    };
+
+    // Clients registered before lines were configurable carry their route as
+    // plain text. Those names are the company's real lines, so offer to create
+    // them rather than making someone retype what the data already knows —
+    // until a line exists, the clients on it are counted nowhere.
+    const [importing, setImporting] = useState(false);
+    const importUsedRoutes = async () => {
+        setImporting(true);
+        setMessage(null);
+        try {
+            const snap = await getDocs(collection(db, 'clients'));
+            const known = new Set(routes.map(r => r.name));
+            const found = new Set<string>();
+            snap.forEach(d => {
+                const data = d.data() as { route?: string; routes?: string[] };
+                const names = [data.route, ...(data.routes || [])];
+                names.forEach(n => {
+                    const name = (n || '').trim();
+                    if (name && !known.has(name)) found.add(name);
+                });
+            });
+
+            if (found.size === 0) {
+                setMessage({ text: 'Няма линии за добавяне — всички вече са въведени.', ok: true });
+                return;
+            }
+
+            // Names only. The stops and the fares are the company's to fill in;
+            // inventing prices here would put numbers nobody agreed to on a card.
+            await Promise.all([...found].map(name =>
+                setDoc(doc(db, 'routes', name.replace(/[/#?\[\]]/g, '-').slice(0, 120)), {
+                    ...emptyRoute(), name,
+                })
+            ));
+            setMessage({
+                text: `Добавени ${found.size} линии от съществуващите клиенти. Въведете спирките и цените за всяка.`,
+                ok: true,
+            });
+        } catch (e) {
+            setMessage({ text: `Неуспешно откриване: ${(e as Error).message}`, ok: false });
+        } finally {
+            setImporting(false);
         }
     };
 
@@ -210,17 +254,33 @@ const Settings: React.FC = () => {
                     <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <RouteIcon size={19} color="var(--primary-color)" /> Линии ({routes.length})
                     </h2>
-                    <button
-                        onClick={() => setEditing({ id: '', ...emptyRoute() })}
-                        style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '0.45rem',
-                            padding: '0.6rem 1.1rem', borderRadius: '11px', cursor: 'pointer',
-                            background: 'rgba(0,200,83,0.12)', border: '1px solid rgba(0,200,83,0.35)',
-                            color: '#00c853', fontWeight: 700, fontSize: '0.88rem',
-                        }}
-                    >
-                        <Plus size={15} /> Нова линия
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button
+                            onClick={importUsedRoutes}
+                            disabled={importing}
+                            title="Създава линии по имената, с които вече са записани клиентите"
+                            style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '0.45rem',
+                                padding: '0.6rem 1.1rem', borderRadius: '11px',
+                                cursor: importing ? 'wait' : 'pointer',
+                                background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)',
+                                color: 'var(--text-secondary)', fontWeight: 700, fontSize: '0.88rem',
+                            }}
+                        >
+                            <Wand2 size={15} /> {importing ? 'Търсене…' : 'Открий от клиентите'}
+                        </button>
+                        <button
+                            onClick={() => setEditing({ id: '', ...emptyRoute() })}
+                            style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '0.45rem',
+                                padding: '0.6rem 1.1rem', borderRadius: '11px', cursor: 'pointer',
+                                background: 'rgba(0,200,83,0.12)', border: '1px solid rgba(0,200,83,0.35)',
+                                color: '#00c853', fontWeight: 700, fontSize: '0.88rem',
+                            }}
+                        >
+                            <Plus size={15} /> Нова линия
+                        </button>
+                    </div>
                 </div>
 
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginTop: 0 }}>
