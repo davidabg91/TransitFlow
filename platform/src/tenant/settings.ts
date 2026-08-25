@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { collection, doc, getActiveTenant, getDoc, onSnapshot, orderBy, query } from './db';
+import { collection, doc, getActiveTenant, onSnapshot, orderBy, query } from './db';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 
@@ -182,17 +182,23 @@ export const useCompanySettings = (): CompanySettings => {
     });
 
     useEffect(() => {
-        if (!tenantId) return;
-        getDoc(doc(db, 'settings', 'general'))
-            .then(snap => {
-                const d = snap.exists() ? snap.data() || {} : {};
+        if (!tenantId) { setSettings(s => ({ ...s, loading: false })); return; }
+        // Live rather than fetched once: an admin who enables a new period in
+        // Настройки should see it in the issuing forms straight away, instead of
+        // changing a setting that appears to do nothing until a reload.
+        const unsub = onSnapshot(
+            doc(db, 'settings', 'general'),
+            snap => {
+                const d = (snap.exists() ? snap.data() : {}) || {};
                 setSettings({
                     periods: Array.isArray(d.periods) && d.periods.length ? d.periods : DEFAULT_PERIODS,
                     cardTypes: Array.isArray(d.cardTypes) && d.cardTypes.length ? d.cardTypes : DEFAULT_CARD_TYPES,
                     loading: false,
                 });
-            })
-            .catch(() => setSettings(s => ({ ...s, loading: false })));
+            },
+            () => setSettings(s => ({ ...s, loading: false }))
+        );
+        return () => unsub();
     }, [tenantId]);
 
     return settings;
@@ -234,6 +240,41 @@ export const periodRange = (startIso: string, period: PeriodId, customEndIso?: s
  * those fall back to matching the calendar month — otherwise every card issued
  * so far would read as expired.
  */
+/**
+ * Which period a subscription was sold as, worked out from its span.
+ *
+ * A passenger's card carries the dates it runs for but not the name of the
+ * product, and their own page needs the name to price a renewal. Spans are
+ * matched to the nearest period offered; anything unusual is date-to-date.
+ */
+export const periodFromSpan = (from?: string, to?: string): PeriodId => {
+    if (!from || !to) return 'month';
+    const days = Math.round(
+        (new Date(to).getTime() - new Date(from).getTime()) / 86400000
+    ) + 1;
+    if (!isFinite(days) || days <= 0) return 'month';
+    const named = ALL_PERIODS.filter(p => p.days !== null);
+    const nearest = named.reduce((best, p) =>
+        Math.abs((p.days as number) - days) < Math.abs((best.days as number) - days) ? p : best
+    );
+    // Within three days of a named period, call it that period; a fortnight sold
+    // on the 1st and one sold on the 16th are the same product.
+    return Math.abs((nearest.days as number) - days) <= 3 ? nearest.id : 'custom';
+};
+
+export const coversMonth = (
+    entry: { month?: string; from?: string; to?: string },
+    monthIso: string
+): boolean => {
+    // A quarter sold in September is live through December, so it covers four
+    // months even though it is booked into one. Revenue still belongs to the
+    // month it was taken in — that is a different question, asked elsewhere.
+    if (entry.from && entry.to) {
+        return entry.from.slice(0, 7) <= monthIso && monthIso <= entry.to.slice(0, 7);
+    }
+    return !!entry.month && entry.month === monthIso;
+};
+
 export const coversDate = (
     entry: { month?: string; from?: string; to?: string },
     dayIso: string

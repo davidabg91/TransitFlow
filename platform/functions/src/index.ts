@@ -517,6 +517,22 @@ const UNPAID_ALERT_THROTTLE_MS = 15 * 60 * 1000;
  * subscription for that month, so they can go and check the bus. Throttled per
  * card so frequent scans do not flood.
  */
+/**
+ * Does a subscription cover this day?
+ *
+ * Subscriptions sold by date carry the span they run for; ones sold by the
+ * calendar month carry only the month, and are judged on it exactly as before.
+ * This mirrors coversDate() on the client — the two must agree, or the terminal
+ * and the alert disagree about the same card.
+ */
+const covers = (
+    r: { month?: string; from?: string; to?: string },
+    dayIso: string
+): boolean => {
+    if (r?.from && r?.to) return dayIso >= r.from && dayIso <= r.to;
+    return !!r?.month && r.month === dayIso.slice(0, 7);
+};
+
 export const alertUnpaidScan = fn.firestore
     .document("tenants/{tenantId}/clients/{clientId}/scans/{scanId}")
     .onCreate(async (snap, context) => {
@@ -532,12 +548,14 @@ export const alertUnpaidScan = fn.firestore
         if (!clientSnap.exists) return;
         const client = clientSnap.data() || {};
 
-        // Mirrors the validity check on the terminal: is there a payment for the
-        // month of the scan, and is the card still active. Service cards carry a
-        // record for every month, so they read as valid.
-        const month = at.slice(0, 7);
+        // Mirrors the validity check on the terminal: is the card covered on the
+        // day of the scan, and is it still active. Service cards carry a record
+        // for every month, so they read as valid.
+        const day = at.slice(0, 10);
         const renewalHistory = Array.isArray(client.renewalHistory) ? client.renewalHistory : [];
-        const hasPaid = renewalHistory.some((rh: { month?: string }) => rh && rh.month === month);
+        const hasPaid = renewalHistory.some(
+            (rh: { month?: string; from?: string; to?: string }) => rh && covers(rh, day)
+        );
         const isCanceled = client.isCanceled === true;
         if (hasPaid && !isCanceled) return;
 

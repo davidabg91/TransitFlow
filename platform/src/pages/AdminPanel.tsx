@@ -39,7 +39,7 @@ import {
 } from '../tenant/db';
 import { useAuth } from '../context/AuthContext';
 import { useRoutePricing } from '../tenant/settings';
-import { coversDate } from '../tenant/settings';
+import { coversDate, coversMonth } from '../tenant/settings';
 import { localToday } from '../components/PeriodPicker';
 import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanStartDay } from '../components/PeriodPicker';
 import type { PeriodChoice } from '../components/PeriodPicker';
@@ -848,7 +848,7 @@ const AdminPanel: React.FC = () => {
 
     const getClientStatusForMonth = (client: Client, month: string) => {
         if (client.isCanceled) return 'Анулиран';
-        const hasPaymentForMonth = (client.renewalHistory || []).some(rh => rh.month === month);
+        const hasPaymentForMonth = (client.renewalHistory || []).some(rh => coversMonth(rh, month));
         return hasPaymentForMonth ? 'Платен' : 'Неплатен';
     };
 
@@ -4702,8 +4702,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                 const unpaid = (unpaidScansRaw || []).map(s => {
                                     const client = clientMap.get(s.clientId);
                                     if (!client) return { ...s, name: 'Изтрит профил', cardNumber: '', reason: 'Непознат/изтрит профил' };
-                                    const month = s.at.slice(0, 7);
-                                    const hasPayment = (client.renewalHistory || []).some(rh => rh.month === month);
+                                    const hasPayment = (client.renewalHistory || []).some(rh => coversDate(rh, s.at.slice(0, 10)));
                                     if (hasPayment && !client.isCanceled) return null;
                                     return {
                                         ...s,

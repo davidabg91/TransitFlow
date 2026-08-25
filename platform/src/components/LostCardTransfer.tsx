@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, doc, writeBatch, arrayUnion } from '../tenant/db';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
+import { coversMonth } from '../tenant/settings';
 import { uploadClientPhoto } from '../utils/photoStorage';
 import { LOST_CARD_FINE } from '../data/lostCard';
 import { useCardResolver } from '../tenant/cards';
@@ -105,7 +106,10 @@ const LostCardTransfer: React.FC<Props> = ({ newCardId, newCardUid = '', onClose
             .slice(0, 25);
     }, [clients, queryText, newCardId]);
 
-    const hasSubForMonth = !!selected?.renewalHistory?.some(r => r.month === month);
+    // The replacement carries whatever subscription the lost card had running,
+    // including one sold by date rather than by month.
+    const activeSub = selected?.renewalHistory?.find(r => coversMonth(r, month));
+    const hasSubForMonth = !!activeSub;
 
     const handleTransfer = async () => {
         if (!selected || !currentUser) return;
@@ -142,7 +146,7 @@ const LostCardTransfer: React.FC<Props> = ({ newCardId, newCardUid = '', onClose
                 school: selected.school || '',
                 municipality: selected.municipality || '',
                 cardNumber: newCardNumber,
-                expiryDate: hasSubForMonth ? month : '',
+                expiryDate: activeSub ? (activeSub.to ? activeSub.to.slice(0, 7) : month) : '',
                 photo: photoValue,
                 photoThumb: selected.photoThumb || '',
                 createdAt: nowIso,

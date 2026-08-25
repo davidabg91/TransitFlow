@@ -9,7 +9,7 @@ import { collection, collectionGroup, query, where, orderBy, limit, onSnapshot, 
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useRouteNames } from '../tenant/settings';
-import { coversDate } from '../tenant/settings';
+import { coversDate, coversMonth } from '../tenant/settings';
 import { localToday } from '../components/PeriodPicker';
 import Card from '../components/Card';
 import AdminAlertsButton from '../components/AdminAlertsButton';
@@ -279,7 +279,7 @@ const SystemAdminPanel: React.FC = () => {
 
     const activeClientsCount = isAll
         ? clients.filter(c => !c.isCanceled && !isExpired(c.expiryDate, c)).length
-        : clients.filter(c => (c.renewalHistory || []).some(r => r.month === statsMonth)).length;
+        : clients.filter(c => (c.renewalHistory || []).some(r => coversMonth(r, statsMonth))).length;
 
     const totalNonCanceled = clients.filter(c => !c.isCanceled).length;
     const paymentRate = totalNonCanceled > 0 ? Math.round((activeClientsCount / totalNonCanceled) * 100) : 0;
@@ -317,7 +317,7 @@ const SystemAdminPanel: React.FC = () => {
     const scannedToday = clients.filter(c => c.lastScanAt?.startsWith(todayIso)).length;
 
     // Renewals & Pending
-    const renewedCount = clients.filter(c => (c.renewalHistory || []).some(r => r.month === statsMonth)).length;
+    const renewedCount = clients.filter(c => (c.renewalHistory || []).some(r => coversMonth(r, statsMonth))).length;
     const pendingTotal = totalNonCanceled - renewedCount;
 
     // Route Stats
@@ -331,7 +331,7 @@ const SystemAdminPanel: React.FC = () => {
             }, 0);
         const count = isAll
             ? routeClients.length
-            : routeClients.filter(c => (c.renewalHistory || []).some(r => r.month === statsMonth)).length;
+            : routeClients.filter(c => (c.renewalHistory || []).some(r => coversMonth(r, statsMonth))).length;
 
         return { route, count, revenue };
     }).sort((a, b) => b.revenue - a.revenue);
