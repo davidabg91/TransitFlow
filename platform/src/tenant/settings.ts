@@ -205,6 +205,73 @@ export const useCompanySettings = (): CompanySettings => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Saying what a subscription covers
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BG_MONTHS = [
+    'ЯНУАРИ', 'ФЕВРУАРИ', 'МАРТ', 'АПРИЛ', 'МАЙ', 'ЮНИ',
+    'ЮЛИ', 'АВГУСТ', 'СЕПТЕМВРИ', 'ОКТОМВРИ', 'НОЕМВРИ', 'ДЕКЕМВРИ',
+];
+
+/** A month the way it is spoken: АВГУСТ 2026. */
+export const formatMonthBG = (monthIso?: string): string => {
+    if (!monthIso || !monthIso.includes('-')) return monthIso || '';
+    const [year, month] = monthIso.split('-');
+    return `${BG_MONTHS[parseInt(month, 10) - 1] || month} ${year}`;
+};
+
+/** A day the way it is written: 15.08.2026. */
+export const formatDayBG = (iso?: string): string => {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return d ? `${d}.${m}.${y}` : formatMonthBG(iso);
+};
+
+/**
+ * What a subscription covers, in words.
+ *
+ * A subscription sold by date says its dates; one sold by the calendar month
+ * says its month. Showing only the month for a subscription that runs from the
+ * 15th to the 14th tells the passenger nothing they can act on.
+ */
+export const formatSpanBG = (entry?: { month?: string; from?: string; to?: string }): string => {
+    if (!entry) return '';
+    if (entry.from && entry.to) return `${formatDayBG(entry.from)} – ${formatDayBG(entry.to)}`;
+    return formatMonthBG(entry.month);
+};
+
+/** The last day a subscription is valid — its end date, or the end of its month. */
+export const spanEndDay = (entry?: { month?: string; from?: string; to?: string }): string => {
+    if (!entry) return '';
+    if (entry.to) return entry.to;
+    if (!entry.month) return '';
+    const [y, m] = entry.month.split('-').map(Number);
+    const last = new Date(y, m, 0).getDate();
+    return `${entry.month}-${String(last).padStart(2, '0')}`;
+};
+
+/** Sorting key that puts a dated subscription in its true place in the list. */
+export const spanSortKey = (entry: { month?: string; from?: string }): string =>
+    entry.from || (entry.month ? `${entry.month}-01` : '');
+
+/**
+ * The subscription in force on a day; failing that, the one that runs latest.
+ *
+ * The panels used to reach for the last entry in the array, which is the order
+ * it was written in rather than the order it applies in.
+ */
+export const currentEntry = <T extends { month?: string; from?: string; to?: string }>(
+    history: T[],
+    dayIso: string
+): T | null => {
+    if (!history || history.length === 0) return null;
+    const live = history.filter(e => coversDate(e, dayIso));
+    const pick = (list: T[]) =>
+        [...list].sort((a, b) => spanEndDay(b).localeCompare(spanEndDay(a)))[0] || null;
+    return pick(live.length ? live : history);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Working out a subscription's dates
 // ─────────────────────────────────────────────────────────────────────────────
 

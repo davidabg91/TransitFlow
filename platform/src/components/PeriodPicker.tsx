@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ALL_PERIODS, periodRange, useCompanySettings } from '../tenant/settings';
 import type { PeriodId } from '../tenant/settings';
 
@@ -97,6 +97,21 @@ const PeriodPicker: React.FC<Props> = ({ month, onMonth, choice, onChoice, input
         return <input type="month" value={month} onChange={e => onMonth(e.target.value)} style={base} />;
     }
 
+    // A company that does not sell months would otherwise sit on a choice of
+    // 'month' that matches no option: the select shows its first entry while the
+    // state still says month, and the subscription is written as a plain month
+    // nobody offered. Settle on something the company actually sells.
+    useEffect(() => {
+        if (offered.length === 0) return;
+        if (offered.some(p => p.id === choice.period)) return;
+        const first = offered[0];
+        onChoice(
+            first.id === 'month'
+                ? { period: 'month' }
+                : { period: first.id, from: choice.from || `${month}-01`, to: choice.to }
+        );
+    }, [offered.map(p => p.id).join(','), choice.period]);
+
     const pick = (period: PeriodId) => {
         if (period === 'month') {
             onChoice({ period });
@@ -147,6 +162,12 @@ const PeriodPicker: React.FC<Props> = ({ month, onMonth, choice, onChoice, input
             {range && choice.period !== 'month' && (
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                     Валиден {fmt(range.from)} – {fmt(range.to)}
+                </div>
+            )}
+
+            {choice.period === 'custom' && (!choice.from || !choice.to) && (
+                <div style={{ fontSize: '0.75rem', color: '#ffab00', fontWeight: 600 }}>
+                    Изберете и двете дати, иначе абонаментът се записва като цял месец.
                 </div>
             )}
         </div>

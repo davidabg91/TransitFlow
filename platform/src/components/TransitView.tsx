@@ -5,7 +5,7 @@ import { CheckCircle, XCircle, RefreshCw, Settings, UserPlus, Zap, AlertTriangle
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRouteNames } from '../tenant/settings';
-import { coversDate } from '../tenant/settings';
+import { coversDate, currentEntry, formatDayBG, formatSpanBG } from '../tenant/settings';
 import { localToday } from './PeriodPicker';
 import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields } from './PeriodPicker';
 import type { PeriodChoice } from './PeriodPicker';
@@ -501,9 +501,8 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
     const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
     const renewalHistory = client?.renewalHistory || [];
     const hasPaidCurrentMonth = renewalHistory.some((rh) => coversDate(rh, localToday()));
-    const lastPaidMonth = renewalHistory.length > 0 
-        ? [...renewalHistory].sort((a, b) => b.month.localeCompare(a.month))[0].month 
-        : currentMonthStr;
+    const liveSub = currentEntry(renewalHistory, localToday());
+    const lastPaidMonth = liveSub?.month || currentMonthStr;
     const isValid = client && !client.isCanceled && hasPaidCurrentMonth && !isCloned;
     const themeColor = offlineNoData ? '#29b6f6' : unregistered ? '#ff9100' : (isCloned ? '#ff1744' : (isValid ? '#00e676' : '#ff1744'));
 
@@ -828,11 +827,18 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
 
                                     <div style={{ alignSelf: 'stretch', marginLeft: '-2rem', marginRight: '-2rem', marginBottom: '-1.25rem', background: isValid ? 'rgba(0,230,118,0.1)' : 'rgba(255,23,68,0.15)', padding: '1.3rem 1.25rem', borderTop: `1px solid ${isValid ? 'rgba(0,230,118,0.2)' : 'rgba(255,23,68,0.3)'}`, textAlign: 'center' }}>
                                         <div style={{ color: isValid ? 'rgba(255,255,255,0.5)' : '#ff5252', fontSize: '0.9rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px', whiteSpace: 'nowrap', marginBottom: '8px' }}>
-                                            {isValid ? 'ВАЛИДНОСТ ДО КРАЯ НА' : 'НЯМА ВАЛИДЕН АБОНАМЕНТ ЗА'}
+                                            {isValid ? (liveSub?.to ? 'ВАЛИДНОСТ ДО' : 'ВАЛИДНОСТ ДО КРАЯ НА') : 'НЯМА ВАЛИДЕН АБОНАМЕНТ ЗА'}
                                         </div>
-                                        <div style={{ fontSize: '2.4rem', fontWeight: 900, color: isValid ? '#fff' : '#ff5252', letterSpacing: '1px' }}>
-                                            {formatBGMonth(isValid ? lastPaidMonth : currentMonthStr)}
+                                        <div style={{ fontSize: isValid && liveSub?.to ? '2rem' : '2.4rem', fontWeight: 900, color: isValid ? '#fff' : '#ff5252', letterSpacing: '1px' }}>
+                                            {isValid && liveSub?.to
+                                                ? formatDayBG(liveSub.to)
+                                                : formatBGMonth(isValid ? lastPaidMonth : currentMonthStr)}
                                         </div>
+                                        {isValid && liveSub?.from && liveSub?.to && (
+                                            <div style={{ marginTop: '6px', fontSize: '0.8rem', fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '1px' }}>
+                                                ПЛАТЕН ЗА {formatSpanBG(liveSub)}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </>
@@ -1085,7 +1091,7 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
                 clientName={client?.name || 'Клиент'}
                 clientRoute={client?.route}
                 cardNumber={client?.cardNumber || ''}
-                lastPaidMonth={client?.renewalHistory && client.renewalHistory.length > 0 ? formatBGMonth(client.renewalHistory[client.renewalHistory.length - 1].month) : undefined}
+                lastPaidMonth={liveSub ? formatSpanBG(liveSub) : undefined}
                 isPaidCurrentMonth={client?.renewalHistory ? client.renewalHistory.some(rh => coversDate(rh, localToday())) : false}
                 onStayAndRenew={handleStayAndRenew}
                 onContinueWithoutChange={handleContinueWithoutChange}

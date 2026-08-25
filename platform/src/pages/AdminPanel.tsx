@@ -39,7 +39,7 @@ import {
 } from '../tenant/db';
 import { useAuth } from '../context/AuthContext';
 import { useRoutePricing } from '../tenant/settings';
-import { coversDate, coversMonth } from '../tenant/settings';
+import { coversDate, coversMonth, formatSpanBG, spanEndDay, spanSortKey } from '../tenant/settings';
 import { localToday } from '../components/PeriodPicker';
 import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanStartDay } from '../components/PeriodPicker';
 import type { PeriodChoice } from '../components/PeriodPicker';
@@ -852,6 +852,13 @@ const AdminPanel: React.FC = () => {
         return hasPaymentForMonth ? 'Платен' : 'Неплатен';
     };
 
+    // The subscription covering the filtered month, when it is one sold by date.
+    // Month-long subscriptions say nothing here — the month column already does.
+    const getDatedSpan = (client: Client, month: string) => {
+        const e = (client.renewalHistory || []).find(rh => rh.from && rh.to && coversMonth(rh, month));
+        return e ? formatSpanBG(e) : null;
+    };
+
     const getMonthPayment = (client: Client, month: string) => {
         const payment = (client.renewalHistory || []).find(rh => rh.month === month);
         return payment ? payment.amount : 0;
@@ -1182,7 +1189,7 @@ const AdminPanel: React.FC = () => {
             : [{ date: nowIso, amount: effectiveAmount, ...spanFields(expiryDate, regChoice), route: selectedRoute, ...renewalPaymentFields }];
         const initialDetails = isServiceCard
             ? `Служебна карта за цялата ${serviceYear} г. (без плащане) | Причина: ${serviceReason.trim()}`
-            : `Първоначално плащане: ${effectiveAmount.toFixed(2)} € за месец ${expiryDate} | Начин на плащане: ${paymentLabel}`;
+            : `Първоначално плащане: ${effectiveAmount.toFixed(2)} € за период ${formatSpanBG(spanFields(expiryDate, regChoice))} | Начин на плащане: ${paymentLabel}`;
 
         const newClient: Client = {
             id: generatedId,
@@ -1295,7 +1302,7 @@ const AdminPanel: React.FC = () => {
         // Prevent a duplicate payment: this direction is already paid for this month.
         if (isDirectionPaid(selectedClient, newRoute, spanStartDay(newMonth, newChoice))) {
             setModalMessage({
-                text: `Вече има платен абонамент за направление „${newRoute}" за месец ${newMonth}. Второ плащане за същия месец не е разрешено.`,
+                text: `Вече има платен абонамент за направление „${newRoute}" за период ${formatSpanBG(spanFields(newMonth, newChoice))}. Второ плащане за същия месец не е разрешено.`,
                 type: 'error'
             });
             return;
@@ -1334,7 +1341,7 @@ const AdminPanel: React.FC = () => {
                 history: arrayUnion({
                     date: isoNow,
                     action: isNewDir ? 'Добавяне на направление' : 'Подновяване',
-                    details: `Направление ${newRoute} — месец ${newMonth}. Сума: ${effectiveNewAmount.toFixed(2)} € | Начин на плащане: ${renewPaymentLabel}`,
+                    details: `Направление ${newRoute} — период ${formatSpanBG(spanFields(newMonth, newChoice))}. Сума: ${effectiveNewAmount.toFixed(2)} € | Начин на плащане: ${renewPaymentLabel}`,
                     amount: effectiveNewAmount,
                     performedBy: currentUser?.username || 'Админ'
                 })
@@ -1397,9 +1404,9 @@ const AdminPanel: React.FC = () => {
                         isCanceled: false,
                         amountPaid: increment(amount),
                         renewalHistory: arrayUnion({ date: isoNow, amount, ...spanFields(bulkMonth, bulkChoice), route: primaryDir, paymentMethod: bulkPaymentMethod }),
-                        history: arrayUnion({ date: isoNow, action: 'Групово подновяване', details: `Месец: ${bulkMonth}. Сума: ${amount.toFixed(2)} €. Курс: ${c.route} | Начин на плащане: ${bulkPaymentMethod}`, amount, performedBy: currentUser?.username || 'Админ' })
+                        history: arrayUnion({ date: isoNow, action: 'Групово подновяване', details: `Период: ${formatSpanBG(spanFields(bulkMonth, bulkChoice))}. Сума: ${amount.toFixed(2)} €. Курс: ${c.route} | Начин на плащане: ${bulkPaymentMethod}`, amount, performedBy: currentUser?.username || 'Админ' })
                     });
-                    await logGlobalActivity('Групово подновяване', nameWithCard, `Месец: ${bulkMonth}. Сума: ${amount.toFixed(2)} €. Курс: ${c.route} | Вид: ${c.cardType || 'Нормална карта'} | Начин на плащане: ${bulkPaymentMethod}`, amount);
+                    await logGlobalActivity('Групово подновяване', nameWithCard, `Период: ${formatSpanBG(spanFields(bulkMonth, bulkChoice))}. Сума: ${amount.toFixed(2)} €. Курс: ${c.route} | Вид: ${c.cardType || 'Нормална карта'} | Начин на плащане: ${bulkPaymentMethod}`, amount);
                 }
                 ok++;
             } catch (err) {
@@ -1442,7 +1449,7 @@ const AdminPanel: React.FC = () => {
 
                 let newExpiryDate = data.expiryDate;
                 if (newRenewalHistory.length > 0) {
-                    newExpiryDate = [...newRenewalHistory].sort((a, b) => b.month.localeCompare(a.month))[0].month;
+                    newExpiryDate = spanEndDay([...newRenewalHistory].sort((a, b) => spanEndDay(b).localeCompare(spanEndDay(a)))[0]).slice(0, 7);
                 }
 
                 tx.update(ref, {
@@ -1452,7 +1459,7 @@ const AdminPanel: React.FC = () => {
                     history: [...(data.history || []), {
                         date: new Date().toISOString(),
                         action: 'Изтрито плащане',
-                        details: `Изтрито плащане за месец ${entryToDelete.month} (${entryToDelete.amount} €)`,
+                        details: `Изтрито плащане за период ${formatSpanBG(entryToDelete)} (${entryToDelete.amount} €)`,
                         performedBy: currentUser?.username || 'Админ'
                     }]
                 });
@@ -1465,9 +1472,9 @@ const AdminPanel: React.FC = () => {
 
         const cardNum = getClientCardNumber(client);
         const nameWithCard = cardNum ? `${client.name} (Карта № ${cardNum})` : client.name;
-        await logGlobalActivity('Изтриване на плащане', nameWithCard, `Месец: ${entryToDelete.month} (${entryToDelete.amount} €).`, -entryToDelete.amount);
+        await logGlobalActivity('Изтриване на плащане', nameWithCard, `Период: ${formatSpanBG(entryToDelete)} (${entryToDelete.amount} €).`, -entryToDelete.amount);
         setModalMessage({ 
-            text: `Изтрито плащане за месец ${entryToDelete.month} (${entryToDelete.amount} €). Общата сума и валидността бяха преизчислени.`, 
+            text: `Изтрито плащане за период ${formatSpanBG(entryToDelete)} (${entryToDelete.amount} €). Общата сума и валидността бяха преизчислени.`, 
             type: 'success' 
         });
     };
@@ -4031,6 +4038,14 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                         }}>
                                                             {status}
                                                         </span>
+                                                        {(() => {
+                                                            const span = getDatedSpan(client, filterMonth);
+                                                            return span ? (
+                                                                <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginTop: '0.25rem', whiteSpace: 'nowrap' }}>
+                                                                    {span}
+                                                                </div>
+                                                            ) : null;
+                                                        })()}
                                                     </td>
                                                     <td style={{ display: 'flex', gap: '0.5rem' }}>
                                                         <button
@@ -4138,13 +4153,23 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                     );
                                                 })()}
                                             </div>
-                                            <span style={{
-                                                padding: '0.2rem 0.6rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700,
-                                                background: status === 'Анулиран' || status === 'Неплатен' ? 'rgba(255,0,0,0.1)' : 'var(--success-bg)',
-                                                color: status === 'Анулиран' || status === 'Неплатен' ? '#ff4040' : 'var(--success-color)'
-                                            }}>
-                                                {status}
-                                            </span>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <span style={{
+                                                    padding: '0.2rem 0.6rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700,
+                                                    background: status === 'Анулиран' || status === 'Неплатен' ? 'rgba(255,0,0,0.1)' : 'var(--success-bg)',
+                                                    color: status === 'Анулиран' || status === 'Неплатен' ? '#ff4040' : 'var(--success-color)'
+                                                }}>
+                                                    {status}
+                                                </span>
+                                                {(() => {
+                                                    const span = getDatedSpan(client, filterMonth);
+                                                    return span ? (
+                                                        <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', marginTop: '0.2rem', whiteSpace: 'nowrap' }}>
+                                                            {span}
+                                                        </div>
+                                                    ) : null;
+                                                })()}
+                                            </div>
                                         </div>
 
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '0.5rem' }}>
@@ -5538,7 +5563,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                     <DollarSign size={18} /> История на Плащанията
                                                 </h4>
                                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
-                                                    {[...selectedClient.renewalHistory].sort((a, b) => b.month.localeCompare(a.month)).map((rh, idx) => (
+                                                    {[...selectedClient.renewalHistory].sort((a, b) => spanSortKey(b).localeCompare(spanSortKey(a))).map((rh, idx) => (
                                                         <div key={idx} style={{ 
                                                             position: 'relative',
                                                             display: 'flex', 
@@ -5549,7 +5574,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                             border: '1px solid var(--surface-border)',
                                                             transition: 'all 0.2s ease'
                                                         }}>
-                                                            <div style={{ fontWeight: 800, fontSize: '0.9rem' }}>{rh.month}</div>
+                                                            <div style={{ fontWeight: 800, fontSize: rh.from && rh.to ? '0.78rem' : '0.9rem' }}>{formatSpanBG(rh)}</div>
                                                             <div style={{ fontSize: '0.8rem', color: 'var(--success-color)', fontWeight: 700 }}>{rh.amount} €</div>
                                                             
                                                             {isAdmin && (

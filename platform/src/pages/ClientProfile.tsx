@@ -6,7 +6,9 @@ import { db } from '../firebase';
 import { doc, onSnapshot, setDoc, updateDoc, increment, arrayUnion, addDoc, collection } from '../tenant/db';
 import LoadingScreen from '../components/LoadingScreen';
 import { useRoutePricing } from '../tenant/settings';
-import { ALL_PERIODS, coversDate, periodFromSpan } from '../tenant/settings';
+import {
+    ALL_PERIODS, coversDate, currentEntry, formatDayBG, formatSpanBG, periodFromSpan, spanSortKey,
+} from '../tenant/settings';
 import CardBrands from '../components/CardBrands';
 import { localToday } from '../components/PeriodPicker';
 import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanStartDay } from '../components/PeriodPicker';
@@ -176,17 +178,6 @@ const compressImage = (dataUrl: string, maxWidth: number, maxHeight: number, qua
             resolve(canvas.toDataURL('image/jpeg', quality));
         };
     });
-};
-
-const formatBGMonth = (monthStr: string) => {
-    if (!monthStr || !monthStr.includes('-')) return monthStr;
-    const [year, month] = monthStr.split('-');
-    const monthsBG: Record<string, string> = {
-        '01': 'ЯНУАРИ', '02': 'ФЕВРУАРИ', '03': 'МАРТ', '04': 'АПРИЛ',
-        '05': 'МАЙ', '06': 'ЮНИ', '07': 'ЮЛИ', '08': 'АВГУСТ',
-        '09': 'СЕПТЕМВРИ', '10': 'ОКТОМВРИ', '11': 'НОЕМВРИ', '12': 'ДЕКЕМВРИ'
-    };
-    return `${monthsBG[month] || month} ${year}`;
 };
 
 const ClientProfile: React.FC = () => {
@@ -1469,9 +1460,10 @@ const ClientProfile: React.FC = () => {
     const isCanceled = client?.isCanceled;
     const renewalHistory = client?.renewalHistory || [];
     const hasPaidCurrentMonth = renewalHistory.some(rh => coversDate(rh, localToday()));
-    const lastPaidMonth = renewalHistory.length > 0 
-        ? [...renewalHistory].sort((a, b) => b.month.localeCompare(a.month))[0].month 
-        : currentMonthStr;
+    // The subscription that actually applies today, not whichever entry happens
+    // to sit last in the array.
+    const liveSub = currentEntry(renewalHistory, localToday());
+    const lastPaidMonth = liveSub?.month || currentMonthStr;
     const isActive = !isCanceled && hasPaidCurrentMonth;
     const themeColor = isActive ? '#00e676' : '#ff1744';
 
@@ -1680,9 +1672,16 @@ const ClientProfile: React.FC = () => {
                     <div style={{ color: isActive ? 'rgba(255,255,255,0.6)' : '#ff5252', fontSize: '0.9rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '4px', marginBottom: '8px' }}>
                         {isActive ? 'ВАЛИДЕН АБОНАМЕНТ ДО' : 'НЯМА ВАЛИДЕН АБОНАМЕНТ ЗА'}
                     </div>
-                    <div style={{ fontSize: '2.4rem', fontWeight: 900, color: isActive ? '#fff' : '#ff5252', letterSpacing: '2px', lineHeight: 1 }}>
-                        {getFormattedMonth(isActive ? lastPaidMonth : currentMonthStr)}
+                    <div style={{ fontSize: isActive && liveSub?.to ? '2rem' : '2.4rem', fontWeight: 900, color: isActive ? '#fff' : '#ff5252', letterSpacing: '2px', lineHeight: 1 }}>
+                        {isActive && liveSub?.to
+                            ? formatDayBG(liveSub.to)
+                            : getFormattedMonth(isActive ? lastPaidMonth : currentMonthStr)}
                     </div>
+                    {isActive && liveSub?.from && liveSub?.to && (
+                        <div style={{ marginTop: '10px', fontSize: '0.85rem', fontWeight: 700, color: 'rgba(255,255,255,0.55)', letterSpacing: '1px' }}>
+                            ПЛАТЕН ЗА {formatSpanBG(liveSub)}
+                        </div>
+                    )}
                 </div>
 
                 {/* Last-scan info (previous scan, excluding this one) — visible only to
@@ -1937,7 +1936,7 @@ const ClientProfile: React.FC = () => {
                         <Clock size={14} /> ПОСЛЕДНИ ПЛАЩАНИЯ
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                        {[...(client?.renewalHistory || [])].sort((a, b) => b.month.localeCompare(a.month)).slice(0, 3).map((rh, index) => (
+                        {[...(client?.renewalHistory || [])].sort((a, b) => spanSortKey(b).localeCompare(spanSortKey(a))).slice(0, 3).map((rh, index) => (
                             <div key={index} style={{ 
                                 display: 'flex', 
                                 justifyContent: 'space-between', 
@@ -1947,7 +1946,7 @@ const ClientProfile: React.FC = () => {
                                 borderRadius: '14px',
                                 border: '1px solid rgba(255,255,255,0.02)'
                             }}>
-                                <span style={{ fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>{getFormattedMonth(rh.month)}</span>
+                                <span style={{ fontWeight: 700, color: 'rgba(255,255,255,0.7)', fontSize: rh.from && rh.to ? '0.85rem' : undefined }}>{formatSpanBG(rh)}</span>
                                 <span style={{ fontWeight: 900, color: '#00e676' }}>{rh.amount} €</span>
                             </div>
                         ))}
@@ -2274,7 +2273,7 @@ const ClientProfile: React.FC = () => {
                 clientName={client?.name || 'Клиент'}
                 clientRoute={client?.route}
                 cardNumber={client?.cardNumber || ''}
-                lastPaidMonth={lastPaidMonth ? formatBGMonth(lastPaidMonth) : undefined}
+                lastPaidMonth={liveSub ? formatSpanBG(liveSub) : undefined}
                 isPaidCurrentMonth={hasPaidCurrentMonth}
                 onStayAndRenew={handleStayAndRenew}
                 onContinueWithoutChange={handleContinueWithoutChange}
