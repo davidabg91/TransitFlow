@@ -203,17 +203,25 @@ const Home: React.FC = () => {
 
             {/* ── Card lookup: what the desk actually does all day ───────── */}
             <section style={{
-                position: 'relative', overflow: 'hidden',
+                // Not `overflow: hidden`: that was here to keep the corner glow
+                // inside the rounded edge, and it cropped the suggestions to the
+                // panel as well. The glow clips itself now. The z-index keeps the
+                // open list above the shortcuts below.
+                position: 'relative', zIndex: 5,
                 borderRadius: '26px', padding: 'clamp(1.5rem, 3vw, 2.25rem)',
                 marginBottom: '2.5rem',
                 background: 'linear-gradient(135deg, rgba(0,173,181,0.13), rgba(0,173,181,0.03) 55%, transparent)',
                 border: '1px solid rgba(0,173,181,0.28)',
             }}>
                 <div style={{
-                    position: 'absolute', right: '-60px', top: '-60px', width: '260px', height: '260px',
-                    background: 'radial-gradient(circle, rgba(0,173,181,0.18), transparent 70%)',
-                    pointerEvents: 'none',
-                }} />
+                    position: 'absolute', inset: 0, borderRadius: '26px',
+                    overflow: 'hidden', pointerEvents: 'none',
+                }}>
+                    <div style={{
+                        position: 'absolute', right: '-60px', top: '-60px', width: '260px', height: '260px',
+                        background: 'radial-gradient(circle, rgba(0,173,181,0.18), transparent 70%)',
+                    }} />
+                </div>
 
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.5rem' }}>
                     <Nfc size={22} color="var(--primary-color)" />
