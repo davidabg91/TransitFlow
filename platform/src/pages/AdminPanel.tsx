@@ -41,7 +41,7 @@ import { useAuth } from '../context/AuthContext';
 import { useRoutePricing } from '../tenant/settings';
 import { coversDate, coversMonth, formatSpanBG, spanEndDay, spanSortKey } from '../tenant/settings';
 import { localToday } from '../components/PeriodPicker';
-import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanStartDay } from '../components/PeriodPicker';
+import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanProblem, spanStartDay } from '../components/PeriodPicker';
 import type { PeriodChoice } from '../components/PeriodPicker';
 import { uploadClientPhoto } from '../utils/photoStorage';
 import PaymentMethodSelector from '../components/PaymentMethodSelector';
@@ -481,7 +481,7 @@ const AdminPanel: React.FC = () => {
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [showActionModal, setShowActionModal] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
-    const [newMonth, setNewMonth] = useState('');
+    const [newMonth, setNewMonth] = useState(getDefaultExpiryMonth());
     const [newChoice, setNewChoice] = useState<PeriodChoice>(defaultChoice());
     const [newServiceYear, setNewServiceYear] = useState(new Date().getFullYear());
     const [newAmount, setNewAmount] = useState('');
@@ -1089,7 +1089,12 @@ const AdminPanel: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        if (!clientName || !selectedRoute || !expiryDate || !photoDataURL || !amountPaid) {
+        const regProblem = spanProblem(expiryDate, regChoice);
+        if (regProblem) {
+            setMessage({ text: `Моля, въведете ${regProblem} на абонамента.`, type: 'error' });
+            return;
+        }
+        if (!clientName || !selectedRoute || !photoDataURL || !amountPaid) {
             setMessage({ text: 'Моля, попълнете всички полета и направете снимка.', type: 'error' });
             return;
         }
@@ -1296,8 +1301,13 @@ const AdminPanel: React.FC = () => {
             return;
         }
 
-        if (!newMonth || !newRoute || (effectiveNewAmount <= 0 && !isServiceCard) || Number.isNaN(effectiveNewAmount)) {
-            alert(isMixedRenew ? 'Моля, въведете месец, курс и сумите за смесеното плащане.' : 'Моля, въведете валиден месец, сума и курс.');
+        const renewProblem = spanProblem(newMonth, newChoice);
+        if (renewProblem) {
+            alert(`Моля, въведете ${renewProblem} на абонамента.`);
+            return;
+        }
+        if (!newRoute || (effectiveNewAmount <= 0 && !isServiceCard) || Number.isNaN(effectiveNewAmount)) {
+            alert(isMixedRenew ? 'Моля, въведете курс и сумите за смесеното плащане.' : 'Моля, въведете валидна сума и курс.');
             return;
         }
 
@@ -1361,7 +1371,7 @@ const AdminPanel: React.FC = () => {
             text: `${isNewDir ? 'Добавено' : 'Подновено'} направление „${newRoute}" за ${newMonth}. Сума: ${effectiveNewAmount.toFixed(2)} €.`,
             type: 'success'
         });
-        setNewMonth('');
+        setNewMonth(getDefaultExpiryMonth());
         setNewAmount('');
         setNewPaymentMethod('В брой');
         setNewBankAmount('');
@@ -1373,6 +1383,13 @@ const AdminPanel: React.FC = () => {
     const bulkRenew = async () => {
         const targets = clients.filter(c => selectedClientIds.has(c.id));
         if (targets.length === 0) return;
+        // An incomplete period would be written as a plain month for the whole
+        // batch, which is a great deal harder to unpick than one card.
+        const bulkProblem = spanProblem(bulkMonth, bulkChoice);
+        if (bulkProblem) {
+            alert(`Моля, въведете ${bulkProblem} на абонамента.`);
+            return;
+        }
         setBulkProcessing(true);
         setBulkResult(null);
         let ok = 0, fail = 0, skipped = 0;

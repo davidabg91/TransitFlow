@@ -51,6 +51,33 @@ export const spanExpiryMonth = (month: string, choice?: PeriodChoice): string =>
     return f.to ? f.to.slice(0, 7) : f.month;
 };
 
+/**
+ * Is the period fully specified?
+ *
+ * The forms used to test the month input for text. That input is not on screen
+ * for a subscription sold by date, so a perfectly complete quarter failed the
+ * check — "Моля, въведете валиден месец" about a field nobody was shown.
+ *
+ * A date-to-date subscription needs both of its dates; anything else needs its
+ * start; a monthly one needs its month.
+ */
+export const spanIsComplete = (month: string, choice?: PeriodChoice): boolean => {
+    if (choice && choice.period !== 'month') {
+        if (!choice.from) return false;
+        if (choice.period === 'custom' && !choice.to) return false;
+        return !!periodRange(choice.from, choice.period, choice.to);
+    }
+    return !!month;
+};
+
+/** What is missing from the period, for the operator to act on. */
+export const spanProblem = (month: string, choice?: PeriodChoice): string | null => {
+    if (spanIsComplete(month, choice)) return null;
+    if (choice && choice.period === 'custom') return 'началната и крайната дата';
+    if (choice && choice.period !== 'month') return 'началната дата';
+    return 'месеца';
+};
+
 /** The day a subscription starts — what the duplicate-payment guard tests. */
 export const spanStartDay = (month: string, choice?: PeriodChoice): string =>
     choice?.from || `${month}-01`;

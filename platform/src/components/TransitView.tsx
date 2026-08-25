@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useRouteNames } from '../tenant/settings';
 import { coversDate, currentEntry, formatDayBG, formatSpanBG } from '../tenant/settings';
 import { localToday } from './PeriodPicker';
-import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields } from './PeriodPicker';
+import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanProblem } from './PeriodPicker';
 import type { PeriodChoice } from './PeriodPicker';
 import AdSlideshow from './AdSlideshow';
 import ClientPhoto from './ClientPhoto';
@@ -929,6 +929,13 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
                                                         : { paymentMethod: renewalPaymentMethod };
                                                     if (isMixedQR && qrAmount <= 0) {
                                                         playErrorSound();
+                                                        setIsUpdating(false);
+                                                        return;
+                                                    }
+                                                    const qrProblem = spanProblem(renewalMonth, renewChoice);
+                                                    if (qrProblem) {
+                                                        playErrorSound();
+                                                        alert(`Моля, въведете ${qrProblem} на абонамента.`);
                                                         setIsUpdating(false);
                                                         return;
                                                     }

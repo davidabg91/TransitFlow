@@ -11,7 +11,7 @@ import {
 } from '../tenant/settings';
 import CardBrands from '../components/CardBrands';
 import { localToday } from '../components/PeriodPicker';
-import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanStartDay } from '../components/PeriodPicker';
+import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanProblem, spanStartDay } from '../components/PeriodPicker';
 import type { PeriodChoice } from '../components/PeriodPicker';
 import { uploadClientPhoto } from '../utils/photoStorage';
 import ClientPhoto from '../components/ClientPhoto';
@@ -700,6 +700,12 @@ const ClientProfile: React.FC = () => {
         }
         // Teachers require an община; disabled cards require an address (like pensioners).
         const resolvedMunicipality = regMunicipality === MUNICIPALITY_CUSTOM ? regCustomMunicipality.trim() : regMunicipality;
+        const regProblem = spanProblem(regMonth, regChoice);
+        // A service card is issued for a whole year and carries no chosen period.
+        if (regProblem && regCardType !== 'Служебна карта') {
+            alert(`Моля, въведете ${regProblem} на абонамента.`);
+            return;
+        }
         if (needsMunicipality(regCardType) && !resolvedMunicipality) {
             alert('Моля, изберете Община.');
             return;
@@ -2113,13 +2119,20 @@ const ClientProfile: React.FC = () => {
                                                     setIsUpdating(false);
                                                     return;
                                                 }
+                                                const qrProblem = spanProblem(renewalMonth, renewChoice);
+                                                if (qrProblem) {
+                                                    playErrorSound();
+                                                    alert(`Моля, въведете ${qrProblem} на абонамента.`);
+                                                    setIsUpdating(false);
+                                                    return;
+                                                }
                                                 const qrDirs = getClientRoutes(client || { route: '' });
                                                 const qrAlreadyPaid = (client?.renewalHistory || []).some(rh =>
                                                     coversDate(rh, spanStartDay(renewalMonth, renewChoice)) && (rh.route ? rh.route === renewalRoute : renewalRoute === qrDirs[0])
                                                 );
                                                 if (qrAlreadyPaid) {
                                                     playErrorSound();
-                                                    alert(`Вече има платен абонамент за „${renewalRoute}" за месец ${renewalMonth}. Второ плащане за същия месец не е разрешено.`);
+                                                    alert(`Вече има платен абонамент за „${renewalRoute}" за ${formatSpanBG(spanFields(renewalMonth, renewChoice))}. Второ плащане за същия период не е разрешено.`);
                                                     setIsUpdating(false);
                                                     return;
                                                 }
