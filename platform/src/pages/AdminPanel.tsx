@@ -805,6 +805,20 @@ const AdminPanel: React.FC = () => {
         }
     }, [selectedRoute, cardType, regChoice.period, priceOf, hasRoute]);
 
+    // The action modal works from its own copy of the client, taken when it
+    // opened. Everything done inside it — a renewal, a deleted payment, a
+    // direction removed — is written to Firestore and comes back through the
+    // live client list, so follow that list instead of showing what was true
+    // when the panel opened. Deliberately keyed on `clients` alone: this reads
+    // selectedClient but must not re-run when it sets it.
+    useEffect(() => {
+        setSelectedClient(current => {
+            if (!current) return current;
+            const fresh = clients.find(c => c.id === current.id);
+            return fresh || current;
+        });
+    }, [clients]);
+
     // Auto-price logic for renewal modal
     useEffect(() => {
         if (selectedClient?.cardType === 'Служебна карта') { setNewAmount('0'); return; }
