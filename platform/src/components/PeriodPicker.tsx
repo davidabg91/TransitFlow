@@ -61,6 +61,20 @@ export const localToday = (): string => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+/**
+ * The dates a period starts and ends with, when nobody has said otherwise.
+ *
+ * A subscription is nearly always sold to start today — somebody is standing at
+ * the desk — so that is the start. A date-to-date one runs a month by default,
+ * the same thirty days the "Месец" period is defined as, and the operator moves
+ * the end date when it should be something else.
+ */
+const defaultDates = (period: PeriodId): { from: string; to?: string } => {
+    const from = localToday();
+    if (period !== 'custom') return { from };
+    return { from, to: periodRange(from, 'month')?.to };
+};
+
 const fmt = (iso: string) => {
     const d = new Date(iso);
     return isNaN(d.getTime()) ? iso : d.toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -106,9 +120,7 @@ const PeriodPicker: React.FC<Props> = ({ month, onMonth, choice, onChoice, input
         if (offered.some(p => p.id === choice.period)) return;
         const first = offered[0];
         onChoice(
-            first.id === 'month'
-                ? { period: 'month' }
-                : { period: first.id, from: choice.from || `${month}-01`, to: choice.to }
+            first.id === 'month' ? { period: 'month' } : { period: first.id, ...defaultDates(first.id) }
         );
     }, [offered.map(p => p.id).join(','), choice.period]);
 
@@ -117,9 +129,7 @@ const PeriodPicker: React.FC<Props> = ({ month, onMonth, choice, onChoice, input
             onChoice({ period });
             return;
         }
-        // Start from the first of the month already chosen, so switching period
-        // does not silently move the subscription to today.
-        onChoice({ period, from: choice.from || `${month}-01`, to: choice.to });
+        onChoice({ period, ...defaultDates(period) });
     };
 
     const range = choice.from ? periodRange(choice.from, choice.period, choice.to) : null;
@@ -141,7 +151,17 @@ const PeriodPicker: React.FC<Props> = ({ month, onMonth, choice, onChoice, input
                         <input
                             type="date"
                             value={choice.from || ''}
-                            onChange={e => onChoice({ ...choice, from: e.target.value })}
+                            onChange={e => {
+                                const from = e.target.value;
+                                const keepEnd = choice.to && from && choice.to > from;
+                                onChoice({
+                                    ...choice,
+                                    from,
+                                    to: choice.period === 'custom' && !keepEnd && from
+                                        ? periodRange(from, 'month')?.to
+                                        : choice.to,
+                                });
+                            }}
                             style={base}
                         />
                     </div>

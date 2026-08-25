@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import {
     Settings as SettingsIcon, Route as RouteIcon, Plus, Trash2, Save,
-    CalendarRange, MapPin, X, Check, AlertTriangle, Loader2, Wand2,
+    CalendarRange, MapPin, X, Check, AlertTriangle, Loader2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { collection, doc, deleteDoc, getDocs, setDoc } from '../tenant/db';
+import { doc, deleteDoc, setDoc } from '../tenant/db';
 import { db } from '../firebase';
 import {
     ALL_PERIODS, DEFAULT_CARD_TYPES, emptyRoute, useCompanySettings, useRoutes,
@@ -80,50 +80,6 @@ const Settings: React.FC = () => {
         }
     };
 
-    // Clients registered before lines were configurable carry their route as
-    // plain text. Those names are the company's real lines, so offer to create
-    // them rather than making someone retype what the data already knows —
-    // until a line exists, the clients on it are counted nowhere.
-    const [importing, setImporting] = useState(false);
-    const importUsedRoutes = async () => {
-        setImporting(true);
-        setMessage(null);
-        try {
-            const snap = await getDocs(collection(db, 'clients'));
-            const known = new Set(routes.map(r => r.name));
-            const found = new Set<string>();
-            snap.forEach(d => {
-                const data = d.data() as { route?: string; routes?: string[] };
-                const names = [data.route, ...(data.routes || [])];
-                names.forEach(n => {
-                    const name = (n || '').trim();
-                    if (name && !known.has(name)) found.add(name);
-                });
-            });
-
-            if (found.size === 0) {
-                setMessage({ text: 'Няма линии за добавяне — всички вече са въведени.', ok: true });
-                return;
-            }
-
-            // Names only. The stops and the fares are the company's to fill in;
-            // inventing prices here would put numbers nobody agreed to on a card.
-            await Promise.all([...found].map(name =>
-                setDoc(doc(db, 'routes', name.replace(/[/#?\[\]]/g, '-').slice(0, 120)), {
-                    ...emptyRoute(), name,
-                })
-            ));
-            setMessage({
-                text: `Добавени ${found.size} линии от съществуващите клиенти. Въведете спирките и цените за всяка.`,
-                ok: true,
-            });
-        } catch (e) {
-            setMessage({ text: `Неуспешно откриване: ${(e as Error).message}`, ok: false });
-        } finally {
-            setImporting(false);
-        }
-    };
-
     const saveRoute = async () => {
         if (!editing) return;
         if (!editing.name.trim()) {
@@ -173,7 +129,14 @@ const Settings: React.FC = () => {
         });
     };
 
-    const activePeriods = ALL_PERIODS.filter(p => periods.includes(p.id) && p.id !== 'custom');
+    // Date-to-date has no fixed length, so it gets no column of its own — it is
+    // priced from the month, which is therefore shown whenever it is offered.
+    const activePeriods = (() => {
+        const named = ALL_PERIODS.filter(p => periods.includes(p.id) && p.id !== 'custom');
+        if (!periods.includes('custom') || named.some(p => p.id === 'month')) return named;
+        const month = ALL_PERIODS.find(p => p.id === 'month');
+        return month ? [month, ...named] : named;
+    })();
 
     return (
         <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '2rem 1rem 4rem', color: '#fff' }}>
@@ -254,33 +217,17 @@ const Settings: React.FC = () => {
                     <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <RouteIcon size={19} color="var(--primary-color)" /> Линии ({routes.length})
                     </h2>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <button
-                            onClick={importUsedRoutes}
-                            disabled={importing}
-                            title="Създава линии по имената, с които вече са записани клиентите"
-                            style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '0.45rem',
-                                padding: '0.6rem 1.1rem', borderRadius: '11px',
-                                cursor: importing ? 'wait' : 'pointer',
-                                background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)',
-                                color: 'var(--text-secondary)', fontWeight: 700, fontSize: '0.88rem',
-                            }}
-                        >
-                            <Wand2 size={15} /> {importing ? 'Търсене…' : 'Открий от клиентите'}
-                        </button>
-                        <button
-                            onClick={() => setEditing({ id: '', ...emptyRoute() })}
-                            style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '0.45rem',
-                                padding: '0.6rem 1.1rem', borderRadius: '11px', cursor: 'pointer',
-                                background: 'rgba(0,200,83,0.12)', border: '1px solid rgba(0,200,83,0.35)',
-                                color: '#00c853', fontWeight: 700, fontSize: '0.88rem',
-                            }}
-                        >
-                            <Plus size={15} /> Нова линия
-                        </button>
-                    </div>
+                    <button
+                        onClick={() => setEditing({ id: '', ...emptyRoute() })}
+                        style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '0.45rem',
+                            padding: '0.6rem 1.1rem', borderRadius: '11px', cursor: 'pointer',
+                            background: 'rgba(0,200,83,0.12)', border: '1px solid rgba(0,200,83,0.35)',
+                            color: '#00c853', fontWeight: 700, fontSize: '0.88rem',
+                        }}
+                    >
+                        <Plus size={15} /> Нова линия
+                    </button>
                 </div>
 
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginTop: 0 }}>
@@ -401,6 +348,12 @@ const Settings: React.FC = () => {
                         </div>
 
                         <label style={label}>Цени на абонамент (€)</label>
+                        {periods.includes('custom') && (
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', margin: '0 0 0.7rem', lineHeight: 1.6 }}>
+                                Абонамент „от дата до дата" няма своя колона — той е с
+                                различна дължина всеки път, затова се таксува по цената за месец.
+                            </p>
+                        )}
                         {activePeriods.length === 0 ? (
                             <p style={{ color: '#ffab00', fontSize: '0.88rem' }}>
                                 Отметнете поне един период по-горе и го запазете, за да въвеждате цени.

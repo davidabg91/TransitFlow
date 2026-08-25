@@ -548,10 +548,10 @@ const ClientProfile: React.FC = () => {
     useEffect(() => {
         if (regCardType === 'Служебна карта') { setRegAmount('0'); return; }
         if (regRoute && hasRoute(regRoute)) {
-            const price = priceOf(regRoute, regCardType);
+            const price = priceOf(regRoute, regCardType, regChoice.period);
             if (price !== null) setRegAmount(price.toFixed(2));
         }
-    }, [regRoute, regCardType]);
+    }, [regRoute, regCardType, regChoice.period, priceOf, hasRoute]);
 
     // Auto-price the quick-renew amount from the route + card type (pensioner &
     // student = half), so a renewal uses the route's current card price instead
@@ -559,10 +559,10 @@ const ClientProfile: React.FC = () => {
     useEffect(() => {
         if (!client || client.cardType === 'Служебна карта') return;
         if (renewalRoute && hasRoute(renewalRoute)) {
-            const price = priceOf(renewalRoute, client.cardType);
+            const price = priceOf(renewalRoute, client.cardType, renewChoice.period);
             if (price !== null) setRenewalAmount(price);
         }
-    }, [renewalRoute, client]);
+    }, [renewalRoute, client, renewChoice.period, priceOf, hasRoute]);
 
     const initAudio = React.useCallback(() => {
         if (audioInitializedRef.current) return;

@@ -794,23 +794,25 @@ const AdminPanel: React.FC = () => {
         };
     }, []);
 
-    // Auto-price logic
+    // Auto-price from the line's own tariff. The company's lines arrive from
+    // Firestore after the first render, so the prices are a dependency too —
+    // without them this ran once against an empty list and never again.
     useEffect(() => {
         if (cardType === 'Служебна карта') { setAmountPaid('0'); return; }
         if (selectedRoute && hasRoute(selectedRoute)) {
-            const price = priceOf(selectedRoute, cardType);
+            const price = priceOf(selectedRoute, cardType, regChoice.period);
             if (price !== null) setAmountPaid(price.toFixed(2));
         }
-    }, [selectedRoute, cardType]);
+    }, [selectedRoute, cardType, regChoice.period, priceOf, hasRoute]);
 
     // Auto-price logic for renewal modal
     useEffect(() => {
         if (selectedClient?.cardType === 'Служебна карта') { setNewAmount('0'); return; }
         if (newRoute && hasRoute(newRoute) && selectedClient) {
-            const price = priceOf(newRoute, selectedClient.cardType);
+            const price = priceOf(newRoute, selectedClient.cardType, newChoice.period);
             if (price !== null) setNewAmount(price.toFixed(2));
         }
-    }, [newRoute, selectedClient]);
+    }, [newRoute, selectedClient, newChoice.period, priceOf, hasRoute]);
 
 
 

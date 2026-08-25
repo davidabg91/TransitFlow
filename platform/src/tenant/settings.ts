@@ -165,7 +165,14 @@ export const useRoutePricing = () => {
                 // A service card is issued to staff and is never charged for,
                 // whatever the line's matrix says.
                 if (cardType === 'Служебна карта') return 0;
-                return routePrice(byName.get(name || ''), cardType, period);
+                const route = byName.get(name || '');
+                const listed = routePrice(route, cardType, period);
+                if (listed !== null) return listed;
+                // A date-to-date subscription defaults to a month's length, so
+                // the month's fare is the right answer when the company has not
+                // priced date-to-date separately.
+                if (period === 'custom') return routePrice(route, cardType, 'month');
+                return null;
             },
             /** A line's stops, for the passenger-facing card. */
             stopsOf: (name?: string): string[] => byName.get(name || '')?.stops || [],
