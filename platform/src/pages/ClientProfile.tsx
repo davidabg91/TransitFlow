@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle, Ban, Clock, Settings, Camera, CreditCard, AlertTriangle, Lock } from 'lucide-react';
+import { CheckCircle, XCircle, Ban, Clock, Settings, Camera, AlertTriangle, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { doc, onSnapshot, setDoc, updateDoc, increment, arrayUnion, addDoc, collection } from '../tenant/db';
 import LoadingScreen from '../components/LoadingScreen';
 import { useRoutePricing } from '../tenant/settings';
-import { coversDate } from '../tenant/settings';
+import { ALL_PERIODS, coversDate, periodFromSpan } from '../tenant/settings';
+import CardBrands from '../components/CardBrands';
 import { localToday } from '../components/PeriodPicker';
 import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanStartDay } from '../components/PeriodPicker';
 import type { PeriodChoice } from '../components/PeriodPicker';
@@ -222,12 +223,29 @@ const ClientProfile: React.FC = () => {
     const [client, setClient] = useState<Client | null>(null);
     // The company's own lines and fares, set under Настройки.
     const { names: ROUTES, priceOf, has: hasRoute } = useRoutePricing();
-    // What this card actually costs, from the same tariff the desk charges —
-    // the panel previously showed a fixed 50.80 € regardless of route or type.
-    const onlinePrice = React.useMemo(
-        () => (client?.route ? priceOf(client.route, client?.cardType) : null),
-        [client?.route, client?.cardType, priceOf]
+    // What renewing this card costs, at the period it was last sold on — a
+    // passenger who buys quarters should not be quoted a monthly rate, and the
+    // panel used to show a fixed 50.80 € regardless of route, type or period.
+    const lastPayment = React.useMemo(() => {
+        const h = client?.renewalHistory || [];
+        return h.length ? h[h.length - 1] : null;
+    }, [client?.renewalHistory]);
+
+    const payPeriod = React.useMemo(
+        () => periodFromSpan(lastPayment?.from, lastPayment?.to),
+        [lastPayment?.from, lastPayment?.to]
     );
+
+    const payPeriodLabel =
+        ALL_PERIODS.find(p => p.id === payPeriod)?.label || 'Месец';
+
+    const onlinePrice = React.useMemo(() => {
+        const listed = client?.route ? priceOf(client.route, client?.cardType, payPeriod) : null;
+        // A tariff the company has not published falls back to what this card
+        // was last charged, which is the only figure either side has agreed on.
+        if (listed !== null) return listed;
+        return typeof lastPayment?.amount === 'number' ? lastPayment.amount : null;
+    }, [client?.route, client?.cardType, payPeriod, priceOf, lastPayment?.amount]);
     const [loading, setLoading] = useState(true);
     const [scanTime] = useState(new Date().toLocaleTimeString('bg-BG'));
     const [showPhotoModal, setShowPhotoModal] = useState(false);
@@ -1723,147 +1741,182 @@ const ClientProfile: React.FC = () => {
                 {/* Online Payment Panel */}
                 {!currentUser && !client?.isCanceled && (
                     <div style={{
-                        background: 'linear-gradient(180deg, #1b1b20 0%, #141418 100%)',
-                        borderRadius: '26px',
-                        border: '1px solid rgba(255,255,255,0.07)',
+                        position: 'relative',
+                        background: 'linear-gradient(178deg, #16161B 0%, #0B0B0E 62%)',
+                        borderRadius: '28px',
+                        border: '1px solid rgba(255,255,255,0.08)',
                         overflow: 'hidden',
-                        boxShadow: '0 18px 40px rgba(0,0,0,0.45)',
+                        boxShadow: '0 30px 60px -20px rgba(0,0,0,0.75), 0 2px 8px rgba(0,0,0,0.4)',
+                        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
                     }}>
+                        {/* The hairline of light along the top edge, the way a
+                            sheet catches the screen above it. */}
+                        <div style={{
+                            position: 'absolute', top: 0, left: '12%', right: '12%', height: 1,
+                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent)',
+                        }} />
+                        <div aria-hidden style={{
+                            position: 'absolute', top: -90, left: -40, width: 280, height: 220,
+                            pointerEvents: 'none', filter: 'blur(6px)',
+                            background: 'radial-gradient(closest-side, rgba(34,211,238,0.16), transparent)',
+                        }} />
+
                         {!paymentComplete ? (
                             <>
-                                <div style={{ padding: '1.4rem 1.5rem 1.1rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <div style={{ background: 'rgba(0,230,118,0.12)', padding: '8px', borderRadius: '11px', display: 'flex' }}>
-                                                <CreditCard size={18} color="#00e676" />
-                                            </div>
-                                            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, letterSpacing: '-0.01em' }}>
-                                                Плащане на абонамент
-                                            </h3>
-                                        </div>
+                                <div style={{ padding: '1.75rem 1.6rem 0' }}>
+                                    <div style={{
+                                        display: 'flex', alignItems: 'flex-start',
+                                        justifyContent: 'space-between', gap: '1rem',
+                                    }}>
+                                        <span style={{
+                                            fontSize: '0.66rem', fontWeight: 700, letterSpacing: '0.11em',
+                                            color: 'rgba(255,255,255,0.38)', textTransform: 'uppercase',
+                                        }}>
+                                            Абонамент
+                                        </span>
                                         <span style={{
                                             display: 'inline-flex', alignItems: 'center', gap: '5px',
-                                            fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.04em',
-                                            color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase',
+                                            fontSize: '0.66rem', fontWeight: 600,
+                                            color: '#67E8F9',
+                                            border: '1px solid rgba(34,211,238,0.22)',
+                                            background: 'rgba(34,211,238,0.07)',
+                                            borderRadius: '50px', padding: '4px 10px',
                                         }}>
-                                            <Lock size={11} /> Защитено
+                                            <Lock size={10} /> Защитено
+                                        </span>
+                                    </div>
+
+                                    {/* The amount, given the room a price deserves. */}
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                                        <span style={{
+                                            fontSize: 'clamp(2.4rem, 11vw, 3.1rem)', fontWeight: 700,
+                                            letterSpacing: '-0.045em', lineHeight: 1,
+                                            fontVariantNumeric: 'tabular-nums',
+                                            color: '#fff',
+                                        }}>
+                                            {onlinePrice !== null ? onlinePrice.toFixed(2) : '—'}
+                                        </span>
+                                        <span style={{
+                                            fontSize: '1.5rem', fontWeight: 600,
+                                            color: 'rgba(255,255,255,0.5)', letterSpacing: '-0.02em',
+                                        }}>
+                                            €
+                                        </span>
+                                        <span style={{
+                                            fontSize: '0.9rem', fontWeight: 500,
+                                            color: 'rgba(255,255,255,0.38)', marginLeft: '0.3rem',
+                                        }}>
+                                            / {payPeriodLabel.toLowerCase()}
                                         </span>
                                     </div>
                                 </div>
 
-                                {/* What is being paid for — the line items a checkout shows before
-                                    it asks for anything. */}
-                                <div style={{ padding: '0 1.5rem' }}>
-                                    <div style={{
-                                        background: 'rgba(255,255,255,0.028)',
-                                        border: '1px solid rgba(255,255,255,0.05)',
-                                        borderRadius: '18px', overflow: 'hidden',
-                                    }}>
-                                        <label style={{
-                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                            gap: '1rem', padding: '0.95rem 1.1rem',
-                                            borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                {/* What is being bought. */}
+                                <div style={{ padding: '1.5rem 1.6rem 0' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        {([
+                                            ['Линия', client?.route || '—'],
+                                            ['Вид карта', client?.cardType || 'Нормална карта'],
+                                            ['Карта №', client?.cardNumber || '—'],
+                                        ] as [string, string][]).map(([label, value], i) => (
+                                            <div key={label} style={{
+                                                display: 'flex', alignItems: 'center',
+                                                justifyContent: 'space-between', gap: '1.25rem',
+                                                padding: '0.85rem 0',
+                                                borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.055)',
+                                            }}>
+                                                <span style={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.44)' }}>{label}</span>
+                                                <span style={{
+                                                    fontSize: '0.9rem', fontWeight: 600, color: 'rgba(255,255,255,0.92)',
+                                                    textAlign: 'right', letterSpacing: '-0.01em',
+                                                }}>
+                                                    {value}
+                                                </span>
+                                            </div>
+                                        ))}
+
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center',
+                                            justifyContent: 'space-between', gap: '1.25rem',
+                                            padding: '0.85rem 0',
+                                            borderTop: '1px solid rgba(255,255,255,0.055)',
                                         }}>
-                                            <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.55)' }}>Месец</span>
+                                            <span style={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.44)' }}>Месец</span>
                                             <input
                                                 type="month"
                                                 value={paymentMonth}
                                                 onChange={(e) => setPaymentMonth(e.target.value)}
+                                                aria-label="Месец на абонамента"
                                                 style={{
-                                                    background: 'transparent', border: 'none', color: '#fff',
-                                                    fontSize: '0.95rem', fontWeight: 700, outline: 'none',
-                                                    colorScheme: 'dark', textAlign: 'right', maxWidth: '11rem',
+                                                    background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.92)',
+                                                    fontSize: '0.9rem', fontWeight: 600, outline: 'none',
+                                                    colorScheme: 'dark', textAlign: 'right', maxWidth: '10.5rem',
+                                                    padding: 0, fontFamily: 'inherit',
                                                 }}
                                             />
-                                        </label>
-
-                                        <div style={{
-                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                            gap: '1rem', padding: '0.95rem 1.1rem',
-                                            borderBottom: '1px solid rgba(255,255,255,0.05)',
-                                        }}>
-                                            <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.55)' }}>Линия</span>
-                                            <span style={{ fontSize: '0.9rem', fontWeight: 700, textAlign: 'right' }}>
-                                                {client?.route || '—'}
-                                            </span>
-                                        </div>
-
-                                        {client?.cardType && (
-                                            <div style={{
-                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                gap: '1rem', padding: '0.95rem 1.1rem',
-                                                borderBottom: '1px solid rgba(255,255,255,0.05)',
-                                            }}>
-                                                <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.55)' }}>Вид карта</span>
-                                                <span style={{ fontSize: '0.9rem', fontWeight: 700, textAlign: 'right' }}>{client.cardType}</span>
-                                            </div>
-                                        )}
-
-                                        <div style={{
-                                            display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-                                            gap: '1rem', padding: '1.1rem',
-                                        }}>
-                                            <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>За плащане</span>
-                                            <span style={{
-                                                fontSize: '1.55rem', fontWeight: 900, color: '#00e676',
-                                                letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums',
-                                            }}>
-                                                {onlinePrice !== null ? `${onlinePrice.toFixed(2)} €` : '—'}
-                                            </span>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Card marks, drawn rather than fetched: the panel must not reach
-                                    out to a third party just to show a logo. */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '1.1rem 1.5rem 0' }}>
-                                    {['VISA', 'MASTERCARD', 'MAESTRO'].map(brand => (
-                                        <span key={brand} style={{
-                                            fontSize: '0.6rem', fontWeight: 900, letterSpacing: '0.06em',
-                                            color: 'rgba(255,255,255,0.4)',
-                                            background: 'rgba(255,255,255,0.05)',
-                                            border: '1px solid rgba(255,255,255,0.07)',
-                                            borderRadius: '6px', padding: '5px 9px',
-                                        }}>{brand}</span>
-                                    ))}
-                                </div>
-
-                                <div style={{ padding: '1rem 1.5rem 1.5rem' }}>
+                                {/* The button, and under it the schemes that will be taken. */}
+                                <div style={{ height: 1, background: 'rgba(255,255,255,0.055)', margin: '0.35rem 1.6rem 0' }} />
+                                <div style={{ padding: '1.35rem 1.6rem 1.7rem' }}>
                                     <button
                                         disabled
                                         style={{
-                                            width: '100%', padding: '1.05rem', borderRadius: '16px',
-                                            background: 'rgba(255,255,255,0.045)',
-                                            color: 'rgba(255,255,255,0.4)',
-                                            border: '1px solid rgba(255,255,255,0.07)',
-                                            fontWeight: 800, fontSize: '0.98rem', cursor: 'not-allowed',
+                                            width: '100%', padding: '1.1rem', borderRadius: '999px',
+                                            background: 'linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05))',
+                                            color: 'rgba(255,255,255,0.62)',
+                                            border: '1px solid rgba(255,255,255,0.11)',
+                                            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.09)',
+                                            fontWeight: 600, fontSize: '1rem', letterSpacing: '-0.01em',
+                                            cursor: 'not-allowed', fontFamily: 'inherit',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '9px',
                                         }}
                                     >
-                                        <Clock size={17} /> Онлайн плащането предстои
+                                        <Clock size={16} /> Онлайн плащането предстои
                                     </button>
 
-                                    <p style={{
-                                        margin: '0.85rem 0 0', textAlign: 'center',
-                                        fontSize: '0.72rem', lineHeight: 1.55, color: 'rgba(255,255,255,0.35)',
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        marginTop: '1.15rem',
                                     }}>
-                                        Плащането ще се обработва от лицензиран доставчик и данните на
-                                        картата ви никога не преминават през тази система.
+                                        <CardBrands />
+                                    </div>
+
+                                    <p style={{
+                                        margin: '1.1rem auto 0', textAlign: 'center',
+                                        fontSize: '0.72rem', lineHeight: 1.6, color: 'rgba(255,255,255,0.3)',
+                                        maxWidth: '30rem',
+                                    }}>
+                                        Плащането ще се обработва от лицензиран доставчик. Данните на
+                                        картата ви не преминават през тази система и не се записват в нея.
                                         Междувременно абонаментът се подновява на гише.
                                     </p>
                                 </div>
                             </>
                         ) : (
-                            <div style={{ textAlign: 'center', padding: '2.25rem 1.5rem', animation: 'fadeIn 0.4s ease' }}>
-                                <CheckCircle size={44} color="#00e676" style={{ marginBottom: '1rem' }} />
-                                <h4 style={{ margin: '0 0 0.4rem', fontSize: '1.15rem', color: '#00e676', fontWeight: 800 }}>Плащането е успешно</h4>
-                                <p style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>Абонаментът е подновен.</p>
+                            <div style={{ textAlign: 'center', padding: '3rem 1.6rem', animation: 'fadeIn 0.4s ease' }}>
+                                <div style={{
+                                    width: 58, height: 58, borderRadius: '50%', margin: '0 auto 1.1rem',
+                                    background: 'rgba(52,199,89,0.14)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                }}>
+                                    <CheckCircle size={30} color="#34C759" />
+                                </div>
+                                <h4 style={{ margin: '0 0 0.4rem', fontSize: '1.2rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+                                    Плащането е успешно
+                                </h4>
+                                <p style={{ margin: 0, fontSize: '0.88rem', color: 'rgba(255,255,255,0.42)' }}>
+                                    Абонаментът е подновен.
+                                </p>
                                 <button
                                     onClick={() => { setPaymentComplete(false); setPaymentMonth(getSuggestedMonth()); }}
                                     style={{
-                                        background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
-                                        color: '#fff', padding: '0.75rem 1.6rem', borderRadius: '13px',
-                                        marginTop: '1.35rem', fontWeight: 700, cursor: 'pointer',
+                                        background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)',
+                                        color: '#fff', padding: '0.8rem 1.9rem', borderRadius: '999px',
+                                        marginTop: '1.6rem', fontWeight: 600, cursor: 'pointer',
+                                        fontFamily: 'inherit', fontSize: '0.92rem',
                                     }}
                                 >
                                     Затвори
