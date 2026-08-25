@@ -105,6 +105,37 @@ export const findClientsByName = async (term: string, max = 8): Promise<FoundCli
 };
 
 /**
+ * Who the desk probably means, while they are still typing.
+ *
+ * A name is matched on its prefix; a number only once it is complete, since a
+ * card number is stored zero-padded and half of one is not a prefix of it.
+ * Either way this is a handful of rows, not a scan of the company.
+ */
+export const suggestClients = async (term: string, max = 6): Promise<FoundClient[]> => {
+    const raw = (term || '').trim();
+    if (raw.length < 2) return [];
+
+    if (isNumeric(raw)) {
+        const snap = await getDocs(query(
+            collection(db, 'clients'),
+            where('cardNumber', '==', padCardNumber(raw)),
+            limit(max)
+        ));
+        return snap.docs.map(d => {
+            const data = d.data() || {};
+            return {
+                id: d.id,
+                name: String(data.name || ''),
+                cardNumber: String(data.cardNumber || ''),
+                route: String(data.route || ''),
+            };
+        });
+    }
+
+    return findClientsByName(raw, max);
+};
+
+/**
  * Resolves a card as it is typed, for the field that links a card to a new
  * passenger. Debounced, because the number is entered digit by digit and each
  * keystroke would otherwise be a query.

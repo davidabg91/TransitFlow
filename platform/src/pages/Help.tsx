@@ -176,11 +176,18 @@ const Help: React.FC = () => {
             <SectionLabel tone="green">Подробно — стъпка по стъпка</SectionLabel>
             <div className="help-grid" style={{ marginBottom: '1.5rem' }}>
                 <GuideCard tone="green" icon={<UserPlus size={20} color={GREEN} />} title="Добави нов клиент">
-                    <Step n={1} tone="green">Отиди на таб <Pill tone="green">ДОБАВИ</Pill>.</Step>
-                    <Step n={2} tone="green">Сканирай картата <b>или</b> напиши кода ѝ ръчно в полето.</Step>
+                    <Step n={1} tone="green">Вземи <b>нова карта</b>, издадена от таб <Pill>NFC КОДОВЕ</Pill>.</Step>
+                    <Step n={2} tone="green">Сканирай я — отваря се страницата на картата.</Step>
                     <Step n={3} tone="green">Направи <Pill tone="green">СНИМКА</Pill> на човека <span style={{ color: GREEN, fontWeight: 700 }}>(много важно!)</span>.</Step>
                     <Step n={4} tone="green">Напиши <b>имената</b> и избери неговия <b>маршрут</b>.</Step>
                     <Step n={5} tone="green">Натисни големия бутон <Pill tone="green">ЗАПАЗИ</Pill>.</Step>
+                    <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start', marginTop: '0.3rem', padding: '0.75rem 0.9rem', background: `${GREEN}14`, border: `1px solid ${GREEN}33`, borderRadius: '12px' }}>
+                        <span style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                            Клиент се завежда <b>само върху сканирана карта</b>. Така системата
+                            запомня чипа на самата карта и втора карта със същия код се разпознава
+                            като дубликат.
+                        </span>
+                    </div>
                 </GuideCard>
 
                 <GuideCard tone="teal" icon={<RefreshCw size={20} color={TEAL} />} title="Поднови карта">
@@ -188,7 +195,7 @@ const Help: React.FC = () => {
                     <Step n={1} tone="teal">Намери го в списъка <Pill tone="teal">КЛИЕНТИ</Pill> (ползвай търсачката).</Step>
                     <Step n={2} tone="teal">Кликни бутона <Pill tone="teal">Управление</Pill> до името му.</Step>
                     <Step n={3} tone="teal">Натисни бутона <Pill tone="green">ПОДНОВИ</Pill>.</Step>
-                    <Step n={4} tone="teal">Избери <b>месеца</b> и сумата — готово!</Step>
+                    <Step n={4} tone="teal">Избери <b>периода</b> и сумата — готово!</Step>
                 </GuideCard>
 
                 <GuideCard tone="teal" icon={<ArrowLeftRight size={20} color={TEAL} />} title="Смени направление">

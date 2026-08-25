@@ -1,13 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
-    PlusCircle, Users, PiggyBank, ShieldCheck, Bell, AlertTriangle,
-    ExternalLink, LifeBuoy, Settings, SlidersHorizontal, Clock, Nfc, Search, UserPlus, ArrowRight,
+    Users, PiggyBank, ShieldCheck, Bell, AlertTriangle,
+    ExternalLink, LifeBuoy, Settings, SlidersHorizontal, Clock, Nfc, Search, ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getDoc, tenantDoc } from '../tenant/db';
 import { db } from '../firebase';
-import { findCard, findClientsByName, normalizeCardInput, cardProfileHref, type FoundClient } from '../tenant/cards';
+import {
+    findCard, findClientsByName, suggestClients, normalizeCardInput, cardProfileHref,
+    type FoundClient,
+} from '../tenant/cards';
 
 /**
  * What staff see when they open the system.
@@ -29,7 +32,6 @@ interface Shortcut {
 }
 
 const SHORTCUTS: Shortcut[] = [
-    { to: '/admin?tab=register', icon: PlusCircle, title: 'Издай карта', accent: '#00c853', roles: ['admin', 'moderator'] },
     { to: '/admin?tab=clients', icon: Users, title: 'Клиенти', accent: '#00ADB5', roles: ['admin', 'moderator'] },
     { to: '/admin?tab=finances', icon: PiggyBank, title: 'Финанси', accent: '#ff9800', roles: ['admin', 'moderator'] },
     { to: '/admin?tab=unpaid', icon: AlertTriangle, title: 'Без абонамент', accent: '#ff5252', roles: ['admin'] },
@@ -64,7 +66,24 @@ const Home: React.FC = () => {
     const [lookupError, setLookupError] = useState<string | null>(null);
     const [searching, setSearching] = useState(false);
     const [matches, setMatches] = useState<FoundClient[]>([]);
+    const [suggestions, setSuggestions] = useState<FoundClient[]>([]);
+    const [highlight, setHighlight] = useState(-1);
     const scanFieldRef = useRef<HTMLInputElement>(null);
+
+    // Offer the profiles behind what is being typed, so the desk can pick one
+    // instead of finishing the name exactly. Debounced: a search per keystroke
+    // would be a query per keystroke.
+    useEffect(() => {
+        const term = cardInput.trim();
+        if (term.length < 2) { setSuggestions([]); setHighlight(-1); return; }
+        let cancelled = false;
+        const timer = setTimeout(() => {
+            suggestClients(term)
+                .then(found => { if (!cancelled) { setSuggestions(found); setHighlight(-1); } })
+                .catch(() => { if (!cancelled) setSuggestions([]); });
+        }, 250);
+        return () => { cancelled = true; clearTimeout(timer); };
+    }, [cardInput]);
 
     useEffect(() => {
         const t = setInterval(() => setNow(new Date()), 30_000);
@@ -105,6 +124,11 @@ const Home: React.FC = () => {
      * passenger's name. A card goes straight to the profile; a name that matches
      * several people offers the list rather than guessing.
      */
+    const openClient = (clientId: string) => {
+        setSuggestions([]);
+        navigate(cardProfileHref(clientId).replace('#', ''));
+    };
+
     const lookup = async (e: React.FormEvent) => {
         e.preventDefault();
         const raw = cardInput.trim();
@@ -204,7 +228,8 @@ const Home: React.FC = () => {
                 }}>
                     Допрете картата до четеца, или потърсете по номера от картата, по кода ѝ,
                     или по име на клиент. Издадена карта отваря профила на притежателя; нова
-                    предлага да я активирате.
+                    предлага да я активирате — нов клиент се завежда само така, върху
+                    сканирана карта.
                 </p>
 
                 <form onSubmit={lookup} style={{ position: 'relative', display: 'flex', gap: '0.7rem', flexWrap: 'wrap' }}>
@@ -217,17 +242,78 @@ const Home: React.FC = () => {
                             ref={scanFieldRef}
                             value={cardInput}
                             onChange={e => { setCardInput(e.target.value); setLookupError(null); }}
+                            onKeyDown={e => {
+                                if (suggestions.length === 0) return;
+                                if (e.key === 'ArrowDown') {
+                                    e.preventDefault();
+                                    setHighlight(h => (h + 1) % suggestions.length);
+                                } else if (e.key === 'ArrowUp') {
+                                    e.preventDefault();
+                                    setHighlight(h => (h <= 0 ? suggestions.length : h) - 1);
+                                } else if (e.key === 'Enter' && highlight >= 0) {
+                                    e.preventDefault();
+                                    openClient(suggestions[highlight].id);
+                                } else if (e.key === 'Escape') {
+                                    setSuggestions([]);
+                                }
+                            }}
                             placeholder="Номер на карта, код или име на клиент"
                             autoComplete="off"
+                            role="combobox"
+                            aria-expanded={suggestions.length > 0}
+                            aria-controls="card-suggestions"
                             aria-label="Търсене на карта или клиент"
                             style={{
                                 width: '100%', padding: '1rem 1rem 1rem 3rem',
-                                borderRadius: '14px', fontSize: '1.05rem',
+                                borderRadius: suggestions.length > 0 ? '14px 14px 0 0' : '14px',
+                                fontSize: '1.05rem',
                                 background: 'rgba(0,0,0,0.32)', color: '#fff',
                                 border: `1px solid ${lookupError ? '#ff5252' : 'var(--surface-border)'}`,
                                 outline: 'none', fontVariantNumeric: 'tabular-nums',
                             }}
                         />
+
+                        {suggestions.length > 0 && (
+                            <ul
+                                id="card-suggestions"
+                                role="listbox"
+                                style={{
+                                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20,
+                                    margin: 0, padding: '0.3rem', listStyle: 'none',
+                                    background: '#14161a',
+                                    border: '1px solid var(--surface-border)', borderTop: 'none',
+                                    borderRadius: '0 0 14px 14px',
+                                    boxShadow: '0 22px 44px -12px rgba(0,0,0,0.75)',
+                                    maxHeight: '19rem', overflowY: 'auto',
+                                }}
+                            >
+                                {suggestions.map((sug, i) => (
+                                    <li key={sug.id} role="option" aria-selected={i === highlight}>
+                                        <button
+                                            type="button"
+                                            onMouseEnter={() => setHighlight(i)}
+                                            onClick={() => openClient(sug.id)}
+                                            style={{
+                                                width: '100%', textAlign: 'left', cursor: 'pointer',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                gap: '1rem', padding: '0.7rem 0.85rem', borderRadius: '10px',
+                                                border: 'none', color: '#fff', fontFamily: 'inherit',
+                                                background: i === highlight ? 'rgba(0,173,181,0.16)' : 'transparent',
+                                            }}
+                                        >
+                                            <span style={{ fontWeight: 700, fontSize: '0.94rem' }}>{sug.name}</span>
+                                            <span style={{
+                                                fontSize: '0.76rem', color: 'var(--text-secondary)',
+                                                fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+                                            }}>
+                                                {sug.cardNumber ? `№ ${sug.cardNumber}` : ''}
+                                                {sug.route ? ` · ${sug.route}` : ''}
+                                            </span>
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
 
                     <button type="submit" style={{
@@ -239,17 +325,6 @@ const Home: React.FC = () => {
                         {searching ? 'Търсене…' : 'Отвори профил'} <ArrowRight size={17} />
                     </button>
 
-                    {(role === 'admin' || role === 'moderator') && (
-                        <Link to="/admin?tab=register" style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-                            padding: '1rem 1.5rem', borderRadius: '14px', textDecoration: 'none',
-                            background: 'rgba(255,255,255,0.05)', color: '#fff',
-                            border: '1px solid var(--surface-border)',
-                            fontWeight: 700, fontSize: '0.95rem', whiteSpace: 'nowrap',
-                        }}>
-                            <UserPlus size={17} /> Нов клиент
-                        </Link>
-                    )}
                 </form>
 
                 {matches.length > 0 && (

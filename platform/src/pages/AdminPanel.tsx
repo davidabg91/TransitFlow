@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
     Users, PlusCircle, ExternalLink, 
-    Trash2, XCircle, Clock, DollarSign, Camera, 
-    RefreshCw, List, Save, 
+    Trash2, XCircle, Clock, DollarSign, 
+    RefreshCw, List, 
     ShieldCheck, Shield, TrendingUp,
     PiggyBank, AlertTriangle, Share2,
     AlertCircle, Bus, Send, Bell, BarChart3,
@@ -13,7 +13,7 @@ import Card from '../components/Card';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from '../firebase';
 import ModuleLocked from '../components/ModuleLocked';
-import { cardProfileHref, useCardResolver } from '../tenant/cards';
+import { cardProfileHref } from '../tenant/cards';
 import { FUNCTIONS_REGION } from '../tenant/db';
 import { useModules } from '../tenant/modules';
 import UnpaidAlertsButton from '../components/UnpaidAlertsButton';
@@ -23,7 +23,7 @@ import { db } from '../firebase';
 import {
     addDoc,
     doc,
-    setDoc,
+    
     collection,
     onSnapshot,
     updateDoc,
@@ -43,7 +43,6 @@ import { coversDate, coversMonth, formatSpanBG, spanEndDay, spanSortKey } from '
 import { localToday } from '../components/PeriodPicker';
 import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanProblem, spanStartDay } from '../components/PeriodPicker';
 import type { PeriodChoice } from '../components/PeriodPicker';
-import { uploadClientPhoto } from '../utils/photoStorage';
 import PaymentMethodSelector from '../components/PaymentMethodSelector';
 import { MIXED_METHOD, PAYMENT_METHODS } from '../data/paymentMethods';
 import { MUNICIPALITIES, MUNICIPALITY_CUSTOM, DEFAULT_MUNICIPALITY, needsMunicipality } from '../data/municipalities';
@@ -118,21 +117,6 @@ const CARD_TYPES = [
     "Нормална карта", "Ученическа карта", "Пенсионерска карта",
     "Учителска карта", "Инвалидна карта", "Служебна карта"
 ];
-
-const generateClientId = () => {
-    // Collision-resistant: prefer crypto.randomUUID, fall back to crypto.getRandomValues.
-    // (The old Math.random().substr(2,9) was both deprecated and prone to duplicates
-    // when generating large NFC batches.)
-    const cryptoObj = typeof crypto !== 'undefined' ? crypto : undefined;
-    if (cryptoObj?.randomUUID) {
-        return cryptoObj.randomUUID().replace(/-/g, '').slice(0, 12).toUpperCase();
-    }
-    if (cryptoObj?.getRandomValues) {
-        const bytes = cryptoObj.getRandomValues(new Uint8Array(8));
-        return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
-    }
-    return (Date.now().toString(36) + Math.random().toString(36).slice(2, 11)).toUpperCase();
-};
 
 const sanitizeId = (id: string | null | undefined): string => {
     if (!id) return '';
@@ -312,12 +296,12 @@ interface Rental {
 }
 
 interface TabButtonProps {
-    id: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid';
+    id: 'clients' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid';
     icon: React.ElementType;
     badgeColor?: string;
     label: string;
-    activeTab: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid';
-    setActiveTab: (id: 'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid') => void;
+    activeTab: 'clients' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid';
+    setActiveTab: (id: 'clients' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid') => void;
     activeColor?: string;
     badge?: number;
     isMobile?: boolean;
@@ -332,11 +316,10 @@ const TabButton = ({ id, icon: Icon, label, activeTab, setActiveTab, activeColor
         style={{
             display: 'flex', alignItems: 'center', gap: isMobile ? '0.3rem' : '0.5rem', padding: isMobile ? '0.6rem 0.9rem' : '0.75rem 1.25rem', borderRadius: '50px',
             fontWeight: 700, 
-            background: activeTab === id ? activeColor : (id === 'register' ? 'rgba(0, 200, 83, 0.1)' : 'transparent'),
-            color: activeTab === id ? '#fff' : (id === 'register' ? '#00c853' : 'var(--text-secondary)'),
-            border: `2px solid ${activeTab === id ? activeColor : (id === 'register' ? '#00c853' : 'var(--surface-border)')}`,
-            boxShadow: id === 'register' ? '0 0 15px rgba(0, 200, 83, 0.2)' : 'none',
-            transition: 'all 0.3s ease',
+            background: activeTab === id ? activeColor : 'transparent',
+            color: activeTab === id ? '#fff' : 'var(--text-secondary)',
+            border: `2px solid ${activeTab === id ? activeColor : 'var(--surface-border)'}`,
+                        transition: 'all 0.3s ease',
             fontSize: isMobile ? '0.75rem' : '0.9rem',
             position: 'relative',
             whiteSpace: 'nowrap',
@@ -360,36 +343,6 @@ const TabButton = ({ id, icon: Icon, label, activeTab, setActiveTab, activeColor
     </button>
 );
 
-const compressImage = (dataUrl: string, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.src = dataUrl;
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-                if (width > maxWidth) {
-                    height *= maxWidth / width;
-                    width = maxWidth;
-                }
-            } else {
-                if (height > maxHeight) {
-                    width *= maxHeight / height;
-                    height = maxHeight;
-                }
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', quality));
-        };
-    });
-};
-
 const AdminPanel: React.FC = () => {
     const { currentUser } = useAuth();
     // The lines this company runs and what it charges on them, set under
@@ -405,11 +358,14 @@ const AdminPanel: React.FC = () => {
     // Moderators share most day-to-day client actions with admins (changing a
     // direction, renewing); only destructive ones stay admin-only.
     const isStaff = isAdmin || currentUser?.role === 'moderator';
-    // Openable straight from a shortcut, e.g. /#/admin?tab=register.
-    const [activeTab, setActiveTab] = useState<'clients' | 'register' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid'>(
+    // Openable straight from a shortcut, e.g. /#/admin?tab=clients.
+    const [activeTab, setActiveTab] = useState<'clients' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid'>(
         () => {
             const wanted = new URLSearchParams(window.location.hash.split('?')[1] || '').get('tab');
-            const allowed = ['clients', 'register', 'nfc', 'finances', 'signals', 'rentals', 'notifications', 'unpaid'] as const;
+            // 'register' is deliberately absent: a card is activated by scanning it,
+            // not by typing a profile into a form. An old ?tab=register link lands on
+            // the client list rather than nowhere.
+            const allowed = ['clients', 'nfc', 'finances', 'signals', 'rentals', 'notifications', 'unpaid'] as const;
             return (allowed as readonly string[]).includes(wanted || '')
                 ? (wanted as typeof allowed[number])
                 : 'clients';
@@ -448,34 +404,6 @@ const AdminPanel: React.FC = () => {
             window.removeEventListener('offline', handleOffline);
         };
     }, []);
-
-    // Registration Form State
-    const [clientName, setClientName] = useState('');
-    const [cardType, setCardType] = useState('Нормална карта');
-    const [selectedRoute, setSelectedRoute] = useState('');
-    const [amountPaid, setAmountPaid] = useState('');
-    const [expiryDate, setExpiryDate] = useState(getDefaultExpiryMonth());
-    const [regChoice, setRegChoice] = useState<PeriodChoice>(defaultChoice());
-    const [paymentMethod, setPaymentMethod] = useState('В брой');
-    const [bankAmount, setBankAmount] = useState('');
-    const [cashAmount, setCashAmount] = useState('');
-    const [photoDataURL, setPhotoDataURL] = useState<string | null>(null);
-    const [nfcLinkId, setNfcLinkId] = useState('');
-    const { card: linkedCard, checking: linkChecking } = useCardResolver(nfcLinkId);
-    const [address, setAddress] = useState('');
-    // Service cards ("Служебна"): a free-text reason why the card is issued
-    // (relative of a driver, contract with a община, etc.) and the year the
-    // whole-year (unpaid) subscription covers.
-    const [serviceReason, setServiceReason] = useState('');
-    const [serviceYear, setServiceYear] = useState(new Date().getFullYear());
-    const [selectedSchool, setSelectedSchool] = useState('');
-    const [customSchool, setCustomSchool] = useState('');
-    // Municipality (община) for student & pensioner cards. `municipality` holds a
-    // value from MUNICIPALITIES, '' (none) or MUNICIPALITY_CUSTOM; when custom,
-    // the manual text lives in `customMunicipality`.
-    const [municipality, setMunicipality] = useState('');
-    const [customMunicipality, setCustomMunicipality] = useState('');
-    const [isWaitingForScan, setIsWaitingForScan] = useState(false);
 
     // Modal/Action State
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -651,8 +579,6 @@ const AdminPanel: React.FC = () => {
     }, [activeTab, isAdmin, unpaidWindowDays, unpaidReloadKey]);
 
     // Duplicate Check State
-    const [duplicateCheckClient, setDuplicateCheckClient] = useState<Client | null>(null);
-    const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
     
     // NFC Tools State
     const [nfcQuantity, setNfcQuantity] = useState<number>(100);
@@ -729,82 +655,7 @@ const AdminPanel: React.FC = () => {
     };
     const [contractMunicipalities, setContractMunicipalities] = useState<string[]>([]);
 
-    const [photoError, setPhotoError] = useState<string | null>(null);
     
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [isCapturing, setIsCapturing] = useState(false);
-    const videoRef = useRef<HTMLVideoElement | null>(null);
-    const streamRef = useRef<MediaStream | null>(null);
-
-    const startWebcam = async () => {
-        setIsCapturing(true);
-        setPhotoError(null);
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } },
-                audio: false
-            });
-            streamRef.current = stream;
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                videoRef.current.play().catch(err => console.error("Error playing video:", err));
-            }
-        } catch (err) {
-            console.error("Error accessing webcam:", err);
-            setPhotoError("Неуспешно свързване с камерата. Моля, проверете разрешенията.");
-            setIsCapturing(false);
-        }
-    };
-
-    const capturePhoto = () => {
-        if (videoRef.current) {
-            const video = videoRef.current;
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 640;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                compressImage(dataUrl, 500, 500, 0.8).then(compressed => {
-                    setPhotoDataURL(compressed);
-                    stopWebcam();
-                }).catch(err => {
-                    console.error("Compression error:", err);
-                    setPhotoDataURL(dataUrl);
-                    stopWebcam();
-                });
-            }
-        }
-    };
-
-    const stopWebcam = () => {
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-        }
-        setIsCapturing(false);
-    };
-
-    useEffect(() => {
-        return () => {
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-            }
-        };
-    }, []);
-
-    // Auto-price from the line's own tariff. The company's lines arrive from
-    // Firestore after the first render, so the prices are a dependency too —
-    // without them this ran once against an empty list and never again.
-    useEffect(() => {
-        if (cardType === 'Служебна карта') { setAmountPaid('0'); return; }
-        if (selectedRoute && hasRoute(selectedRoute)) {
-            const price = priceOf(selectedRoute, cardType, regChoice.period);
-            if (price !== null) setAmountPaid(price.toFixed(2));
-        }
-    }, [selectedRoute, cardType, regChoice.period, priceOf, hasRoute]);
-
     // The action modal works from its own copy of the client, taken when it
     // opened. Everything done inside it — a renewal, a deleted payment, a
     // direction removed — is written to Firestore and comes back through the
@@ -830,25 +681,6 @@ const AdminPanel: React.FC = () => {
 
 
 
-    const toggleWaitingForScan = async () => {
-        try {
-            const newState = !isWaitingForScan;
-            setIsWaitingForScan(newState);
-            if (newState) {
-                await setDoc(doc(db, 'admin_actions', 'current'), { 
-                    action: 'waiting_for_reg', 
-                    timestamp: new Date().toISOString(),
-                    adminId: currentUser?.username // AppUser uses username for email
-                });
-            } else {
-                await updateDoc(doc(db, 'admin_actions', 'current'), { action: 'idle' });
-            }
-        } catch (err) {
-            console.error("Cloud scan error:", err);
-        }
-    };
-
-    const [registrationSuccess, setRegistrationSuccess] = useState<Client | null>(null);
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
     // --- Helper Functions ---
@@ -999,17 +831,6 @@ const AdminPanel: React.FC = () => {
             setRentals(rentalList.sort((a, b) => b.timestamp.localeCompare(a.timestamp)));
         });
 
-        const actionUnsubscribe = onSnapshot(doc(db, 'admin_actions', 'current'), (snapshot) => {
-            if (snapshot.exists()) {
-                const data = snapshot.data();
-                if (data.action === 'id_received' && data.cardId) {
-                    setNfcLinkId(sanitizeId(data.cardId));
-                    setIsWaitingForScan(false);
-                    updateDoc(doc(db, 'admin_actions', 'current'), { action: 'idle' });
-                }
-            }
-        });
-
         // 5. Listen for Notifications in Real-time
         const notificationsQ = query(collection(db, 'push_notifications'));
         const unsubscribeNotifications = onSnapshot(notificationsQ, (snapshot) => {
@@ -1045,7 +866,6 @@ const AdminPanel: React.FC = () => {
             unsubscribeRentals();
             unsubscribeNotifications();
             unsubscribeSub();
-            actionUnsubscribe();
             unsubscribeFines();
         };
     }, [location.search]);
@@ -1078,195 +898,6 @@ const AdminPanel: React.FC = () => {
             setModalMessage({ text: 'Грешка при изпращане на съобщението.', type: 'error' });
         } finally {
             setSendingNotification(false);
-        }
-    };
-
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        setPhotoError(null);
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const base64 = reader.result as string;
-                // Always compress to ensure it's under 1MB and consistent
-                const compressed = await compressImage(base64, 500, 500, 0.8);
-                setPhotoDataURL(compressed);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const retakePhoto = () => {
-        setPhotoDataURL(null);
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        const regProblem = spanProblem(expiryDate, regChoice);
-        if (regProblem) {
-            setMessage({ text: `Моля, въведете ${regProblem} на абонамента.`, type: 'error' });
-            return;
-        }
-        if (!clientName || !selectedRoute || !photoDataURL || !amountPaid) {
-            setMessage({ text: 'Моля, попълнете всички полета и направете снимка.', type: 'error' });
-            return;
-        }
-
-        // Teachers require an община; disabled cards require an address (like pensioners).
-        const resolvedMunicipality = municipality === MUNICIPALITY_CUSTOM ? customMunicipality.trim() : municipality;
-        if (needsMunicipality(cardType) && !resolvedMunicipality) {
-            setMessage({ text: 'Моля, изберете Община.', type: 'error' });
-            return;
-        }
-        if ((cardType === 'Инвалидна карта' || cardType === 'Пенсионерска карта') && !address.trim()) {
-            setMessage({ text: 'Моля, въведете адрес.', type: 'error' });
-            return;
-        }
-        if (cardType === 'Служебна карта' && !serviceReason.trim()) {
-            setMessage({ text: 'Моля, въведете причина за издаване на служебната карта.', type: 'error' });
-            return;
-        }
-
-        if (!nfcLinkId) {
-            setMessage({ text: 'Моля, свържете карта (Сканирайте или въведете ID), преди да запишете.', type: 'error' });
-            return;
-        }
-
-        // Duplicate Name Check
-        const normalize = (n: string) => n.toLowerCase().replace(/\s+/g, ' ').trim();
-        const existingClient = clients.find(c => normalize(c.name) === normalize(clientName));
-        if (existingClient && !showDuplicateWarning) {
-            setDuplicateCheckClient(existingClient);
-            setShowDuplicateWarning(true);
-            return;
-        }
-
-        const sanitizedNfcId = nfcLinkId ? sanitizeId(nfcLinkId) : '';
-
-        // Guard against a truncated/partial NFC read: real card ids are 8–9 chars.
-        // A shorter id (e.g. "JST", "SH5") means the card was read incompletely,
-        // so refuse instead of creating a profile under a broken id.
-        if (sanitizedNfcId && sanitizedNfcId.length < 8) {
-            setMessage({
-                text: `Картата изглежда прочетена НЕПЪЛНО (къс код: "${sanitizedNfcId}"). Моля, сканирайте/въведете картата отново.`,
-                type: 'error'
-            });
-            return;
-        }
-
-        // Card ID Occupied Check - Hard stop if ID exists
-        const idOccupied = clients.find(c => c.id === sanitizedNfcId);
-        if (idOccupied) {
-            setMessage({ 
-                text: `Тази карта (ID: ${sanitizedNfcId}) вече е присвоена на ${idOccupied.name}. Моля, използвайте друга карта или първо изтрийте стария профил.`, 
-                type: 'error' 
-            });
-            return;
-        }
-
-        const generatedId = sanitizedNfcId || generateClientId();
-
-        // Upload the photo to Storage and keep only its URL in the document.
-        // Falls back to the inline base64 if the upload fails, so registration never
-        // breaks just because of a transient Storage error.
-        let photoValue = photoDataURL || '';
-        try {
-            if (photoDataURL) photoValue = await uploadClientPhoto(photoDataURL, generatedId);
-        } catch (err) {
-            console.error('Photo upload failed, falling back to inline image:', err);
-        }
-
-        // Tiny inline thumbnail kept in the document for instant/offline display.
-        let photoThumb = '';
-        try {
-            if (photoDataURL) photoThumb = await compressImage(photoDataURL, 96, 96, 0.5);
-        } catch (err) {
-            console.error('Thumbnail generation failed:', err);
-        }
-
-        // Payment: a "Смесено" (mixed) payment splits the total between bank and cash.
-        const isMixedPay = paymentMethod === MIXED_METHOD;
-        const payBank = Number(bankAmount) || 0;
-        const payCash = Number(cashAmount) || 0;
-        const effectiveAmount = isMixedPay ? (payBank + payCash) : Number(amountPaid);
-        const paymentLabel = isMixedPay ? `Смесено (Банка: ${payBank.toFixed(2)} / Кеш: ${payCash.toFixed(2)})` : paymentMethod;
-        const renewalPaymentFields = isMixedPay
-            ? { paymentMethod, bankAmount: payBank, cashAmount: payCash }
-            : { paymentMethod };
-
-        if (isMixedPay && effectiveAmount <= 0) {
-            setMessage({ text: 'При смесено плащане въведете сумите по банка и/или в брой.', type: 'error' });
-            return;
-        }
-
-        // Service cards are unpaid and valid for the whole selected year: store all
-        // 12 monthly entries (amount 0) and set the expiry to December of that year.
-        const isServiceCard = cardType === 'Служебна карта';
-        const nowIso = new Date().toISOString();
-        const initialExpiry = isServiceCard ? `${serviceYear}-12` : spanExpiryMonth(expiryDate, regChoice);
-        const initialRenewalHistory = isServiceCard
-            ? buildYearMonths(serviceYear).map(m => ({ date: nowIso, amount: 0, month: m, route: selectedRoute, paymentMethod: 'Служебна' }))
-            : [{ date: nowIso, amount: effectiveAmount, ...spanFields(expiryDate, regChoice), route: selectedRoute, ...renewalPaymentFields }];
-        const initialDetails = isServiceCard
-            ? `Служебна карта за цялата ${serviceYear} г. (без плащане) | Причина: ${serviceReason.trim()}`
-            : `Първоначално плащане: ${effectiveAmount.toFixed(2)} € за период ${formatSpanBG(spanFields(expiryDate, regChoice))} | Начин на плащане: ${paymentLabel}`;
-
-        const newClient: Client = {
-            id: generatedId,
-            name: clientName,
-            route: selectedRoute,
-            routes: [selectedRoute],
-            cardType: cardType,
-            amountPaid: isServiceCard ? 0 : effectiveAmount,
-            expiryDate: initialExpiry,
-            photo: photoValue,
-            photoThumb,
-            address: (cardType === 'Пенсионерска карта' || cardType === 'Инвалидна карта') ? address : '',
-            serviceReason: isServiceCard ? serviceReason.trim() : '',
-            school: cardType === 'Ученическа карта' ? (selectedSchool === 'custom' ? customSchool : selectedSchool) : '',
-            municipality: needsMunicipality(cardType) ? resolvedMunicipality : '',
-            cardNumber: linkedCard?.cardNumber || '',
-            createdAt: nowIso,
-            renewalHistory: initialRenewalHistory,
-            history: [{
-                date: nowIso,
-                action: 'Създаване',
-                details: initialDetails,
-                amount: isServiceCard ? 0 : effectiveAmount,
-                performedBy: currentUser?.username || 'Админ'
-            }]
-        };
-
-        await saveClient(newClient);
-        const cardNum = getClientCardNumber(newClient);
-        const nameWithCard = cardNum ? `${newClient.name} (Карта № ${cardNum})` : newClient.name;
-        const logDetails = isServiceCard
-            ? `Нова служебна карта: ${newClient.id}. Валидна за цялата ${serviceYear} г. Регион: ${selectedRoute} | Причина: ${serviceReason.trim()}`
-            : `Нова карта: ${newClient.id}. Сума: ${effectiveAmount.toFixed(2)} €. Регион: ${selectedRoute} | Начин на плащане: ${paymentLabel}`;
-        await logGlobalActivity('Създаване', nameWithCard, logDetails, isServiceCard ? 0 : effectiveAmount);
-    };
-
-    const saveClient = async (client: Client, isNew: boolean = true) => {
-        try {
-            await setDoc(doc(db, 'clients', client.id), client);
-            
-            if (isNew) {
-                setRegistrationSuccess(client);
-                setClientName(''); setCardType('Нормална карта'); setAddress(''); setServiceReason(''); setServiceYear(new Date().getFullYear()); setSelectedSchool(''); setCustomSchool(''); setMunicipality(''); setCustomMunicipality(''); setAmountPaid(''); setExpiryDate(getDefaultExpiryMonth()); setPaymentMethod('В брой'); setBankAmount(''); setCashAmount(''); setPhotoDataURL(null); setNfcLinkId('');
-                setShowActionModal(false);
-                setSelectedClient(null);
-            } else {
-                // For updates, we keep the modal open to show the new modalMessage overlay
-                // setMessage({ text: 'Профилът бе обновен успешно.', type: 'success' });
-                // setTimeout(() => setMessage(null), 3000);
-            }
-            
-            setShowDuplicateWarning(false);
-            setDuplicateCheckClient(null);
-        } catch (err) {
-            console.error(err);
-            setMessage({ text: 'Грешка при записване.', type: 'error' });
         }
     };
 
@@ -2228,7 +1859,6 @@ const AdminPanel: React.FC = () => {
                     margin: isMobile ? '0.5rem 0' : '0',
                     padding: isMobile ? '0 0.25rem' : '0'
                 }}>
-                    <TabButton id="register" icon={PlusCircle} label={isMobile ? "ДОБАВИ КАРТА" : "ДОБАВИ КАРТИ"} activeColor="#00c853" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                     <TabButton id="clients" icon={Users} label="КЛИЕНТИ" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                     <TabButton id="finances" icon={PiggyBank} label="ФИНАНСИ" activeColor="#ff9800" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                     <TabButton id="rentals" icon={Bus} label="НАЕМИ" activeColor="#0091ea" activeTab={activeTab} setActiveTab={setActiveTab} badge={unreadRentalsCount} isMobile={isMobile} locked={!modules.rentals} />
@@ -2309,6 +1939,22 @@ const AdminPanel: React.FC = () => {
             100% { opacity: 1; transform: scale(1); }
         }
       `}</style>
+
+            {message && (
+                <div
+                    role="status"
+                    onClick={() => setMessage(null)}
+                    style={{
+                        margin: '0 0 1.25rem', padding: '0.9rem 1.15rem', borderRadius: '13px',
+                        cursor: 'pointer', fontWeight: 600, fontSize: '0.92rem', lineHeight: 1.5,
+                        background: message.type === 'success' ? 'rgba(0,200,83,0.12)' : 'rgba(255,82,82,0.12)',
+                        border: `1px solid ${message.type === 'success' ? 'rgba(0,200,83,0.4)' : 'rgba(255,82,82,0.4)'}`,
+                        color: message.type === 'success' ? 'var(--success-color)' : '#ff5252',
+                    }}
+                >
+                    {message.text}
+                </div>
+            )}
 
             {activeTab === 'notifications' && !modules.notifications && <ModuleLocked module="notifications" />}
 
@@ -4329,423 +3975,6 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                     )}
                 </div>
             )}
-
-            {activeTab === 'register' && (
-                <div style={{ marginBottom: '2rem', animation: 'fadeIn 0.4s ease' }}>
-                    <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#00c853', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <PlusCircle size={24} /> ДОБАВЯНЕ НА КАРТА
-                    </h2>
-                    
-                    {registrationSuccess ? (
-                        <Card style={{ 
-                            padding: '3rem 2rem', 
-                            textAlign: 'center', 
-                            display: 'flex', 
-                            flexDirection: 'column', 
-                            alignItems: 'center', 
-                            gap: '1.5rem',
-                            border: '2px solid rgba(0, 200, 83, 0.3)',
-                            background: 'linear-gradient(135deg, rgba(0, 200, 83, 0.05) 0%, rgba(0, 0, 0, 0) 100%)'
-                        }}>
-                            <div style={{ 
-                                width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(0, 200, 83, 0.1)', 
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00c853',
-                                marginBottom: '0.5rem', boxShadow: '0 0 20px rgba(0, 200, 83, 0.2)'
-                            }}>
-                                <ShieldCheck size={48} />
-                            </div>
-                            
-                            <div>
-                                <h3 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', color: '#00c853' }}>Успешно създадена карта!</h3>
-                                <p style={{ color: 'var(--text-secondary)' }}>Картата на <b>{registrationSuccess.name}</b> за курс <b>{registrationSuccess.route}</b> е готова.</p>
-                                <div style={{ marginTop: '1rem', padding: '0.6rem 1.2rem', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', display: 'inline-block', fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.1em', fontSize: '1.1rem', color: 'var(--primary-color)' }}>
-                                    ID: {registrationSuccess.id}
-                                </div>
-                            </div>
-                            
-                            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center', marginTop: '1rem' }}>
-                                <button 
-                                    onClick={() => setRegistrationSuccess(null)}
-                                    style={{ 
-                                        padding: '1rem 2rem', borderRadius: '50px', background: '#00c853', color: '#fff', 
-                                        fontWeight: 700, fontSize: '1rem', cursor: 'pointer', border: 'none',
-                                        display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 4px 15px rgba(0, 200, 83, 0.3)'
-                                    }}
-                                >
-                                    <PlusCircle size={20} /> Добави нова карта
-                                </button>
-                                <button 
-                                    onClick={() => { setRegistrationSuccess(null); setActiveTab('clients'); }}
-                                    style={{ 
-                                        padding: '1rem 2rem', borderRadius: '50px', background: 'rgba(255,255,255,0.05)', color: '#fff', 
-                                        fontWeight: 700, fontSize: '1rem', cursor: 'pointer', border: '1px solid var(--surface-border)',
-                                        display: 'flex', alignItems: 'center', gap: '0.75rem'
-                                    }}
-                                >
-                                    <Users size={20} /> Виж всички карти
-                                </button>
-                            </div>
-                        </Card>
-                    ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(350px, 1fr))', gap: isMobile ? '1rem' : '2rem' }}>
-                            <Card style={{ padding: isMobile ? '1.25rem' : '1.5rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                                    <h3 style={{ margin: 0 }}>Снимка на Клиента</h3>
-                                </div>
-
-                                {!photoDataURL && isCapturing && (
-                                    <div style={{ width: '100%', aspectRatio: '1', background: '#000', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', border: '2px solid var(--primary-color)' }}>
-                                        <video 
-                                            ref={videoRef} 
-                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                                            playsInline 
-                                            muted
-                                        />
-                                        <div style={{ position: 'absolute', bottom: '1rem', left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: '1rem' }}>
-                                            <button 
-                                                type="button" 
-                                                onClick={capturePhoto} 
-                                                style={{ background: '#22c55e', color: '#fff', padding: '0.6rem 1.2rem', borderRadius: '50px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
-                                            >
-                                                Снимай
-                                            </button>
-                                            <button 
-                                                type="button" 
-                                                onClick={stopWebcam} 
-                                                style={{ background: '#ef4444', color: '#fff', padding: '0.6rem 1.2rem', borderRadius: '50px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
-                                            >
-                                                Отказ
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {!photoDataURL && !isCapturing && (
-                                    <div style={{ width: '100%', aspectRatio: '1', background: 'rgba(0,0,0,0.3)', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', border: '2px dashed var(--surface-border)' }}>
-                                        <PlusCircle size={40} color="var(--primary-color)" style={{ marginBottom: '1rem', opacity: 0.6 }} />
-                                        <button 
-                                            type="button" 
-                                            onClick={startWebcam} 
-                                            style={{ background: 'var(--primary-color)', color: '#fff', padding: '0.8rem 1.5rem', borderRadius: '50px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', border: 'none', cursor: 'pointer' }}
-                                        >
-                                            <Camera size={18} /> Пусни Камерата
-                                        </button>
-                                        <button 
-                                            type="button" 
-                                            onClick={() => fileInputRef.current?.click()} 
-                                            style={{ background: 'transparent', color: 'var(--text-secondary)', marginTop: '1rem', border: 'none', cursor: 'pointer', fontSize: '0.8rem', textDecoration: 'underline' }}
-                                        >
-                                            или качете файл от компютъра
-                                        </button>
-                                        <p style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>Макс. 10MB (Samsung Galaxy/iPhone OK)</p>
-                                        <input 
-                                            type="file" 
-                                            accept="image/*" 
-                                            capture="environment"
-                                            ref={fileInputRef} 
-                                            style={{ display: 'none' }} 
-                                            onChange={handleFileUpload} 
-                                        />
-                                    </div>
-                                )}
-                                
-                                {photoDataURL && (
-                                    <div style={{ position: 'relative' }}>
-                                        <img src={photoDataURL} style={{ width: '100%', aspectRatio: '1', borderRadius: '16px', objectFit: 'cover', border: '2px solid var(--primary-color)' }} />
-                                        <button type="button" onClick={retakePhoto} style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.8rem', backdropFilter: 'blur(4px)', fontWeight: 600 }}>Нова Снимка</button>
-                                    </div>
-                                )}
-                                
-                                {photoError && <div style={{ marginTop: '1rem', color: 'var(--error-color)', fontSize: '0.85rem', textAlign: 'center', background: 'rgba(255,0,0,0.1)', padding: '0.5rem', borderRadius: '8px' }}>{photoError}</div>}
-                            </Card>
-                            <Card style={{ padding: isMobile ? '1.25rem' : '1.5rem' }}>
-                                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                                    <div>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Име</label>
-                                        <input type="text" style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--surface-border)' }} value={clientName} onChange={e => setClientName(e.target.value)} required />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Вид Карта</label>
-                                        <select style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'var(--bg-color)', border: '1px solid var(--surface-border)', color: 'white' }} value={cardType} onChange={e => {
-                                            const val = e.target.value;
-                                            setCardType(val);
-                                            // Students get their община from the school choice; the other
-                                            // община-bearing types default to Плевен; the rest carry none.
-                                            if (val === 'Ученическа карта') {
-                                                setMunicipality(selectedSchool && selectedSchool !== 'custom' ? (SCHOOL_MUNICIPALITY[selectedSchool] || DEFAULT_MUNICIPALITY) : '');
-                                            } else if (needsMunicipality(val)) {
-                                                setMunicipality(DEFAULT_MUNICIPALITY);
-                                            } else {
-                                                setMunicipality('');
-                                            }
-                                            setCustomMunicipality('');
-                                        }} required>
-                                            <option value="Нормална карта">Нормална карта</option>
-                                            <option value="Ученическа карта">Ученическа карта</option>
-                                            <option value="Пенсионерска карта">Пенсионерска карта</option>
-                                            <option value="Учителска карта">Учителска карта</option>
-                                            <option value="Инвалидна карта">Инвалидна карта</option>
-                                            <option value="Служебна карта">Служебна карта</option>
-                                        </select>
-                                    </div>
-                                    {(cardType === 'Пенсионерска карта' || cardType === 'Инвалидна карта') && (
-                                        <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                                            <label style={{ display: 'block', marginBottom: '0.5rem', color: '#ffab00', fontWeight: 700 }}>Адрес (Задължително)</label>
-                                            <input
-                                                type="text"
-                                                style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'rgba(255, 171, 0, 0.05)', border: '1px solid rgba(255, 171, 0, 0.3)', color: '#ffab00' }}
-                                                value={address}
-                                                onChange={e => setAddress(e.target.value)}
-                                                placeholder="напр. ул. Иван Вазов 10, Плевен"
-                                                required={cardType === 'Пенсионерска карта' || cardType === 'Инвалидна карта'}
-                                            />
-                                        </div>
-                                    )}
-                                    {cardType === 'Служебна карта' && (
-                                        <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                            <div>
-                                                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#4dd0e1', fontWeight: 700 }}>Причина за служебна карта (Задължително)</label>
-                                                <textarea
-                                                    rows={2}
-                                                    style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'rgba(77, 208, 225, 0.05)', border: '1px solid rgba(77, 208, 225, 0.3)', color: '#4dd0e1', resize: 'vertical', fontFamily: 'inherit' }}
-                                                    value={serviceReason}
-                                                    onChange={e => setServiceReason(e.target.value)}
-                                                    placeholder="напр. роднина на шофьор / договор с Община Плевен"
-                                                    required={cardType === 'Служебна карта'}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#4dd0e1', fontWeight: 700 }}>Абонамент за цялата година</label>
-                                                <select
-                                                    style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'var(--bg-color)', border: '1px solid rgba(77, 208, 225, 0.3)', color: '#fff', colorScheme: 'dark' }}
-                                                    value={serviceYear}
-                                                    onChange={e => setServiceYear(Number(e.target.value))}
-                                                >
-                                                    {getServiceYearOptions().map(y => <option key={y} value={y}>{y} г. (Януари – Декември)</option>)}
-                                                </select>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
-                                                    Служебната карта е безплатна и валидна за всичките 12 месеца на избраната година.
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {cardType === 'Ученическа карта' && (
-                                        <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                            <div>
-                                                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--primary-color)', fontWeight: 700 }}>Училище</label>
-                                                <select 
-                                                    style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'var(--bg-color)', border: '1px solid var(--primary-color)', color: 'white' }} 
-                                                    value={selectedSchool}
-                                                    onChange={e => {
-                                                        const val = e.target.value;
-                                                        setSelectedSchool(val);
-                                                        // Predefined (Pleven) school → auto Плевен. Custom school → leave
-                                                        // empty so the operator picks/enters the община manually.
-                                                        if (val === 'custom' || val === '') {
-                                                            setMunicipality('');
-                                                        } else {
-                                                            setMunicipality(SCHOOL_MUNICIPALITY[val] || DEFAULT_MUNICIPALITY);
-                                                        }
-                                                        setCustomMunicipality('');
-                                                    }}
-                                                    required={cardType === 'Ученическа карта'}
-                                                >
-                                                    <option value="">-- Изберете Училище --</option>
-                                                    {SCHOOLS.map(s => <option key={s} value={s}>{s}</option>)}
-                                                    <option value="custom">Друго (въведи ръчно)...</option>
-                                                </select>
-                                            </div>
-                                            {selectedSchool === 'custom' && (
-                                                <div style={{ animation: 'slideDown 0.3s ease' }}>
-                                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Име на Училището</label>
-                                                    <input 
-                                                        type="text" 
-                                                        style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--surface-border)' }} 
-                                                        value={customSchool} 
-                                                        onChange={e => setCustomSchool(e.target.value)} 
-                                                        placeholder="Въведете училище тук..."
-                                                        required={selectedSchool === 'custom'}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                    {needsMunicipality(cardType) && (
-                                        <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                            <div>
-                                                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--accent-color)', fontWeight: 700 }}>Община</label>
-                                                <select
-                                                    style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'var(--bg-color)', border: '1px solid var(--surface-border)', color: 'white' }}
-                                                    value={municipality}
-                                                    onChange={e => { setMunicipality(e.target.value); if (e.target.value !== MUNICIPALITY_CUSTOM) setCustomMunicipality(''); }}
-                                                    required={needsMunicipality(cardType)}
-                                                >
-                                                    <option value="">-- Изберете Община --</option>
-                                                    {MUNICIPALITIES.map(m => <option key={m} value={m}>{m}</option>)}
-                                                    <option value={MUNICIPALITY_CUSTOM}>Друго (въведи ръчно)...</option>
-                                                </select>
-                                            </div>
-                                            {municipality === MUNICIPALITY_CUSTOM && (
-                                                <div style={{ animation: 'slideDown 0.3s ease' }}>
-                                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Име на Община</label>
-                                                    <input
-                                                        type="text"
-                                                        style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--surface-border)' }}
-                                                        value={customMunicipality}
-                                                        onChange={e => setCustomMunicipality(e.target.value)}
-                                                        placeholder="Въведете община тук..."
-                                                        required={municipality === MUNICIPALITY_CUSTOM}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                    <div>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Курс (Маршрут)</label>
-                                        <select style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'var(--bg-color)', border: '1px solid var(--surface-border)', color: 'white' }} value={selectedRoute} onChange={e => setSelectedRoute(e.target.value)} required>
-                                            <option value="" disabled>{ROUTES.length ? '-- Изберете Маршрут --' : '-- Няма добавени линии (виж Настройки) --'}</option>
-                                            {ROUTES.map(r => <option key={r} value={r}>{r}</option>)}
-                                        </select>
-                                    </div>
-                                    {cardType !== 'Служебна карта' && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                        <div>
-                                            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Сума (€)</label>
-                                            <input type="number" step="0.01" style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--surface-border)' }} value={amountPaid} onChange={e => setAmountPaid(e.target.value)} required={cardType !== 'Служебна карта'} />
-                                        </div>
-                                        <div>
-                                            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Месец</label>
-                                            <PeriodPicker month={expiryDate} onMonth={setExpiryDate} choice={regChoice} onChoice={setRegChoice} inputStyle={{ background: 'rgba(0,0,0,0.2)' }} />
-                                        </div>
-                                    </div>
-                                    )}
-                                    {cardType !== 'Служебна карта' && (
-                                    <div>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Начин на плащане</label>
-                                        <PaymentMethodSelector
-                                            value={paymentMethod}
-                                            onChange={(m) => { setPaymentMethod(m); if (m === MIXED_METHOD && !bankAmount && !cashAmount) { setBankAmount(amountPaid || ''); setCashAmount('0'); } }}
-                                            bankAmount={bankAmount}
-                                            cashAmount={cashAmount}
-                                            onBankAmountChange={setBankAmount}
-                                            onCashAmountChange={setCashAmount}
-                                        />
-                                    </div>
-                                    )}
-                                    <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
-                                        <label style={{ display: 'block', marginBottom: '0.8rem', color: 'var(--accent-color)', fontWeight: 800, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Свързване на карта</label>
-                                        <div className="nfc-connect-container" style={{ display: 'flex', gap: '0.75rem' }}>
-                                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                <input 
-                                                    type="text" 
-                                                    placeholder="Номер на карта (0000000001) или код" 
-                                                    style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--surface-border)', color: 'var(--primary-color)', fontWeight: 700, fontFamily: 'monospace' }} 
-                                                    value={nfcLinkId} 
-                                                    onChange={e => setNfcLinkId(e.target.value.toUpperCase())} 
-                                                />
-                                                {/* Resolved against this company's card stock, so the
-                                                    number printed on the card works as well as the code,
-                                                    and a card the system never issued says so here rather
-                                                    than at the end of the form. */}
-                                                {nfcLinkId && (
-                                                    <div style={{
-                                                        fontSize: '0.75rem', padding: '2px 4px',
-                                                        fontWeight: linkedCard ? 800 : 500,
-                                                        color: linkChecking ? 'var(--text-secondary)' : (linkedCard ? '#00e676' : '#ff5252'),
-                                                    }}>
-                                                        {linkChecking ? (
-                                                            <span>Проверка…</span>
-                                                        ) : linkedCard ? (
-                                                            <span>Разпозната Карта № <b>{linkedCard.cardNumber}</b>{linkedCard.status === 'assigned' ? ' — вече е издадена на клиент' : ''}</span>
-                                                        ) : (
-                                                            <span>Тази карта не е издадена от системата</span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <button 
-                                                type="button"
-                                                onClick={toggleWaitingForScan}
-                                                className="nfc-scan-button"
-                                                style={{ 
-                                                    padding: '0.8rem 1.2rem', 
-                                                    borderRadius: '8px', 
-                                                    background: isWaitingForScan ? 'var(--error-color)' : 'var(--accent-color)', 
-                                                    color: '#ffffff', 
-                                                    fontWeight: 700, 
-                                                    display: 'flex', 
-                                                    alignItems: 'center', 
-                                                    gap: '0.5rem',
-                                                    boxShadow: isWaitingForScan ? '0 0 15px rgba(255,23,68,0.3)' : 'none',
-                                                    animation: isWaitingForScan ? 'pulse 1.5s infinite' : 'none',
-                                                    whiteSpace: 'nowrap',
-                                                    flexShrink: 0
-                                                }}
-                                            >
-                                                {isWaitingForScan ? <RefreshCw size={18} className="animate-spin" /> : <RefreshCw size={18} />}
-                                                {isWaitingForScan ? 'Чакам...' : 'Сканирай'}
-                                            </button>
-                                        </div>
-                                        <p style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                            Натиснете "Сканирай" и доближете картата до телефона си. ID-то ще се попълни само.
-                                        </p>
-                                    </div>
-                                    {message && <div style={{ color: message.type === 'success' ? 'var(--success-color)' : 'var(--error-color)' }}>{message.text}</div>}
-                                    <button type="submit" disabled={isWaitingForScan} style={{ background: 'var(--primary-color)', color: '#ffffff', padding: '1rem', borderRadius: '8px', fontWeight: 600, display: 'flex', justifyContent: 'center', gap: '0.5rem', opacity: isWaitingForScan ? 0.5 : 1 }}><Save size={20} /> Запази Клиента</button>
-                                </form>
-
-                                    {/* Duplicate Warning Overlay */}
-                                    {showDuplicateWarning && duplicateCheckClient && (
-                                        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 10, borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', textAlign: 'center', animation: 'fadeIn 0.3s ease' }}>
-                                            <AlertTriangle size={48} color="#ffab00" style={{ marginBottom: '1rem' }} />
-                                            <h3 style={{ color: '#ffab00', marginBottom: '0.5rem' }}>Внимание! Дублирано име</h3>
-                                            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-                                                Вече има регистриран клиент с името <b>{duplicateCheckClient.name}</b>.
-                                            </p>
-                                            
-                                            <div style={{ marginBottom: '1.5rem', border: '1px solid var(--surface-border)', borderRadius: '12px', padding: '1rem', background: 'rgba(255,255,255,0.03)', width: '100%' }}>
-                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>СЪЩЕСТВУВАЩ ПРОФИЛ:</div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'center' }}>
-                                                    <ClientPhoto src={duplicateCheckClient.photoThumb ? undefined : duplicateCheckClient.photo} thumb={duplicateCheckClient.photoThumb} style={{ width: '60px', height: '60px', borderRadius: '50%', border: '2px solid var(--primary-color)', flexShrink: 0 }} />
-                                                    <div style={{ textAlign: 'left' }}>
-                                                        <div style={{ fontWeight: 700 }}>{duplicateCheckClient.name}</div>
-                                                        <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>{duplicateCheckClient.route}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '0.8rem', width: '100%' }}>
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setShowDuplicateWarning(false);
-                                                        setDuplicateCheckClient(null);
-                                                        setClientName('');
-                                                        alert('Моля, не регистрирайте един и същ човек два пъти. Използвайте менюто "Подновяване" за съществуващи карти.');
-                                                    }}
-                                                    style={{ flex: 1, padding: '0.8rem', borderRadius: '8px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}
-                                                >
-                                                    Това е същият човек
-                                                </button>
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setShowDuplicateWarning(false);
-                                                        setDuplicateCheckClient(null);
-                                                        alert('Моля, добавете презиме на новия клиент, за да ги различаваме.');
-                                                    }}
-                                                    style={{ flex: 1, padding: '0.8rem', borderRadius: '8px', background: 'var(--primary-color)', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}
-                                                >
-                                                    Това е друг човек (добавете презиме)
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                </Card>
-                            </div>
-                        )}
-                    </div>
-                )}
 
                 {activeTab === 'unpaid' && isAdmin && (
                     <div style={{ animation: 'fadeIn 0.4s ease' }}>
