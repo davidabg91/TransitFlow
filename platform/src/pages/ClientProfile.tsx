@@ -6,6 +6,10 @@ import { db } from '../firebase';
 import { doc, onSnapshot, setDoc, updateDoc, increment, arrayUnion, addDoc, collection } from '../tenant/db';
 import LoadingScreen from '../components/LoadingScreen';
 import { useRoutePricing } from '../tenant/settings';
+import { coversDate } from '../tenant/settings';
+import { localToday } from '../components/PeriodPicker';
+import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanStartDay } from '../components/PeriodPicker';
+import type { PeriodChoice } from '../components/PeriodPicker';
 import { uploadClientPhoto } from '../utils/photoStorage';
 import ClientPhoto from '../components/ClientPhoto';
 import LostCardTransfer from '../components/LostCardTransfer';
@@ -27,7 +31,7 @@ interface Client {
     amountPaid?: number;
     isCanceled?: boolean;
     cancelReason?: string;
-    renewalHistory?: { date: string, amount: number, month: string, route?: string, paymentMethod?: string, bankAmount?: number, cashAmount?: number }[];
+    renewalHistory?: { date: string, amount: number, month: string, from?: string, to?: string, period?: string, route?: string, paymentMethod?: string, bankAmount?: number, cashAmount?: number }[];
     history?: { date: string; action: string; details?: string; amount?: number; performedBy?: string; }[];
     cardType?: string;
     address?: string;
@@ -262,6 +266,7 @@ const ClientProfile: React.FC = () => {
     };
 
     const [regMonth, setRegMonth] = useState<string>(getSuggestedMonth());
+    const [regChoice, setRegChoice] = useState<PeriodChoice>(defaultChoice());
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isCapturing, setIsCapturing] = useState(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -450,6 +455,7 @@ const ClientProfile: React.FC = () => {
     const [showQuickRenew, setShowQuickRenew] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [renewalMonth, setRenewalMonth] = useState(getSuggestedMonth());
+    const [renewChoice, setRenewChoice] = useState<PeriodChoice>(defaultChoice());
     const [renewalAmount, setRenewalAmount] = useState(30);
     const [renewalRoute, setRenewalRoute] = useState('');
     const [renewalPaymentMethod, setRenewalPaymentMethod] = useState('В брой');
@@ -734,7 +740,7 @@ const ClientProfile: React.FC = () => {
         // Service cards: whole selected year (12 monthly entries, amount 0).
         const initialRenewalHistory = isServiceCard
             ? buildYearMonths(regServiceYear).map(m => ({ date: now.toISOString(), amount: 0, month: m, route: regRoute, paymentMethod: 'Служебна' }))
-            : [{ date: now.toISOString(), amount: regEffectiveAmount, month: expiryMonth, route: regRoute, ...regPaymentFields }];
+            : [{ date: now.toISOString(), amount: regEffectiveAmount, ...spanFields(expiryMonth, isServiceCard ? undefined : regChoice), route: regRoute, ...regPaymentFields }];
         const initialDetails = isServiceCard
             ? `Служебна карта за цялата ${regServiceYear} г. (без плащане) | Причина: ${regServiceReason.trim()}`
             : `Първоначално плащане: ${regEffectiveAmount.toFixed(2)} € за месец ${expiryMonth} | Начин на плащане: ${regPaymentLabel}`;
@@ -751,7 +757,7 @@ const ClientProfile: React.FC = () => {
             school: regCardType === 'Ученическа карта' ? (regSelectedSchool === 'custom' ? regCustomSchool : regSelectedSchool) : '',
             municipality: needsMunicipality(regCardType) ? resolvedMunicipality : '',
             cardNumber: stockCard?.cardNumber || '',
-            expiryDate: expiryMonth,
+            expiryDate: isServiceCard ? expiryMonth : spanExpiryMonth(expiryMonth, regChoice),
             photo: photoValue,
             photoThumb,
             createdAt: now.toISOString(),
@@ -839,9 +845,7 @@ const ClientProfile: React.FC = () => {
                 setClient(clientData);
                 if (!hasPlayedSound.current) {
                     initAudio();
-                    const now = new Date();
-                    const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-                    const hasPaidCurrentMonth = (clientData.renewalHistory || []).some(rh => rh.month === currentMonthStr);
+                    const hasPaidCurrentMonth = (clientData.renewalHistory || []).some(rh => coversDate(rh, localToday()));
                     const isActive = !clientData.isCanceled && hasPaidCurrentMonth;
                     const lastMs = clientData.lastScanAt ? new Date(clientData.lastScanAt).getTime() : 0;
                     const secsSince = lastMs ? Math.round((Date.now() - lastMs) / 1000) : Infinity;
@@ -1399,7 +1403,7 @@ const ClientProfile: React.FC = () => {
                                 {regCardType !== 'Служебна карта' && (
                                 <>
                                 <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>СУМА (€)</label><input type="number" value={regAmount} onChange={e => setRegAmount(e.target.value)} style={{ width: '100%', padding: '1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none' }} /></div>
-                                <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>МЕСЕЦ</label><input type="month" value={regMonth} onChange={e => setRegMonth(e.target.value)} style={{ width: '100%', padding: '1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none', colorScheme: 'dark' }} /></div>
+                                <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>ПЕРИОД</label><PeriodPicker month={regMonth} onMonth={setRegMonth} choice={regChoice} onChoice={setRegChoice} inputStyle={{ padding: '1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }} /></div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                                     <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>НАЧИН НА ПЛАЩАНЕ</label>
                                     <PaymentMethodSelector
@@ -1446,7 +1450,7 @@ const ClientProfile: React.FC = () => {
 
     const isCanceled = client?.isCanceled;
     const renewalHistory = client?.renewalHistory || [];
-    const hasPaidCurrentMonth = renewalHistory.some(rh => rh.month === currentMonthStr);
+    const hasPaidCurrentMonth = renewalHistory.some(rh => coversDate(rh, localToday()));
     const lastPaidMonth = renewalHistory.length > 0 
         ? [...renewalHistory].sort((a, b) => b.month.localeCompare(a.month))[0].month 
         : currentMonthStr;
@@ -1632,7 +1636,7 @@ const ClientProfile: React.FC = () => {
                             return (
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', justifyContent: 'center', marginTop: '0.5rem' }}>
                                     {dirs.map(dir => {
-                                        const paid = (client.renewalHistory || []).some(rh => rh.month === currentMonthStr && (rh.route ? rh.route === dir : dir === dirs[0]));
+                                        const paid = (client.renewalHistory || []).some(rh => coversDate(rh, localToday()) && (rh.route ? rh.route === dir : dir === dirs[0]));
                                         return (
                                             <span key={dir} style={{ fontSize: '0.72rem', fontWeight: 800, padding: '0.2rem 0.55rem', borderRadius: '50px', background: paid ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)', color: paid ? '#00e676' : '#ff5252', border: `1px solid ${paid ? 'rgba(0,230,118,0.3)' : 'rgba(255,82,82,0.3)'}` }}>
                                                 {paid ? '✓' : '✗'} {dir}
@@ -1963,11 +1967,12 @@ const ClientProfile: React.FC = () => {
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                                             <label style={{ fontSize: '0.6rem', opacity: 0.5, fontWeight: 900 }}>МЕСЕЦ</label>
-                                            <input
-                                                type="month"
-                                                value={renewalMonth}
-                                                onChange={(e) => setRenewalMonth(e.target.value)}
-                                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px', borderRadius: '12px', fontSize: '1rem', fontWeight: 700, colorScheme: 'dark', width: '100%', boxSizing: 'border-box' }}
+                                            <PeriodPicker
+                                                month={renewalMonth}
+                                                onMonth={setRenewalMonth}
+                                                choice={renewChoice}
+                                                onChoice={setRenewChoice}
+                                                inputStyle={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', padding: '10px', borderRadius: '12px', fontSize: '1rem', fontWeight: 700, boxSizing: 'border-box' }}
                                             />
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
@@ -2058,7 +2063,7 @@ const ClientProfile: React.FC = () => {
                                                 }
                                                 const qrDirs = getClientRoutes(client || { route: '' });
                                                 const qrAlreadyPaid = (client?.renewalHistory || []).some(rh =>
-                                                    rh.month === renewalMonth && (rh.route ? rh.route === renewalRoute : renewalRoute === qrDirs[0])
+                                                    coversDate(rh, spanStartDay(renewalMonth, renewChoice)) && (rh.route ? rh.route === renewalRoute : renewalRoute === qrDirs[0])
                                                 );
                                                 if (qrAlreadyPaid) {
                                                     playErrorSound();
@@ -2082,7 +2087,8 @@ const ClientProfile: React.FC = () => {
                                                 const clientRef = doc(db, 'clients', client?.id || '');
                                                 const qrCur = getClientRoutes(client || { route: '' });
                                                 const qrNew = qrCur.includes(renewalRoute) ? qrCur : [...qrCur, renewalRoute];
-                                                const qrExpiry = renewalMonth > (client?.expiryDate || '') ? renewalMonth : (client?.expiryDate || renewalMonth);
+                                                const qrThrough = spanExpiryMonth(renewalMonth, renewChoice);
+                                                const qrExpiry = qrThrough > (client?.expiryDate || '') ? qrThrough : (client?.expiryDate || qrThrough);
                                                 await updateDoc(clientRef, {
                                                     expiryDate: qrExpiry,
                                                     route: qrNew.join(', '),
@@ -2090,7 +2096,7 @@ const ClientProfile: React.FC = () => {
                                                     renewalHistory: arrayUnion({
                                                         date: new Date().toISOString(),
                                                         amount: qrAmount,
-                                                        month: renewalMonth,
+                                                        ...spanFields(renewalMonth, renewChoice),
                                                         route: renewalRoute,
                                                         ...qrPaymentFields
                                                     }),

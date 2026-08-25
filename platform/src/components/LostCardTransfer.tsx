@@ -22,7 +22,7 @@ interface TransferClient {
     photoThumb?: string;
     cardNumber?: string;
     isCanceled?: boolean;
-    renewalHistory?: { date: string; amount: number; month: string; route?: string; paymentMethod?: string }[];
+    renewalHistory?: { date: string; amount: number; month: string; from?: string; to?: string; period?: string; route?: string; paymentMethod?: string }[];
 }
 
 interface Props {

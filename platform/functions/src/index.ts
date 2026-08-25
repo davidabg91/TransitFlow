@@ -980,10 +980,20 @@ export const syncPublicCard = fn.firestore
         // business, not the passenger's.
         const payments = history
             .slice(-6)
-            .map((r: { month?: string; amount?: number }) => ({
-                month: String(r?.month || ""),
-                amount: Number(r?.amount) || 0,
-            }))
+            .map((r: { month?: string; amount?: number; from?: string; to?: string }) => {
+                const entry: { month: string; amount: number; from?: string; to?: string } = {
+                    month: String(r?.month || ""),
+                    amount: Number(r?.amount) || 0,
+                };
+                // A subscription sold by date carries its span, so the passenger's
+                // own page can tell them whether the card is valid today rather
+                // than only which month it was booked into.
+                if (r?.from && r?.to) {
+                    entry.from = String(r.from);
+                    entry.to = String(r.to);
+                }
+                return entry;
+            })
             .filter((r: { month: string }) => r.month);
 
         await publicRef.set({

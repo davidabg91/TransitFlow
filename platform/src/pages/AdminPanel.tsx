@@ -39,6 +39,10 @@ import {
 } from '../tenant/db';
 import { useAuth } from '../context/AuthContext';
 import { useRoutePricing } from '../tenant/settings';
+import { coversDate } from '../tenant/settings';
+import { localToday } from '../components/PeriodPicker';
+import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanStartDay } from '../components/PeriodPicker';
+import type { PeriodChoice } from '../components/PeriodPicker';
 import { uploadClientPhoto } from '../utils/photoStorage';
 import PaymentMethodSelector from '../components/PaymentMethodSelector';
 import { MIXED_METHOD, PAYMENT_METHODS } from '../data/paymentMethods';
@@ -67,7 +71,7 @@ interface Client {
     createdAt: string;
     isCanceled?: boolean;
     cancelReason?: string;
-    renewalHistory?: { date: string, amount: number, month: string, route?: string, paymentMethod?: string, bankAmount?: number, cashAmount?: number }[];
+    renewalHistory?: { date: string, amount: number, month: string, from?: string, to?: string, period?: string, route?: string, paymentMethod?: string, bankAmount?: number, cashAmount?: number }[];
     history?: ClientLog[];
     scanCount?: number;
     lastScanAt?: string;
@@ -265,12 +269,13 @@ const getClientRoutes = (client: { route?: string; routes?: string[] }): string[
     return client.route ? [client.route] : [];
 };
 
-// Is a specific direction paid for a given month? Legacy entries without a
-// `route` count toward the client's primary (first) direction.
-const isDirectionPaid = (client: Client, direction: string, month: string): boolean => {
+// Is a specific direction covered on a given day? Legacy entries without a
+// `route` count toward the client's primary (first) direction, and entries
+// without dates are judged on their month, as they always were.
+const isDirectionPaid = (client: Client, direction: string, dayIso: string): boolean => {
     const primary = getClientRoutes(client)[0];
     return (client.renewalHistory || []).some(rh =>
-        rh.month === month && (rh.route ? rh.route === direction : direction === primary)
+        coversDate(rh, dayIso) && (rh.route ? rh.route === direction : direction === primary)
     );
 };
 
@@ -450,6 +455,7 @@ const AdminPanel: React.FC = () => {
     const [selectedRoute, setSelectedRoute] = useState('');
     const [amountPaid, setAmountPaid] = useState('');
     const [expiryDate, setExpiryDate] = useState(getDefaultExpiryMonth());
+    const [regChoice, setRegChoice] = useState<PeriodChoice>(defaultChoice());
     const [paymentMethod, setPaymentMethod] = useState('В брой');
     const [bankAmount, setBankAmount] = useState('');
     const [cashAmount, setCashAmount] = useState('');
@@ -476,6 +482,7 @@ const AdminPanel: React.FC = () => {
     const [showActionModal, setShowActionModal] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
     const [newMonth, setNewMonth] = useState('');
+    const [newChoice, setNewChoice] = useState<PeriodChoice>(defaultChoice());
     const [newServiceYear, setNewServiceYear] = useState(new Date().getFullYear());
     const [newAmount, setNewAmount] = useState('');
     const [newPaymentMethod, setNewPaymentMethod] = useState('В брой');
@@ -669,6 +676,7 @@ const AdminPanel: React.FC = () => {
     const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set());
     const [showBulkRenew, setShowBulkRenew] = useState(false);
     const [bulkMonth, setBulkMonth] = useState<string>(getDefaultExpiryMonth());
+    const [bulkChoice, setBulkChoice] = useState<PeriodChoice>(defaultChoice());
     const [bulkPaymentMethod, setBulkPaymentMethod] = useState('В брой');
     const [bulkProcessing, setBulkProcessing] = useState(false);
     const [bulkResult, setBulkResult] = useState<{ ok: number; fail: number; skipped: number } | null>(null);
@@ -1168,10 +1176,10 @@ const AdminPanel: React.FC = () => {
         // 12 monthly entries (amount 0) and set the expiry to December of that year.
         const isServiceCard = cardType === 'Служебна карта';
         const nowIso = new Date().toISOString();
-        const initialExpiry = isServiceCard ? `${serviceYear}-12` : expiryDate;
+        const initialExpiry = isServiceCard ? `${serviceYear}-12` : spanExpiryMonth(expiryDate, regChoice);
         const initialRenewalHistory = isServiceCard
             ? buildYearMonths(serviceYear).map(m => ({ date: nowIso, amount: 0, month: m, route: selectedRoute, paymentMethod: 'Служебна' }))
-            : [{ date: nowIso, amount: effectiveAmount, month: expiryDate, route: selectedRoute, ...renewalPaymentFields }];
+            : [{ date: nowIso, amount: effectiveAmount, ...spanFields(expiryDate, regChoice), route: selectedRoute, ...renewalPaymentFields }];
         const initialDetails = isServiceCard
             ? `Служебна карта за цялата ${serviceYear} г. (без плащане) | Причина: ${serviceReason.trim()}`
             : `Първоначално плащане: ${effectiveAmount.toFixed(2)} € за месец ${expiryDate} | Начин на плащане: ${paymentLabel}`;
@@ -1285,7 +1293,7 @@ const AdminPanel: React.FC = () => {
         }
 
         // Prevent a duplicate payment: this direction is already paid for this month.
-        if (isDirectionPaid(selectedClient, newRoute, newMonth)) {
+        if (isDirectionPaid(selectedClient, newRoute, spanStartDay(newMonth, newChoice))) {
             setModalMessage({
                 text: `Вече има платен абонамент за направление „${newRoute}" за месец ${newMonth}. Второ плащане за същия месец не е разрешено.`,
                 type: 'error'
@@ -1301,7 +1309,8 @@ const AdminPanel: React.FC = () => {
         const curRoutes = getClientRoutes(selectedClient);
         const newRoutes = curRoutes.includes(newRoute) ? curRoutes : [...curRoutes, newRoute];
         const isNewDir = !curRoutes.includes(newRoute);
-        const newExpiry = newMonth > (selectedClient.expiryDate || '') ? newMonth : selectedClient.expiryDate;
+        const renewedThrough = spanExpiryMonth(newMonth, newChoice);
+        const newExpiry = renewedThrough > (selectedClient.expiryDate || '') ? renewedThrough : selectedClient.expiryDate;
         const isoNow = new Date().toISOString();
 
         // Atomic update: appending to history/renewalHistory and bumping the running
@@ -1318,7 +1327,7 @@ const AdminPanel: React.FC = () => {
                 renewalHistory: arrayUnion({
                     date: isoNow,
                     amount: effectiveNewAmount,
-                    month: newMonth,
+                    ...spanFields(newMonth, newChoice),
                     route: newRoute,
                     ...renewPaymentFields
                 }),
@@ -1366,7 +1375,7 @@ const AdminPanel: React.FC = () => {
                 const primaryDir = getClientRoutes(c)[0] || c.route;
                 // Skip clients whose primary direction is already paid for this month
                 // (service cards renew for a whole year, so this guard is for normal cards).
-                if (c.cardType !== 'Служебна карта' && primaryDir && isDirectionPaid(c, primaryDir, bulkMonth)) {
+                if (c.cardType !== 'Служебна карта' && primaryDir && isDirectionPaid(c, primaryDir, spanStartDay(bulkMonth, bulkChoice))) {
                     skipped++;
                     continue;
                 }
@@ -1384,10 +1393,10 @@ const AdminPanel: React.FC = () => {
                 } else {
                     const amount = computeCardAmount(primaryDir, c.cardType);
                     await updateDoc(doc(db, 'clients', c.id), {
-                        expiryDate: bulkMonth,
+                        expiryDate: spanExpiryMonth(bulkMonth, bulkChoice),
                         isCanceled: false,
                         amountPaid: increment(amount),
-                        renewalHistory: arrayUnion({ date: isoNow, amount, month: bulkMonth, route: primaryDir, paymentMethod: bulkPaymentMethod }),
+                        renewalHistory: arrayUnion({ date: isoNow, amount, ...spanFields(bulkMonth, bulkChoice), route: primaryDir, paymentMethod: bulkPaymentMethod }),
                         history: arrayUnion({ date: isoNow, action: 'Групово подновяване', details: `Месец: ${bulkMonth}. Сума: ${amount.toFixed(2)} €. Курс: ${c.route} | Начин на плащане: ${bulkPaymentMethod}`, amount, performedBy: currentUser?.username || 'Админ' })
                     });
                     await logGlobalActivity('Групово подновяване', nameWithCard, `Месец: ${bulkMonth}. Сума: ${amount.toFixed(2)} €. Курс: ${c.route} | Вид: ${c.cardType || 'Нормална карта'} | Начин на плащане: ${bulkPaymentMethod}`, amount);
@@ -1813,11 +1822,10 @@ const AdminPanel: React.FC = () => {
     const isExpired = (monthStr: string | undefined, client?: Client) => {
         if (!monthStr) return true;
         const now = new Date();
-        const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
         
         // If we have the full client, check if they have paid for THIS month
         if (client?.renewalHistory) {
-            return !client.renewalHistory.some(rh => rh.month === currentMonthStr);
+            return !client.renewalHistory.some(rh => coversDate(rh, localToday()));
         }
 
         const [year, month] = monthStr.split('-');
@@ -4218,7 +4226,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                             <div style={{ padding: '1.25rem 1.5rem', display: 'flex', gap: '1rem', borderBottom: '1px solid var(--surface-border)', flexWrap: 'wrap' }}>
                                                 <div style={{ flex: 1, minWidth: '140px' }}>
                                                     <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>МЕСЕЦ</label>
-                                                    <input type="month" value={bulkMonth} onChange={(e) => setBulkMonth(e.target.value)} style={{ width: '100%', padding: '0.6rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--surface-border)', borderRadius: '8px', color: '#fff', colorScheme: 'dark' }} />
+                                                    <PeriodPicker compact month={bulkMonth} onMonth={setBulkMonth} choice={bulkChoice} onChoice={setBulkChoice} />
                                                 </div>
                                                 <div style={{ flex: 1, minWidth: '140px' }}>
                                                     <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>НАЧИН НА ПЛАЩАНЕ</label>
@@ -4549,7 +4557,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                         </div>
                                         <div>
                                             <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Месец</label>
-                                            <input type="month" style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--surface-border)', colorScheme: 'dark' }} value={expiryDate} onChange={e => setExpiryDate(e.target.value)} required={cardType !== 'Служебна карта'} />
+                                            <PeriodPicker month={expiryDate} onMonth={setExpiryDate} choice={regChoice} onChoice={setRegChoice} inputStyle={{ background: 'rgba(0,0,0,0.2)' }} />
                                         </div>
                                     </div>
                                     )}
@@ -5287,7 +5295,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                             <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary-color)', margin: '0 0 1rem 0', fontSize: isMobile ? '1rem' : '1.1rem' }}><Bus size={18} /> Направления (за {currentMonthIso})</h4>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                                 {getClientRoutes(selectedClient).map(dir => {
-                                                    const paid = isDirectionPaid(selectedClient, dir, currentMonthIso);
+                                                    const paid = isDirectionPaid(selectedClient, dir, localToday());
                                                     const canDelete = isAdmin && getClientRoutes(selectedClient).length > 1;
                                                     const isChanging = changingDir === dir;
                                                     const taken = getClientRoutes(selectedClient);
@@ -5472,7 +5480,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                 <>
                                                 <div>
                                                     <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>Месец</label>
-                                                    <input type="month" style={{ width: '100%', padding: '0.6rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--surface-border)', borderRadius: '6px', color: '#fff', colorScheme: 'dark' }} value={newMonth} onChange={e => setNewMonth(e.target.value)} />
+                                                    <PeriodPicker compact month={newMonth} onMonth={setNewMonth} choice={newChoice} onChoice={setNewChoice} inputStyle={{ background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }} />
                                                 </div>
                                                 <div>
                                                     <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>Сума (€)</label>

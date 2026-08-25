@@ -5,6 +5,10 @@ import { CheckCircle, XCircle, RefreshCw, Settings, UserPlus, Zap, AlertTriangle
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRouteNames } from '../tenant/settings';
+import { coversDate } from '../tenant/settings';
+import { localToday } from './PeriodPicker';
+import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields } from './PeriodPicker';
+import type { PeriodChoice } from './PeriodPicker';
 import AdSlideshow from './AdSlideshow';
 import ClientPhoto from './ClientPhoto';
 import PaymentMethodSelector from './PaymentMethodSelector';
@@ -20,7 +24,7 @@ interface Client {
     photo: string;
     isCanceled?: boolean;
     cardType?: string;
-    renewalHistory?: { month: string; amount: number; date: string; paymentMethod?: string; bankAmount?: number; cashAmount?: number }[];
+    renewalHistory?: { month: string; from?: string; to?: string; period?: string; amount: number; date: string; paymentMethod?: string; bankAmount?: number; cashAmount?: number }[];
     photoThumb?: string;
     lastScanAt?: string;
     cardNumber?: string;
@@ -72,6 +76,7 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
     const [showQuickRenew, setShowQuickRenew] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [renewalMonth, setRenewalMonth] = useState('');
+    const [renewChoice, setRenewChoice] = useState<PeriodChoice>(defaultChoice());
     const [renewalAmount, setRenewalAmount] = useState(30);
     const [renewalRoute, setRenewalRoute] = useState('');
     const [renewalPaymentMethod, setRenewalPaymentMethod] = useState('В брой');
@@ -434,9 +439,7 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
                     setRenewalRoute(data.route || '');
                     setRenewalPaymentMethod('В брой');
 
-                    const nowLocal = new Date();
-                    const currentMonthStrLocal = `${nowLocal.getFullYear()}-${(nowLocal.getMonth() + 1).toString().padStart(2, '0')}`;
-                    const hasPaid = (data.renewalHistory || []).some((rh) => rh.month === currentMonthStrLocal);
+                    const hasPaid = (data.renewalHistory || []).some((rh) => coversDate(rh, localToday()));
                     const active = !data.isCanceled && hasPaid;
 
                     // Passback always buzzes a warning; otherwise success/expired sound.
@@ -497,7 +500,7 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
     const now = new Date();
     const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
     const renewalHistory = client?.renewalHistory || [];
-    const hasPaidCurrentMonth = renewalHistory.some((rh) => rh.month === currentMonthStr);
+    const hasPaidCurrentMonth = renewalHistory.some((rh) => coversDate(rh, localToday()));
     const lastPaidMonth = renewalHistory.length > 0 
         ? [...renewalHistory].sort((a, b) => b.month.localeCompare(a.month))[0].month 
         : currentMonthStr;
@@ -861,11 +864,12 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                                                 <label style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 900 }}>МЕСЕЦ</label>
-                                                <input 
-                                                    type="month" 
-                                                    value={renewalMonth} 
-                                                    onChange={(e) => setRenewalMonth(e.target.value)}
-                                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '12px', borderRadius: '12px', fontSize: '1rem', fontWeight: 700 }}
+                                                <PeriodPicker
+                                                    month={renewalMonth}
+                                                    onMonth={setRenewalMonth}
+                                                    choice={renewChoice}
+                                                    onChoice={setRenewChoice}
+                                                    inputStyle={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', padding: '12px', borderRadius: '12px', fontSize: '1rem', fontWeight: 700 }}
                                                 />
                                             </div>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
@@ -924,12 +928,12 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
                                                     }
                                                     const clientRef = doc(db, 'clients', client?.id || '');
                                                     await updateDoc(clientRef, {
-                                                        expiryDate: renewalMonth,
+                                                        expiryDate: spanExpiryMonth(renewalMonth, renewChoice),
                                                         route: renewalRoute,
                                                         renewalHistory: arrayUnion({
                                                             date: new Date().toISOString(),
                                                             amount: qrAmount,
-                                                            month: renewalMonth,
+                                                            ...spanFields(renewalMonth, renewChoice),
                                                             ...qrPaymentFields
                                                         }),
                                                         history: arrayUnion({
@@ -1082,7 +1086,7 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
                 clientRoute={client?.route}
                 cardNumber={client?.cardNumber || ''}
                 lastPaidMonth={client?.renewalHistory && client.renewalHistory.length > 0 ? formatBGMonth(client.renewalHistory[client.renewalHistory.length - 1].month) : undefined}
-                isPaidCurrentMonth={client?.renewalHistory ? client.renewalHistory.some(rh => rh.month === new Date().toISOString().slice(0, 7)) : false}
+                isPaidCurrentMonth={client?.renewalHistory ? client.renewalHistory.some(rh => coversDate(rh, localToday())) : false}
                 onStayAndRenew={handleStayAndRenew}
                 onContinueWithoutChange={handleContinueWithoutChange}
             />

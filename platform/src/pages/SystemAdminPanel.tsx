@@ -9,6 +9,8 @@ import { collection, collectionGroup, query, where, orderBy, limit, onSnapshot, 
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useRouteNames } from '../tenant/settings';
+import { coversDate } from '../tenant/settings';
+import { localToday } from '../components/PeriodPicker';
 import Card from '../components/Card';
 import AdminAlertsButton from '../components/AdminAlertsButton';
 import SecurityLog from '../components/SecurityLog';
@@ -32,7 +34,7 @@ interface Client {
     amountPaid: number;
     expiryDate: string;
     isCanceled?: boolean;
-    renewalHistory?: { date: string, amount: number, month: string, paymentMethod?: string }[];
+    renewalHistory?: { date: string, amount: number, month: string, from?: string, to?: string, period?: string, paymentMethod?: string }[];
     scanCount?: number;
     lastScanAt?: string;
     createdAt: string;
@@ -242,9 +244,8 @@ const SystemAdminPanel: React.FC = () => {
     const isExpired = (monthStr: string | undefined, client?: Client) => {
         if (!monthStr) return true;
         const now = new Date();
-        const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
         if (client?.renewalHistory) {
-            return !client.renewalHistory.some(rh => rh.month === currentMonthStr);
+            return !client.renewalHistory.some(rh => coversDate(rh, localToday()));
         }
         const [year, month] = monthStr.split('-');
         const expiry = new Date(Number(year), Number(month), 0, 23, 59, 59);
