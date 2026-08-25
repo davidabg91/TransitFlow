@@ -94,6 +94,19 @@ const PeriodPicker: React.FC<Props> = ({ month, onMonth, choice, onChoice, input
     const { periods } = useCompanySettings();
     const offered = ALL_PERIODS.filter(p => periods.includes(p.id));
 
+    // A company that does not sell months would otherwise sit on a choice of
+    // 'month' that matches no option: the select shows its first entry while the
+    // state still says month, and the subscription is written as a plain month
+    // nobody offered. Settle on something the company actually sells.
+    useEffect(() => {
+        if (offered.length === 0) return;
+        if (offered.some(p => p.id === choice.period)) return;
+        const first = offered[0];
+        onChoice(
+            first.id === 'month' ? { period: 'month' } : { period: first.id, ...defaultDates(first.id) }
+        );
+    }, [offered.map(p => p.id).join(','), choice.period]);
+
     const base: React.CSSProperties = {
         width: '100%',
         padding: compact ? '0.6rem' : '0.8rem',
@@ -110,19 +123,6 @@ const PeriodPicker: React.FC<Props> = ({ month, onMonth, choice, onChoice, input
     if (offered.length <= 1 && (offered[0]?.id || 'month') === 'month') {
         return <input type="month" value={month} onChange={e => onMonth(e.target.value)} style={base} />;
     }
-
-    // A company that does not sell months would otherwise sit on a choice of
-    // 'month' that matches no option: the select shows its first entry while the
-    // state still says month, and the subscription is written as a plain month
-    // nobody offered. Settle on something the company actually sells.
-    useEffect(() => {
-        if (offered.length === 0) return;
-        if (offered.some(p => p.id === choice.period)) return;
-        const first = offered[0];
-        onChoice(
-            first.id === 'month' ? { period: 'month' } : { period: first.id, ...defaultDates(first.id) }
-        );
-    }, [offered.map(p => p.id).join(','), choice.period]);
 
     const pick = (period: PeriodId) => {
         if (period === 'month') {
