@@ -34,7 +34,8 @@ import {
     runTransaction,
     getDocs,
     collectionGroup,
-    where
+    where,
+    getActiveTenant
 } from '../tenant/db';
 import { useAuth } from '../context/AuthContext';
 import { personName } from '../types/auth';
@@ -560,7 +561,7 @@ const AdminPanel: React.FC = () => {
     const [unpaidReloadKey, setUnpaidReloadKey] = useState(0);
     const unpaidLoadedKey = useRef<string | null>(null);
     useEffect(() => {
-        if (activeTab !== 'unpaid') return;
+        if (activeTab !== 'unpaid' || !getActiveTenant()) return;
         const key = `${unpaidWindowDays}:${unpaidReloadKey}`;
         if (unpaidLoadedKey.current === key) return;
         unpaidLoadedKey.current = key;
@@ -795,6 +796,12 @@ const AdminPanel: React.FC = () => {
 
 
     useEffect(() => {
+        // Signing out clears the company outside React's state, so for a tick
+        // the panel still believes it belongs to one. Ask the same place the
+        // query builder asks: no company means do nothing, rather than a thrown
+        // error that takes the whole app to the crash screen.
+        if (!getActiveTenant()) return;
+
         // 1. Listen for Clients in Real-time
         const q = query(collection(db, 'clients'));
         const unsubscribe = onSnapshot(q, (snapshot) => {

@@ -41,10 +41,15 @@ const Layout: React.FC = () => {
             .catch(() => setCompanyName(''));
     }, [tenantId]);
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
+    const handleLogout = async () => {
         setIsMenuOpen(false);
+        // Awaited on purpose. Leaving without it navigated to the sign-in screen
+        // while the account was still signed in for another tick — the screen saw
+        // a live user, bounced back into the panel, and the panel woke up inside a
+        // company that had just been torn down. That is the "Възникна грешка" you
+        // got for pressing ИЗХОД.
+        await logout();
+        navigate('/login', { replace: true });
     };
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);

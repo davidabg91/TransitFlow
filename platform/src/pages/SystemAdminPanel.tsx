@@ -5,7 +5,7 @@ import {
     RefreshCw, Search, Clock, Shield,
     UserPlus, Trash2, AlertTriangle, Pencil, Check, X
 } from 'lucide-react';
-import { collection, collectionGroup, query, where, orderBy, limit, onSnapshot, updateDoc, doc, writeBatch, deleteField, getDocs } from '../tenant/db';
+import { collection, collectionGroup, query, where, orderBy, limit, onSnapshot, updateDoc, doc, writeBatch, deleteField, getDocs, getActiveTenant } from '../tenant/db';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useRouteNames } from '../tenant/settings';
@@ -147,6 +147,7 @@ const SystemAdminPanel: React.FC = () => {
     // purpose: React runs effects in declaration order, so this tiny query goes out
     // before the dashboard's large ones instead of queueing behind them.
     useEffect(() => {
+        if (!getActiveTenant()) return;
         const qLogs = query(collection(db, 'activity_logs'), orderBy('timestamp', 'desc'), limit(logLimit));
         const unsub = onSnapshot(qLogs, (snap) => {
             const logs: GlobalLog[] = [];
@@ -170,7 +171,7 @@ const SystemAdminPanel: React.FC = () => {
     // Clients — loaded in full because the dashboard aggregates (revenue, route
     // stats, abuse) need every client.
     useEffect(() => {
-        if (!dashboardOpened) return;
+        if (!dashboardOpened || !getActiveTenant()) return;
         const unsub = onSnapshot(query(collection(db, 'clients')), (snap) => {
             const list: Client[] = [];
             snap.forEach(d => list.push({ id: d.id, ...d.data() } as Client));
@@ -200,7 +201,7 @@ const SystemAdminPanel: React.FC = () => {
     // when the date picker moves costs nothing. `dayEnd` bounds the range so the
     // query cannot widen into the whole history.
     useEffect(() => {
-        if (!dashboardOpened) return;
+        if (!dashboardOpened || !getActiveTenant()) return;
         const dayEnd = selectedDate + '\uf8ff';
         const qDay = query(collectionGroup(db, 'scans'), where('at', '>=', selectedDate), where('at', '<=', dayEnd));
         const unsub = onSnapshot(qDay, (snap) => setDayScans(toScanRecords(snap)),
@@ -223,7 +224,7 @@ const SystemAdminPanel: React.FC = () => {
     }, [activeTab, loading]);
 
     useEffect(() => {
-        if (!abuseArmed) return;
+        if (!abuseArmed || !getActiveTenant()) return;
         const qAbuse = query(collectionGroup(db, 'scans'), where('at', '>=', abuseWindowStart));
         const unsub = onSnapshot(qAbuse, (snap) => {
             setAbuseScans(toScanRecords(snap));
@@ -235,6 +236,7 @@ const SystemAdminPanel: React.FC = () => {
     // Fines (Глоби) — standalone charges (e.g. lost-card fee) that count toward
     // revenue but live outside renewalHistory so they don't affect card validity.
     useEffect(() => {
+        if (!getActiveTenant()) return;
         const unsub = onSnapshot(collection(db, 'fines'), (snap) => {
             setFines(snap.docs.map(d => {
                 const data = d.data();
