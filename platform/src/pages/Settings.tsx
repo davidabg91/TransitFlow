@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
     Settings as SettingsIcon, Route as RouteIcon, Plus, Trash2, Save,
     CalendarRange, MapPin, X, Check, AlertTriangle, Loader2, KeyRound,
+    Building2, Upload, Image as ImageIcon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { doc, deleteDoc, setDoc } from '../tenant/db';
@@ -10,6 +11,8 @@ import {
     ALL_PERIODS, DEFAULT_CARD_TYPES, emptyRoute, useCompanySettings, useRoutes,
     type PeriodId, type RouteDef,
 } from '../tenant/settings';
+import { EMPTY_COMPANY, useCompanyProfile, type CompanyProfile } from '../tenant/company';
+import { prepareLogo, uploadCompanyLogo } from '../utils/photoStorage';
 
 /**
  * Where a company describes itself: the lines it runs, the stops along them,
@@ -47,6 +50,7 @@ const Settings: React.FC = () => {
     const isAdmin = currentUser?.role === 'admin';
     const { routes, loading: routesLoading } = useRoutes();
     const settings = useCompanySettings();
+    const company = useCompanyProfile();
 
     const [periods, setPeriods] = useState<PeriodId[]>([]);
     const [cardTypes, setCardTypes] = useState<string[]>([]);
@@ -55,6 +59,10 @@ const Settings: React.FC = () => {
 
     const [editing, setEditing] = useState<RouteDef | null>(null);
     const [savingRoute, setSavingRoute] = useState(false);
+
+    const [org, setOrg] = useState<CompanyProfile>(EMPTY_COMPANY);
+    const [savingOrg, setSavingOrg] = useState(false);
+    const [uploadingLogo, setUploadingLogo] = useState(false);
 
     const [oldPassword, setOldPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -66,6 +74,63 @@ const Settings: React.FC = () => {
         setPeriods(settings.periods);
         setCardTypes(settings.cardTypes);
     }, [settings.loading, settings.periods, settings.cardTypes]);
+
+    useEffect(() => {
+        if (company.loading) return;
+        setOrg({
+            logoUrl: company.logoUrl, name: company.name, eik: company.eik,
+            vatNumber: company.vatNumber, address: company.address,
+            manager: company.manager, phone: company.phone, email: company.email,
+        });
+    }, [
+        company.loading, company.logoUrl, company.name, company.eik,
+        company.vatNumber, company.address, company.manager, company.phone, company.email,
+    ]);
+
+    const saveCompany = async () => {
+        setSavingOrg(true);
+        setMessage(null);
+        try {
+            await setDoc(doc(db, 'settings', 'company'), { ...org }, { merge: true });
+            setMessage({ text: 'Фирмените данни са запазени.', ok: true });
+        } catch (e) {
+            setMessage({ text: (e as { message?: string }).message || 'Неуспешен запис.', ok: false });
+        } finally {
+            setSavingOrg(false);
+        }
+    };
+
+    /**
+     * The logo is saved the moment it is chosen, rather than waiting for the
+     * form's Запази — it is a file, not a field, and half of it cannot be kept.
+     */
+    const pickLogo = async (file: File | null | undefined) => {
+        if (!file) return;
+        setUploadingLogo(true);
+        setMessage(null);
+        try {
+            const url = await uploadCompanyLogo(await prepareLogo(file));
+            await setDoc(doc(db, 'settings', 'company'), { logoUrl: url }, { merge: true });
+            setOrg(o => ({ ...o, logoUrl: url }));
+            setMessage({ text: 'Логото е качено — вече излиза върху принтираните документи.', ok: true });
+        } catch (e) {
+            setMessage({ text: (e as { message?: string }).message || 'Логото не беше качено.', ok: false });
+        } finally {
+            setUploadingLogo(false);
+        }
+    };
+
+    const removeLogo = async () => {
+        if (!window.confirm(
+            'Да се махне ли логото? Документите ще излизат с името на фирмата вместо с него.'
+        )) return;
+        try {
+            await setDoc(doc(db, 'settings', 'company'), { logoUrl: '' }, { merge: true });
+            setOrg(o => ({ ...o, logoUrl: '' }));
+        } catch (e) {
+            setMessage({ text: (e as { message?: string }).message || 'Неуспешна промяна.', ok: false });
+        }
+    };
 
     /**
      * Checked here rather than left to Firebase, so the three ways this goes
@@ -264,6 +329,118 @@ const Settings: React.FC = () => {
             </section>
 
             {isAdmin && (<>
+
+            {/* ── The company on paper ────────────────────────────── */}
+            <section style={{ ...card, marginBottom: '2rem' }}>
+                <h2 style={{ margin: '0 0 0.4rem', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Building2 size={19} color="var(--primary-color)" /> Фирмени данни
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginTop: 0 }}>
+                    Това излиза в горната част на регистрите и финансовите отчети, които
+                    принтирате. Без качено лого документите тръгват с името на фирмата.
+                </p>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.1rem', flexWrap: 'wrap', margin: '1.2rem 0 1.6rem' }}>
+                    <div style={{
+                        width: '160px', height: '72px', borderRadius: '13px', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        // White, because that is the paper it will be printed on — a logo
+                        // that only reads against a dark panel is a surprise at the printer.
+                        background: '#fff', border: '1px solid var(--surface-border)', overflow: 'hidden',
+                    }}>
+                        {org.logoUrl
+                            ? <img src={org.logoUrl} alt="Лого на фирмата" style={{ maxWidth: '92%', maxHeight: '86%', objectFit: 'contain' }} />
+                            : <ImageIcon size={26} color="#bbb" />}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                        <label style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                            padding: '0.7rem 1.2rem', borderRadius: '12px',
+                            background: 'rgba(0,173,181,0.12)', border: '1px solid rgba(0,173,181,0.4)',
+                            color: 'var(--primary-color)', fontWeight: 700, fontSize: '0.9rem',
+                            cursor: uploadingLogo ? 'wait' : 'pointer',
+                        }}>
+                            {uploadingLogo ? <Loader2 size={16} /> : <Upload size={16} />}
+                            {org.logoUrl ? 'Смени логото' : 'Качи лого'}
+                            <input
+                                type="file"
+                                accept="image/*"
+                                disabled={uploadingLogo}
+                                onChange={e => { pickLogo(e.target.files?.[0]); e.target.value = ''; }}
+                                style={{ display: 'none' }}
+                            />
+                        </label>
+                        {org.logoUrl && (
+                            <button onClick={removeLogo} style={{
+                                padding: '0.7rem 1.1rem', borderRadius: '12px', cursor: 'pointer',
+                                background: 'rgba(255,82,82,0.1)', border: '1px solid rgba(255,82,82,0.3)',
+                                color: '#ff5252', fontWeight: 700, fontSize: '0.9rem',
+                            }}>Махни</button>
+                        )}
+                        <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', alignSelf: 'center', lineHeight: 1.5 }}>
+                            PNG с прозрачен фон изглежда най-добре.<br />Големината се смалява автоматично.
+                        </div>
+                    </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                    <div>
+                        <label style={label}>Наименование</label>
+                        <input style={input} value={org.name} placeholder="ЦВЕТИНА - МЕЗДРА ЕООД"
+                            onChange={e => setOrg({ ...org, name: e.target.value })} />
+                    </div>
+                    <div>
+                        <label style={label}>ЕИК</label>
+                        <input style={input} value={org.eik} placeholder="202037056"
+                            onChange={e => setOrg({ ...org, eik: e.target.value })} />
+                    </div>
+                    <div>
+                        <label style={label}>ДДС номер</label>
+                        <input style={input} value={org.vatNumber} placeholder="BG202037056"
+                            onChange={e => setOrg({ ...org, vatNumber: e.target.value })} />
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+                            Оставете празно, ако фирмата не е регистрирана по ЗДДС.
+                        </div>
+                    </div>
+                    <div>
+                        <label style={label}>Управител</label>
+                        <input style={input} value={org.manager} placeholder="Александра Цветанова Тодорова"
+                            onChange={e => setOrg({ ...org, manager: e.target.value })} />
+                    </div>
+                    <div>
+                        <label style={label}>Телефон</label>
+                        <input style={input} value={org.phone} placeholder="напр. 0910 12 345"
+                            onChange={e => setOrg({ ...org, phone: e.target.value })} />
+                    </div>
+                    <div>
+                        <label style={label}>Имейл</label>
+                        <input style={input} type="email" value={org.email} placeholder="office@firma.bg"
+                            onChange={e => setOrg({ ...org, email: e.target.value })} />
+                    </div>
+                </div>
+
+                <div style={{ marginTop: '1rem' }}>
+                    <label style={label}>Седалище и адрес на управление</label>
+                    <input style={input} value={org.address}
+                        placeholder="гр. Мездра 3100, ул. „Св. Св. Кирил и Методий“ 52В"
+                        onChange={e => setOrg({ ...org, address: e.target.value })} />
+                </div>
+
+                <button
+                    onClick={saveCompany}
+                    disabled={savingOrg}
+                    style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.4rem',
+                        padding: '0.75rem 1.5rem', borderRadius: '12px', border: 'none',
+                        background: 'var(--primary-color)', color: '#00252a',
+                        fontWeight: 800, cursor: savingOrg ? 'wait' : 'pointer',
+                    }}
+                >
+                    {savingOrg ? <Loader2 size={16} /> : <Save size={16} />} Запази
+                </button>
+            </section>
+
             {/* ── Subscriptions offered ─────────────────────────────────── */}
             <section style={{ ...card, marginBottom: '2rem' }}>
                 <h2 style={{ margin: '0 0 0.4rem', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

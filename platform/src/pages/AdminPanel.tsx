@@ -18,7 +18,6 @@ import { FUNCTIONS_REGION } from '../tenant/db';
 import { useModules } from '../tenant/modules';
 import UnpaidAlertsButton from '../components/UnpaidAlertsButton';
 import ClientPhoto from '../components/ClientPhoto';
-import logoMain from '../assets/logo_main.png';
 import { db } from '../firebase';
 import {
     addDoc,
@@ -39,6 +38,7 @@ import {
 } from '../tenant/db';
 import { useAuth } from '../context/AuthContext';
 import { personName } from '../types/auth';
+import { requisitesLine, useCompanyProfile } from '../tenant/company';
 import { useRoutePricing } from '../tenant/settings';
 import { coversDate, coversMonth, formatSpanBG, spanEndDay, spanSortKey } from '../tenant/settings';
 import { localToday } from '../components/PeriodPicker';
@@ -346,6 +346,9 @@ const TabButton = ({ id, icon: Icon, label, activeTab, setActiveTab, activeColor
 
 const AdminPanel: React.FC = () => {
     const { currentUser } = useAuth();
+    // Whose document this is. Registers and reports leave the building and are
+    // kept for audit, so they go out under the operator's mark, not ours.
+    const org = useCompanyProfile();
     // The lines this company runs and what it charges on them, set under
     // Настройки. Empty until the company adds its first line — the pickers then
     // say so rather than offering another operator's routes.
@@ -2897,7 +2900,7 @@ const AdminPanel: React.FC = () => {
                             
                             const handleShareReport = async () => {
                                 const periodStr = reportPeriodType === 'month' ? `Месец: ${reportMonth === 'all' ? 'Всички' : reportMonth}` : `Ден: ${reportDate}`;
-                                const header = `Финансов Отчет TRANSITFLOW\n${periodStr} | Начин на плащане: ${reportPaymentMethod === 'all' ? 'Всички' : reportPaymentMethod} | Вид: ${reportCardType === 'all' ? 'Всички' : reportCardType} | Маршрут: ${reportRoutes.includes('all') ? 'Всички' : reportRoutes.join(', ')} | Община: ${reportMunicipality === 'all' ? 'Всички' : reportMunicipality} | Дистанция: ${reportDistanceFilter === 'all' ? 'Всички' : (reportDistanceFilter === 'under10' ? 'До 10 км' : 'Над 10 км')}\n---\n`;
+                                const header = `Финансов отчет — ${org.name}\n${periodStr} | Начин на плащане: ${reportPaymentMethod === 'all' ? 'Всички' : reportPaymentMethod} | Вид: ${reportCardType === 'all' ? 'Всички' : reportCardType} | Маршрут: ${reportRoutes.includes('all') ? 'Всички' : reportRoutes.join(', ')} | Община: ${reportMunicipality === 'all' ? 'Всички' : reportMunicipality} | Дистанция: ${reportDistanceFilter === 'all' ? 'Всички' : (reportDistanceFilter === 'under10' ? 'До 10 км' : 'Над 10 км')}\n---\n`;
                                 const rows = filteredReportClients.map(c => {
                                     const isShort = ["Ясен", "Опанец", "Ясен-Дисевица"].includes(c.route);
                                     const distStr = isShort ? "До 10 км" : "Над 10 км";
@@ -2915,7 +2918,7 @@ const AdminPanel: React.FC = () => {
                                 if (navigator.share) {
                                     try {
                                         await navigator.share({
-                                            title: 'Финансов Отчет TRANSITFLOW',
+                                            title: `Финансов отчет — ${org.name}`,
                                             text: shareText
                                         });
                                     } catch (err) {
@@ -3003,8 +3006,9 @@ const AdminPanel: React.FC = () => {
 
                                 const rows = filteredReportClients;
                                 const rowsData = rows.map((c, i) => rowVals(c, i + 1).map(v => String(v)));
-                                let logoUrl = '';
-                                try { logoUrl = new URL(logoMain, window.location.href).href; } catch { logoUrl = ''; }
+                                // The company's own logo, or — when it has not uploaded one —
+                                // nothing, and the header prints its name instead.
+                                const logoUrl = org.logoUrl || '';
 
                                 const payload = {
                                     title,
@@ -3014,7 +3018,9 @@ const AdminPanel: React.FC = () => {
                                     logo: logoUrl,
                                                                 isContract: reportByContract,
                                      periodLabel: formattedPeriodLabel,
-                                     footLeft: '<b>СЪСТАВИЛ:</b> К. ВАСИЛЕВА &nbsp;.............................',
+                                     company: org.name,
+                                     org: requisitesLine(org),
+                                     footLeft: '<b>СЪСТАВИЛ:</b> ' + (personName(currentUser) || '') + ' &nbsp;.............................',
                                     footRight: '<b>Общо записи:</b> ' + rows.length + (!useRegisterPrint ? ' &nbsp;|&nbsp; <b>Общо приход:</b> ' + totalReportRevenue.toFixed(2) + ' €' : ''),
                                 };
                                 const payloadJson = JSON.stringify(payload).replace(/</g, '\\u003c');
@@ -3027,6 +3033,8 @@ body { font-family: Arial, "Segoe UI", sans-serif; color: #000; margin: 0; }
 .rep-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; border-bottom: 2px solid #222; padding-bottom: 8px; margin-bottom: 10px; }
 .rep-left { display: flex; align-items: center; gap: 12px; }
 .rep-logo { height: 40px; width: auto; }
+.rep-company { font-size: 15px; font-weight: 800; text-transform: uppercase; max-width: 52mm; line-height: 1.2; }
+.rep-org { font-size: 11px; color: #333; margin-top: 2px; }
 .rep-title { font-size: 18px; font-weight: 800; text-transform: uppercase; line-height: 1.15; }
 .rep-sub { font-size: 12px; color: #444; margin-top: 3px; }
 .rep-page { font-size: 14px; font-weight: 700; white-space: nowrap; padding-top: 2px; }
@@ -3042,10 +3050,13 @@ tr { page-break-inside: avoid; }
                                 const script = `
 var D = ${payloadJson};
 var esc = function(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(m){ return m==='&'?'&amp;':m==='<'?'&lt;':m==='>'?'&gt;':'&quot;'; }); };
-var logoHtml = D.logo ? '<img class="rep-logo" src="'+D.logo+'"/>' : '';
+var logoHtml = D.logo
+    ? '<img class="rep-logo" src="'+D.logo+'"/>'
+    : (D.company ? '<div class="rep-company">'+esc(D.company)+'</div>' : '');
 function headerHtml(pn, tp){ 
     var subHtml = D.isContract ? '' : '<div class="rep-sub">'+esc(D.sub)+'</div>';
-    return '<div class="rep-header"><div class="rep-left">'+logoHtml+'<div><div class="rep-title">'+esc(D.title)+'</div>'+subHtml+'</div></div><div class="rep-page">Страница '+pn+' от '+tp+'</div></div>'; 
+    var orgHtml = D.org ? '<div class="rep-org">'+esc(D.org)+'</div>' : '';
+    return '<div class="rep-header"><div class="rep-left">'+logoHtml+'<div><div class="rep-title">'+esc(D.title)+'</div>'+orgHtml+subHtml+'</div></div><div class="rep-page">Страница '+pn+' от '+tp+'</div></div>'; 
 }
 var tableTitleHtml = D.isContract ? '<div style="text-align: center; font-size: 15px; font-weight: bold; margin: 10px 0; text-transform: none;">'+esc(D.periodLabel)+'</div>' : '';
 var thead = '<thead><tr>'+D.cols.map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'</tr></thead>';
@@ -3081,9 +3092,14 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                     <div style={{ display: 'none' }} className="print-only-header">
                                         <div style={{ borderBottom: '3px double #222', paddingBottom: '1.25rem', marginBottom: '1.5rem', fontFamily: 'sans-serif' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                                                <img src={logoMain} alt="TransitFlow" style={{ height: '44px', width: 'auto', objectFit: 'contain', display: 'block', margin: '0' }} />
+                                                {org.logoUrl
+                                                    ? <img src={org.logoUrl} alt={org.name} style={{ height: '44px', width: 'auto', objectFit: 'contain', display: 'block', margin: '0' }} />
+                                                    : <span style={{ fontSize: '15px', fontWeight: 800, textTransform: 'uppercase' }}>{org.name}</span>}
                                                 {!reportByContract && <span style={{ fontSize: '11px', color: '#666' }}>Дата на съставяне: {new Date().toLocaleDateString('bg-BG')} г.</span>}
                                             </div>
+                                            {requisitesLine(org) && (
+                                                <div style={{ fontSize: '11px', color: '#333', marginBottom: '0.6rem' }}>{requisitesLine(org)}</div>
+                                            )}
                                             <h1 style={{ fontSize: '22px', fontWeight: 900, color: '#000', margin: '0 0 1rem 0', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '1px', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>
                                                 {reportByContract ? `РЕГИСТЪР НА ИЗДАДЕНИТЕ КАРТИ (${(reportCardType === 'all' ? 'всички видове' : reportCardType).toUpperCase()}) ПО ДОГОВОР С ОБЩИНИ: ${contractMunicipalities.join(', ').toUpperCase()}` : (useRegisterPrint ? `РЕГИСТЪР НА ИЗДАДЕНИТЕ КАРТИ (${registerCategoryLabel})` : "ФИНАНСОВ ОТЧЕТ НА ПРИХОДИТЕ")}
                                             </h1>
@@ -3385,7 +3401,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                 </tbody>
                                             </table>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', borderTop: '2px solid #333', paddingTop: '10px', fontSize: '13px', color: '#000' }}>
-                                                <div><b>СЪСТАВИЛ:</b> К. ВАСИЛЕВА &nbsp;&nbsp;.................................</div>
+                                                <div><b>СЪСТАВИЛ:</b> {personName(currentUser)} &nbsp;&nbsp;.................................</div>
                                                 <div style={{ fontWeight: 700 }}><b>Общо издадени карти:</b> {filteredReportClients.length}</div>
                                             </div>
                                         </div>

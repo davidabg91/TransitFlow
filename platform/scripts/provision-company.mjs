@@ -237,6 +237,26 @@ const run = async () => {
         }, { merge: true });
     }
 
+    // ---- Who the company is, on paper ----
+    if (spec.company) {
+        console.log('\nФирмени данни');
+        // A leading underscore marks a note to whoever edits the file, not a field.
+        const details = Object.fromEntries(
+            Object.entries(spec.company).filter(([field]) => !field.startsWith('_'))
+        );
+        for (const [field, value] of Object.entries(details)) {
+            if (value) note(`${field}: ${value}`);
+        }
+        note('логото се качва от Настройки — файл, не поле в този списък');
+        if (apply) {
+            // merge, so a logo already uploaded from the panel is not wiped by a
+            // re-run of a spec that cannot carry one.
+            await tenantRef.collection('settings').doc('company').set(
+                { ...details, tenant: spec.tenantId }, { merge: true }
+            );
+        }
+    }
+
     // ---- Lines and fares ----
     console.log('\nЛинии');
     for (const route of spec.routes) {

@@ -30,6 +30,17 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    // The company's logo, printed at the top of its registers and reports.
+    // Everyone in the company sees it; only an admin replaces it. Kept small —
+    // it is scaled down in the browser before it is ever sent.
+    match /tenants/{tenantId}/branding/{file} {
+      allow read: if inTenant(tenantId);
+      allow write: if inTenant(tenantId)
+        && request.auth.token.role == 'admin'
+        && request.resource.size < 1 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
     // Everything else is locked down.
     match /{allPaths=**} {
       allow read, write: if false;
