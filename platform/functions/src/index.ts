@@ -540,6 +540,13 @@ export const alertUnpaidScan = fn.firestore
         const at = String(scan.at || "");
         if (!at) return;
 
+        // A scan names its author only when somebody was signed in, which means
+        // the desk — a card handed over the counter and opened to be renewed.
+        // The alert exists to send someone to a bus; raising it because a
+        // colleague looked at an expired card two metres away is noise, and it
+        // burns the throttle that a real boarding would have needed.
+        if (scan.scannedBy || scan.role) return;
+
         const tenantId = context.params.tenantId as string;
         const clientId = context.params.clientId as string;
 

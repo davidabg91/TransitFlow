@@ -35,7 +35,7 @@ interface Shortcut {
 const SHORTCUTS: Shortcut[] = [
     { to: '/admin?tab=clients', icon: Users, title: 'Клиенти', accent: '#00ADB5', roles: ['admin', 'moderator'] },
     { to: '/admin?tab=finances', icon: PiggyBank, title: 'Финанси', accent: '#ff9800', roles: ['admin', 'moderator'] },
-    { to: '/admin?tab=unpaid', icon: AlertTriangle, title: 'Без абонамент', accent: '#ff5252', roles: ['admin'] },
+    { to: '/admin?tab=unpaid', icon: AlertTriangle, title: 'Без абонамент', accent: '#ff5252', roles: ['admin', 'moderator'] },
     { to: '/inspections', icon: ShieldCheck, title: 'Проверки', accent: '#00b0ff', roles: ['admin', 'inspector'] },
     { to: '/admin?tab=notifications', icon: Bell, title: 'Известия', accent: '#ff4081', roles: ['admin'] },
     { to: '/admin?tab=nfc', icon: ExternalLink, title: 'NFC кодове', accent: '#a78bfa', roles: ['admin'] },

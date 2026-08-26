@@ -560,7 +560,7 @@ const AdminPanel: React.FC = () => {
     const [unpaidReloadKey, setUnpaidReloadKey] = useState(0);
     const unpaidLoadedKey = useRef<string | null>(null);
     useEffect(() => {
-        if (activeTab !== 'unpaid' || !isAdmin) return;
+        if (activeTab !== 'unpaid') return;
         const key = `${unpaidWindowDays}:${unpaidReloadKey}`;
         if (unpaidLoadedKey.current === key) return;
         unpaidLoadedKey.current = key;
@@ -574,13 +574,21 @@ const AdminPanel: React.FC = () => {
                     clientId: d.ref.parent.parent?.id ?? '',
                     at: (d.data().at as string) || '',
                     route: d.data().route as string | undefined,
-                })).filter(s => s.at && s.clientId);
+                    // A scan carries who made it only when somebody was signed in.
+                    // That is the desk: a card handed across the counter to be
+                    // renewed, opened to see what it owes. It is not a boarding,
+                    // and counting it here accused the passenger of travelling
+                    // without a subscription on the very visit they came to pay.
+                    // A bus terminal is signed in to nothing, so a real boarding
+                    // has no author.
+                    atDesk: !!(d.data().scannedBy || d.data().role),
+                })).filter(s => s.at && s.clientId && !s.atDesk);
                 setUnpaidScansRaw(list);
             })
             .catch(err => { console.error('Грешка при зареждане на сканиранията:', err); if (!cancelled) setUnpaidScansRaw([]); })
             .finally(() => { if (!cancelled) setUnpaidLoading(false); });
         return () => { cancelled = true; };
-    }, [activeTab, isAdmin, unpaidWindowDays, unpaidReloadKey]);
+    }, [activeTab, unpaidWindowDays, unpaidReloadKey]);
 
     // Duplicate Check State
     
@@ -1867,10 +1875,12 @@ const AdminPanel: React.FC = () => {
                     <TabButton id="finances" icon={PiggyBank} label="ФИНАНСИ" activeColor="#ff9800" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                     <TabButton id="rentals" icon={Bus} label="НАЕМИ" activeColor="#0091ea" activeTab={activeTab} setActiveTab={setActiveTab} badge={unreadRentalsCount} isMobile={isMobile} locked={!modules.rentals} />
                     <TabButton id="signals" icon={AlertCircle} label="СИГНАЛИ" activeColor="#ff5252" activeTab={activeTab} setActiveTab={setActiveTab} badge={unreadSignalsCount} isMobile={isMobile} locked={!modules.signals} />
+                    {/* Moderators too: they are the ones at the counter when a card
+                        that owes for a month comes across it. */}
+                    <TabButton id="unpaid" icon={AlertTriangle} label="БЕЗ АБОНАМЕНТ" activeColor="#ff5252" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                     {isAdmin && (
                         <>
                             <TabButton id="notifications" icon={Bell} label="ИЗВЕСТИЯ" activeColor="#ff4081" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} locked={!modules.notifications} />
-                            <TabButton id="unpaid" icon={AlertTriangle} label={isMobile ? "БЕЗ АБОНАМЕНТ" : "БЕЗ АБОНАМЕНТ"} activeColor="#ff5252" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                             <TabButton id="nfc" icon={ExternalLink} label="NFC КОДОВЕ" activeColor="var(--accent-color)" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                         </>
                     )}
@@ -3993,7 +4003,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                 </div>
             )}
 
-                {activeTab === 'unpaid' && isAdmin && (
+                {activeTab === 'unpaid' && (
                     <div style={{ animation: 'fadeIn 0.4s ease' }}>
                         <Card style={{ padding: isMobile ? '1.25rem' : '2rem' }}>
                             {(() => {
@@ -4046,7 +4056,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                         </div>
 
                                         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
-                                            Показва всяко сканиране на карта, която за съответния месец няма платен абонамент (или е анулирана). Целта е да се види кой пътува без абонамент и дали шофьорите реагират.
+                                            Показва всяко <strong>качване в автобус</strong> с карта, която за съответния месец няма платен абонамент (или е анулирана) — за да се види кой пътува без абонамент и дали шофьорите реагират. Сканиранията на гишето, когато служител отвори карта, за да я поднови, не влизат тук.
                                         </div>
 
                                         <div style={{ marginBottom: '1.5rem' }}>
