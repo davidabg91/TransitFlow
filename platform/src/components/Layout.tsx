@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo_main.png';
 import { useAuth } from '../context/AuthContext';
+import { personName } from '../types/auth';
 import { LogOut, ShieldCheck, Shield, Menu, X } from 'lucide-react';
 import InstallPWA from './InstallPWA';
 import CompanySuspended from './CompanySuspended';
@@ -118,7 +119,8 @@ const Layout: React.FC = () => {
                             >Админ Панел</Link>
                         )}
 
-                    {currentUser.role === 'admin' && (
+                    {/* Not admin-only any more — everyone changes their own
+                        password here; only an admin sees the company's fares. */}
                     <Link
                         to="/settings"
                         onClick={(e) => handleGuardedNavigation(e, '/settings')}
@@ -131,7 +133,6 @@ const Layout: React.FC = () => {
                             alignItems: 'center'
                         }}
                     >Настройки</Link>
-                    )}
                     <Link
                         to="/help"
                         onClick={(e) => handleGuardedNavigation(e, '/help')}
@@ -154,7 +155,7 @@ const Layout: React.FC = () => {
                         {currentUser.role === 'admin'
                             ? <ShieldCheck size={16} color="#ff5252" />
                             : <Shield size={16} color="var(--primary-color)" />}
-                        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{currentUser.username}</span>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{personName(currentUser)}</span>
                     </div>
 
                     <button
@@ -209,11 +210,11 @@ const Layout: React.FC = () => {
                     {currentUser.role === 'admin' && (
                         <Link to="/system-admin" onClick={(e) => handleGuardedNavigation(e, '/system-admin')} className="mobile-nav-link">Админ Панел</Link>
                     )}
-                    {currentUser.role === 'admin' && (<Link to="/settings" onClick={(e) => handleGuardedNavigation(e, '/settings')} className="mobile-nav-link">Настройки</Link>)}
+                    <Link to="/settings" onClick={(e) => handleGuardedNavigation(e, '/settings')} className="mobile-nav-link">Настройки</Link>
                     <Link to="/help" onClick={(e) => handleGuardedNavigation(e, '/help')} className="mobile-nav-link">Помощ</Link>
                     <div style={{ padding: '0.8rem 1.2rem', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
                         {currentUser.role === 'admin' ? <ShieldCheck size={18} color="#ff5252" /> : <Shield size={18} color="var(--primary-color)" />}
-                        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{currentUser.username}</span>
+                        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{personName(currentUser)}</span>
                     </div>
                     <button onClick={handleLogout} className="mobile-nav-link" style={{ color: '#ff5252', background: 'rgba(229,57,53,0.1)', border: '1px solid rgba(229,57,53,0.2)', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <LogOut size={18} /> Изход

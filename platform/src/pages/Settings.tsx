@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
 import {
     Settings as SettingsIcon, Route as RouteIcon, Plus, Trash2, Save,
-    CalendarRange, MapPin, X, Check, AlertTriangle, Loader2,
+    CalendarRange, MapPin, X, Check, AlertTriangle, Loader2, KeyRound,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { doc, deleteDoc, setDoc } from '../tenant/db';
@@ -18,6 +17,11 @@ import {
  *
  * All of this used to be one operator's routes and fares, compiled into the
  * app. Moving it here is what lets a second company exist.
+ *
+ * The page is no longer admin-only. A password used to be whatever it was set
+ * to on the day the account was made — there was no screen for changing one, so
+ * a moderator handed a password on paper kept it for good. That screen is here,
+ * and everyone can reach it; what an admin sees underneath it is the company.
  */
 
 const card: React.CSSProperties = {
@@ -39,7 +43,8 @@ const label: React.CSSProperties = {
 };
 
 const Settings: React.FC = () => {
-    const { currentUser, tenantId } = useAuth();
+    const { currentUser, tenantId, changePassword } = useAuth();
+    const isAdmin = currentUser?.role === 'admin';
     const { routes, loading: routesLoading } = useRoutes();
     const settings = useCompanySettings();
 
@@ -51,13 +56,59 @@ const Settings: React.FC = () => {
     const [editing, setEditing] = useState<RouteDef | null>(null);
     const [savingRoute, setSavingRoute] = useState(false);
 
+    const [oldPassword, setOldPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [repeatPassword, setRepeatPassword] = useState('');
+    const [savingPassword, setSavingPassword] = useState(false);
+
     useEffect(() => {
         if (settings.loading) return;
         setPeriods(settings.periods);
         setCardTypes(settings.cardTypes);
     }, [settings.loading, settings.periods, settings.cardTypes]);
 
-    if (currentUser && currentUser.role !== 'admin') return <Navigate to="/" replace />;
+    /**
+     * Checked here rather than left to Firebase, so the three ways this goes
+     * wrong are all named on the spot: the old password mistyped, the two new
+     * ones not matching, and a "new" password that is the old one again.
+     */
+    const changeOwnPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setMessage(null);
+
+        if (newPassword.length < 6) {
+            setMessage({ text: 'Новата парола трябва да е поне 6 знака.', ok: false });
+            return;
+        }
+        if (newPassword !== repeatPassword) {
+            setMessage({ text: 'Двете нови пароли не съвпадат.', ok: false });
+            return;
+        }
+        if (newPassword === oldPassword) {
+            setMessage({ text: 'Новата парола е същата като сегашната.', ok: false });
+            return;
+        }
+
+        setSavingPassword(true);
+        try {
+            await changePassword(oldPassword, newPassword);
+            setOldPassword(''); setNewPassword(''); setRepeatPassword('');
+            setMessage({ text: 'Паролата е сменена. Следващия път влизате с новата.', ok: true });
+        } catch (err) {
+            const code = (err as { code?: string }).code;
+            setMessage({
+                text: code === 'auth/wrong-password' || code === 'auth/invalid-credential'
+                        ? 'Сегашната парола не е вярна.'
+                    : code === 'auth/weak-password' ? 'Новата парола е твърде проста.'
+                    : code === 'auth/too-many-requests'
+                        ? 'Твърде много опити подред. Изчакайте няколко минути.'
+                    : 'Паролата не беше сменена.',
+                ok: false,
+            });
+        } finally {
+            setSavingPassword(false);
+        }
+    };
 
     const togglePeriod = (id: PeriodId) => {
         setPeriods(list => list.includes(id) ? list.filter(p => p !== id) : [...list, id]);
@@ -145,7 +196,9 @@ const Settings: React.FC = () => {
                 <h1 style={{ margin: 0, fontSize: '1.7rem', fontWeight: 900 }}>Настройки</h1>
             </div>
             <p style={{ color: 'var(--text-secondary)', marginTop: 0, marginBottom: '2rem' }}>
-                Линиите, които обслужвате, и абонаментите, които предлагате.
+                {isAdmin
+                    ? 'Вашият достъп, линиите, които обслужвате, и абонаментите, които предлагате.'
+                    : 'Вашият достъп до системата.'}
             </p>
 
             {message && (
@@ -159,6 +212,58 @@ const Settings: React.FC = () => {
                 </div>
             )}
 
+            {/* ── The account's own password ────────────────────────────── */}
+            <section style={{ ...card, marginBottom: '2rem' }}>
+                <h2 style={{ margin: '0 0 0.4rem', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <KeyRound size={19} color="var(--primary-color)" /> Моята парола
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginTop: 0 }}>
+                    Влизате като <strong style={{ color: '#fff' }}>{(currentUser?.username || '').split('@')[0]}</strong>.
+                    Смяната важи веднага и никой друг не вижда новата парола — нито
+                    администраторът, нито ние.
+                </p>
+
+                <form onSubmit={changeOwnPassword}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                        <div>
+                            <label style={label}>Сегашна парола</label>
+                            <input
+                                style={input} type="password" autoComplete="current-password"
+                                value={oldPassword} onChange={e => setOldPassword(e.target.value)} required
+                            />
+                        </div>
+                        <div>
+                            <label style={label}>Нова парола</label>
+                            <input
+                                style={input} type="password" autoComplete="new-password" minLength={6}
+                                value={newPassword} onChange={e => setNewPassword(e.target.value)} required
+                            />
+                        </div>
+                        <div>
+                            <label style={label}>Повторете новата</label>
+                            <input
+                                style={input} type="password" autoComplete="new-password" minLength={6}
+                                value={repeatPassword} onChange={e => setRepeatPassword(e.target.value)} required
+                            />
+                        </div>
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={savingPassword}
+                        style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.4rem',
+                            padding: '0.75rem 1.5rem', borderRadius: '12px', border: 'none',
+                            background: 'var(--primary-color)', color: '#00252a',
+                            fontWeight: 800, cursor: savingPassword ? 'wait' : 'pointer',
+                        }}
+                    >
+                        {savingPassword ? <Loader2 size={16} /> : <KeyRound size={16} />} Смени паролата
+                    </button>
+                </form>
+            </section>
+
+            {isAdmin && (<>
             {/* ── Subscriptions offered ─────────────────────────────────── */}
             <section style={{ ...card, marginBottom: '2rem' }}>
                 <h2 style={{ margin: '0 0 0.4rem', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -416,6 +521,7 @@ const Settings: React.FC = () => {
                     </div>
                 </div>
             )}
+            </>)}
 
             {!tenantId && (
                 <p style={{ color: 'var(--text-secondary)', marginTop: '2rem' }}>Няма избрана фирма.</p>

@@ -3,7 +3,7 @@ import {
     BarChart, Users as UsersIcon, History as HistoryIcon,
     TrendingUp, DollarSign,
     RefreshCw, Search, Clock, Shield,
-    UserPlus, Trash2, AlertTriangle
+    UserPlus, Trash2, AlertTriangle, Pencil, Check, X
 } from 'lucide-react';
 import { collection, collectionGroup, query, where, orderBy, limit, onSnapshot, updateDoc, doc, writeBatch, deleteField, getDocs } from '../tenant/db';
 import { db } from '../firebase';
@@ -15,7 +15,7 @@ import Card from '../components/Card';
 import AdminAlertsButton from '../components/AdminAlertsButton';
 import SecurityLog from '../components/SecurityLog';
 import CloneAlertsLog from '../components/CloneAlertsLog';
-import type { UserRole } from '../types/auth';
+import { personName, type UserRole } from '../types/auth';
 
 // Custom icons since they weren't in common lists or were problematic in older versions
 const Percent = ({ size }: { size: number | string }) => (
@@ -90,7 +90,7 @@ const SystemAdminPanel: React.FC = () => {
     // The lines this company runs, from its own settings — the revenue
     // breakdown and the chart filter both count against them.
     const ROUTES = useRouteNames();
-    const { users, currentUser, addUser, updateUserRole, deleteUser } = useAuth();
+    const { users, currentUser, addUser, updateUserRole, updateUserName, deleteUser } = useAuth();
     const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'audit'>('dashboard');
 
     // Global Data
@@ -130,8 +130,13 @@ const SystemAdminPanel: React.FC = () => {
 
     // Users State
     const [newUsername, setNewUsername] = useState('');
+    const [newName, setNewName] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [newRole, setNewRole] = useState<UserRole>('moderator');
+    // Naming somebody already on the list — one row at a time, so a stray
+    // keystroke cannot rename the person underneath.
+    const [editingNameId, setEditingNameId] = useState<string | null>(null);
+    const [nameDraft, setNameDraft] = useState('');
     const [userMsg, setUserMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
     const [userLoading, setUserLoading] = useState(false);
 
@@ -426,15 +431,26 @@ const SystemAdminPanel: React.FC = () => {
         if (!newUsername.trim() || !newPassword.trim()) return;
         setUserLoading(true);
         try {
-            await addUser(newUsername.trim(), newPassword, newRole);
-            setUserMsg({ text: `Потребител "${newUsername}" е създаден.`, type: 'success' });
-            setNewUsername(''); setNewPassword('');
+            await addUser(newUsername.trim(), newPassword, newRole, newName);
+            setUserMsg({ text: `${newName.trim() || newUsername.trim()} вече има достъп.`, type: 'success' });
+            setNewUsername(''); setNewName(''); setNewPassword('');
             setTimeout(() => setUserMsg(null), 3000);
         } catch (err: unknown) {
             const error = err as { code?: string };
             setUserMsg({ text: error.code === 'auth/email-already-in-use' ? 'Потребителското име съществува.' : 'Грешка!', type: 'error' });
             setTimeout(() => setUserMsg(null), 3000);
         } finally { setUserLoading(false); }
+    };
+
+    const saveName = async (userId: string) => {
+        const name = nameDraft.trim();
+        setEditingNameId(null);
+        try {
+            await updateUserName(userId, name);
+        } catch {
+            setUserMsg({ text: 'Името не беше записано.', type: 'error' });
+            setTimeout(() => setUserMsg(null), 3000);
+        }
     };
 
     // Shown only inside ТАБЛО while the clients collection is still downloading.
@@ -715,8 +731,12 @@ const SystemAdminPanel: React.FC = () => {
                         <form onSubmit={handleAddUser} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
                                 <div>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Име и фамилия</label>
+                                    <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Моника Димитрова" required style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--surface-border)', color: '#fff', outline: 'none' }} />
+                                </div>
+                                <div>
                                     <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Потребителско Име</label>
-                                    <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} required style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--surface-border)', color: '#fff', outline: 'none' }} />
+                                    <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="monika" required style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--surface-border)', color: '#fff', outline: 'none' }} />
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Парола</label>
@@ -745,6 +765,12 @@ const SystemAdminPanel: React.FC = () => {
                                 </div>
                             )}
 
+                            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                                Името е човекът — с него ги посреща системата и с него излизат в списъците.
+                                Потребителското име е входът: ако не е имейл, приложението допълва
+                                <code> @transitflow.bg</code>, така че няколко души с една обща поща
+                                пак имат отделни акаунти.
+                            </p>
                             <button type="submit" disabled={userLoading} style={{ background: 'var(--primary-color)', color: '#fff', padding: '0.8rem', borderRadius: '10px', border: 'none', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', marginTop: '0.5rem' }}>{userLoading ? '...' : 'Добави Персонал'}</button>
                         </form>
                         {userMsg && <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: '10px', background: userMsg.type === 'success' ? 'rgba(0, 200, 83, 0.1)' : 'rgba(255, 82, 82, 0.1)', color: userMsg.type === 'success' ? '#00c853' : '#ff5252', border: `1px solid ${userMsg.type === 'success' ? '#00c85333' : '#ff525233'}` }}>{userMsg.text}</div>}
@@ -756,9 +782,35 @@ const SystemAdminPanel: React.FC = () => {
                             {users.map(user => (
                                 <div key={user.id} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', padding: '1rem', background: 'rgba(255,255,255,0.01)', borderRadius: '16px', border: '1px solid var(--surface-border)', gap: isMobile ? '1rem' : '0' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', width: isMobile ? '100%' : 'auto' }}>
-                                        <div style={{ width: isMobile ? '40px' : '45px', height: isMobile ? '40px' : '45px', borderRadius: '12px', background: ROLE_COLORS[user.role], display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: isMobile ? '1rem' : '1.2rem', color: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>{user.username[0].toUpperCase()}</div>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ fontWeight: 700, fontSize: isMobile ? '1rem' : '1.1rem' }}>{user.username}</div>
+                                        <div style={{ width: isMobile ? '40px' : '45px', height: isMobile ? '40px' : '45px', borderRadius: '12px', background: ROLE_COLORS[user.role], display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: isMobile ? '1rem' : '1.2rem', color: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>{(personName(user)[0] || '?').toUpperCase()}</div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            {editingNameId === user.id ? (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
+                                                    <input
+                                                        autoFocus
+                                                        value={nameDraft}
+                                                        onChange={e => setNameDraft(e.target.value)}
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter') saveName(user.id);
+                                                            if (e.key === 'Escape') setEditingNameId(null);
+                                                        }}
+                                                        placeholder="Име и фамилия"
+                                                        style={{ flex: 1, minWidth: 0, padding: '0.35rem 0.6rem', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--surface-border)', color: '#fff', fontSize: '0.95rem', outline: 'none' }}
+                                                    />
+                                                    <button onClick={() => saveName(user.id)} title="Запази" style={{ padding: '0.35rem', borderRadius: '8px', background: 'rgba(0,200,83,0.12)', border: '1px solid rgba(0,200,83,0.3)', color: '#00c853', cursor: 'pointer', display: 'flex' }}><Check size={16} /></button>
+                                                    <button onClick={() => setEditingNameId(null)} title="Отказ" style={{ padding: '0.35rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex' }}><X size={16} /></button>
+                                                </div>
+                                            ) : (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                                                    <span style={{ fontWeight: 700, fontSize: isMobile ? '1rem' : '1.1rem' }}>{personName(user)}</span>
+                                                    <button
+                                                        onClick={() => { setEditingNameId(user.id); setNameDraft(user.displayName || ''); }}
+                                                        title={user.displayName ? 'Промени името' : 'Кой е този човек?'}
+                                                        style={{ padding: '0.2rem', background: 'transparent', border: 'none', color: user.displayName ? 'var(--text-secondary)' : '#ffab00', cursor: 'pointer', display: 'flex' }}
+                                                    ><Pencil size={14} /></button>
+                                                </div>
+                                            )}
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.username}</div>
                                             <div style={{ fontSize: '0.75rem', color: ROLE_COLORS[user.role], fontWeight: 800 }}>{ROLE_LABELS[user.role]}</div>
                                             <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
                                                 Последно активен: {formatLastSeen(user.lastSeen)}

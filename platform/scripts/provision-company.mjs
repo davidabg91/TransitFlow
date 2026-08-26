@@ -1,6 +1,6 @@
 /**
- * Sets up a company from a written spec: the registry entry, its staff
- * accounts, the subscriptions it sells and the lines it runs, with their fares.
+ * Sets up a company from a written spec: the registry entry, its staff — names
+ * and all — the subscriptions it sells and the lines it runs, with their fares.
  *
  * The panels can do all of this by hand — /platform creates the company,
  * ПОТРЕБИТЕЛИ adds the staff, НАСТРОЙКИ fills the fare matrix. That is a few
@@ -77,6 +77,10 @@ const seen = new Map();
 for (const person of spec.staff || []) {
     if (!ROLES.includes(person.role)) {
         problems.push(`${person.person || person.username}: непозната роля „${person.role}“.`);
+    }
+    // The name is not a comment in the file — it is what the system calls them.
+    if (!String(person.person || '').trim()) {
+        problems.push(`${person.username}: липсва име на човека.`);
     }
     const email = emailOf(person.username || '');
     if (seen.has(email)) {
@@ -179,16 +183,28 @@ const run = async () => {
                 note(`${label}: ПРОПУСНАТ — този акаунт е зачислен към „${claims.tenant}“`);
                 continue;
             }
-            if (claims.role === person.role) {
+
+            const profile = await tenantRef.collection('users').doc(record.uid).get();
+            const roleChanged = claims.role !== person.role;
+            const nameChanged = (profile.data()?.displayName || '') !== person.person;
+
+            if (!roleChanged && !nameChanged) {
                 note(`${label}: вече съществува`);
-            } else {
-                note(`${label}: съществува, ролята се променя от „${claims.role || '—'}“`);
-                if (apply) {
+                continue;
+            }
+            note(
+                `${label}: съществува` +
+                (roleChanged ? `, ролята се променя от „${claims.role || '—'}“` : '') +
+                (nameChanged ? ', името се записва' : '')
+            );
+            if (apply) {
+                if (roleChanged) {
                     await auth.setCustomUserClaims(record.uid, { tenant: spec.tenantId, role: person.role });
-                    await tenantRef.collection('users').doc(record.uid).set(
-                        { username: email, role: person.role, tenant: spec.tenantId }, { merge: true }
-                    );
                 }
+                await tenantRef.collection('users').doc(record.uid).set(
+                    { username: email, role: person.role, displayName: person.person, tenant: spec.tenantId },
+                    { merge: true }
+                );
             }
             continue;
         }
@@ -200,6 +216,7 @@ const run = async () => {
             await auth.setCustomUserClaims(created.uid, { tenant: spec.tenantId, role: person.role });
             await tenantRef.collection('users').doc(created.uid).set({
                 username: email,
+                displayName: person.person,
                 role: person.role,
                 tenant: spec.tenantId,
                 createdAt: nowIso(),

@@ -38,6 +38,7 @@ import {
     where
 } from '../tenant/db';
 import { useAuth } from '../context/AuthContext';
+import { personName } from '../types/auth';
 import { useRoutePricing } from '../tenant/settings';
 import { coversDate, coversMonth, formatSpanBG, spanEndDay, spanSortKey } from '../tenant/settings';
 import { localToday } from '../components/PeriodPicker';
@@ -1802,7 +1803,7 @@ const AdminPanel: React.FC = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: isMobile ? '0.7rem' : '0.85rem', fontWeight: 600 }}>
                             {isAdmin ? <ShieldCheck size={12} color="#ff5252" /> : <Shield size={12} color="var(--primary-color)" />}
-                            {isAdmin ? 'Админ' : 'Мод'} — {currentUser?.username}
+                            {isAdmin ? 'Админ' : 'Мод'} — {personName(currentUser)}
                         </div>
                         <div style={{ 
                             display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', 

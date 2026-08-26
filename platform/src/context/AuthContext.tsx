@@ -1,9 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
+    EmailAuthProvider,
     onAuthStateChanged,
+    reauthenticateWithCredential,
     signInWithEmailAndPassword,
     signOut,
+    updatePassword,
     type User as FirebaseUser
 } from 'firebase/auth';
 import {
@@ -39,9 +42,13 @@ interface AuthContextType {
     refreshClaims: () => Promise<void>;
     login: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
-    addUser: (email: string, password: string, role: UserRole) => Promise<void>;
+    addUser: (email: string, password: string, role: UserRole, displayName?: string) => Promise<void>;
     updateUserRole: (userId: string, role: UserRole) => Promise<void>;
+    /** Names the person behind a login. Admins only — the rules say so too. */
+    updateUserName: (userId: string, displayName: string) => Promise<void>;
     deleteUser: (userId: string) => Promise<void>;
+    /** Changes the signed-in account's own password, proving the old one first. */
+    changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -115,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         setCurrentUser({
                             id: fbUser.uid,
                             username: data.username || fbUser.email || '',
+                            displayName: data.displayName || '',
                             passwordHash: '', // Not needed for Firebase
                             role: claimedRole || (data.role as UserRole),
                             createdAt: data.createdAt || new Date().toISOString(),
@@ -163,6 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 userList.push({
                     id: docSnap.id,
                     username: data.username || '',
+                    displayName: data.displayName || '',
                     passwordHash: '',
                     role: data.role as UserRole,
                     createdAt: data.createdAt || '',
@@ -200,7 +209,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await signOut(auth);
     };
 
-    const addUser = async (username: string, password: string, role: UserRole) => {
+    const addUser = async (username: string, password: string, role: UserRole, displayName?: string) => {
         // Created via the createStaffUser Cloud Function (Admin SDK). This keeps the
         // current admin signed in (the client SDK's createUserWithEmailAndPassword
         // would switch the active session to the new user) and lets Firestore rules
@@ -208,11 +217,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const email = username.includes('@') ? username : `${username}@transitflow.bg`;
         const fns = getFunctions(app, FUNCTIONS_REGION);
         const createStaffUser = httpsCallable(fns, 'createStaffUser');
-        await createStaffUser({ email, password, role });
+        const created = await createStaffUser({ email, password, role });
+
+        // The name is written from here rather than passed to the function: the
+        // rules already let an admin edit their own company's staff, so naming a
+        // person needs no deploy of the functions. An account created before the
+        // name existed is named the same way, from the staff list.
+        const uid = (created.data as { uid?: string } | undefined)?.uid;
+        const name = displayName?.trim();
+        if (uid && name) {
+            await updateDoc(doc(db, 'users', uid), { displayName: name });
+        }
     };
 
     const updateUserRole = async (userId: string, role: UserRole) => {
         await updateDoc(doc(db, 'users', userId), { role });
+    };
+
+    const updateUserName = async (userId: string, displayName: string) => {
+        await updateDoc(doc(db, 'users', userId), { displayName: displayName.trim() });
+    };
+
+    /**
+     * Until now a password was whatever it was set to at creation and stayed
+     * that way — there was no screen for changing one and no reset, so a
+     * password handed over on paper was permanent.
+     *
+     * Firebase refuses to change a password on a session that has been open a
+     * while, which is the same protection a password prompt gives: whoever is
+     * at the keyboard has to know the current one, not merely find the laptop
+     * unlocked. So the old password is asked for and used to sign in again
+     * first, rather than being worked around.
+     */
+    const changePassword = async (currentPassword: string, newPassword: string) => {
+        const fbUser = auth.currentUser;
+        if (!fbUser?.email) throw new Error('Няма влязъл потребител.');
+        await reauthenticateWithCredential(
+            fbUser,
+            EmailAuthProvider.credential(fbUser.email, currentPassword)
+        );
+        await updatePassword(fbUser, newPassword);
     };
 
     const deleteUser = async (userId: string) => {
@@ -221,7 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     return (
-        <AuthContext.Provider value={{ currentUser, users, loading, tenantId, isPlatformAdmin, signedInEmail, refreshClaims, login, logout, addUser, updateUserRole, deleteUser }}>
+        <AuthContext.Provider value={{ currentUser, users, loading, tenantId, isPlatformAdmin, signedInEmail, refreshClaims, login, logout, addUser, updateUserRole, updateUserName, deleteUser, changePassword }}>
             {children}
         </AuthContext.Provider>
     );

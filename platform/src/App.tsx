@@ -279,8 +279,11 @@ function App() {
               <Route path="signal" element={<Signal />} />
               <Route path="rent" element={<BusRental />} />
 
+              {/* Open to everyone: the company's lines and fares are still
+                  admin-only inside, but this is also where a member of staff
+                  changes their own password, and they all have one. */}
               <Route path="settings" element={
-                <ProtectedRoute requiredRole="admin"><Settings /></ProtectedRoute>
+                <ProtectedRoute allowedRoles={['admin', 'moderator', 'inspector']}><Settings /></ProtectedRoute>
               } />
 
               <Route path="legal" element={<Legal />} />

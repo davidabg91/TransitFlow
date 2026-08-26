@@ -5,6 +5,7 @@ import {
     ExternalLink, LifeBuoy, Settings, SlidersHorizontal, Clock, Nfc, Search, ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { firstName } from '../types/auth';
 import { getDoc, tenantDoc } from '../tenant/db';
 import { db } from '../firebase';
 import {
@@ -38,7 +39,9 @@ const SHORTCUTS: Shortcut[] = [
     { to: '/inspections', icon: ShieldCheck, title: 'Проверки', accent: '#00b0ff', roles: ['admin', 'inspector'] },
     { to: '/admin?tab=notifications', icon: Bell, title: 'Известия', accent: '#ff4081', roles: ['admin'] },
     { to: '/admin?tab=nfc', icon: ExternalLink, title: 'NFC кодове', accent: '#a78bfa', roles: ['admin'] },
-    { to: '/settings', icon: SlidersHorizontal, title: 'Настройки', accent: '#a3e635', roles: ['admin'] },
+    // Everyone has something here now — an admin the company's lines and fares,
+    // everybody else at least their own password.
+    { to: '/settings', icon: SlidersHorizontal, title: 'Настройки', accent: '#a3e635', roles: ['admin', 'moderator', 'inspector'] },
     { to: '/system-admin', icon: Settings, title: 'Системен панел', accent: '#f87171', roles: ['admin'] },
     { to: '/help', icon: LifeBuoy, title: 'Помощ', accent: '#94a3b8', roles: ['admin', 'moderator', 'inspector'] },
 ];
@@ -113,7 +116,10 @@ const Home: React.FC = () => {
 
     const role = currentUser?.role || '';
     const visible = useMemo(() => SHORTCUTS.filter(s => s.roles.includes(role)), [role]);
-    const person = (currentUser?.username || '').split('@')[0];
+    // Greet the person, not the login. `cvetina.monika` is an address the
+    // company had to invent because three people share one mailbox; nobody is
+    // called that, and nobody should be greeted as it.
+    const person = firstName(currentUser);
 
     // After the hooks, never before: an early return above them would change how
     // many run between renders.
