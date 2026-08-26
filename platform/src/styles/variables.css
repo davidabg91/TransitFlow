@@ -31,6 +31,14 @@
   --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   
+  /* Layout
+     The top bar's height. It sat at 46px with a 43px logo inside it, which left
+     three pixels of air and read as cramped. Raised here rather than in the
+     component so the mobile menu — which starts where the bar ends — cannot
+     drift out of step with it again; it used to assume 64px and be wrong. The
+     bar grew, nothing inside it did: the contents are centred in the new room. */
+  --header-h: 72px;
+
   /* Shadows */
   --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.1);
   --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.15);
@@ -38,3 +46,8 @@
   --shadow-neon: 0 0 15px rgba(0, 173, 181, 0.3);
 }
 
+
+/* A phone has less height to give away, so the bar keeps a little less of it. */
+@media (max-width: 768px) {
+  :root { --header-h: 56px; }
+}

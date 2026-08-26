@@ -249,7 +249,9 @@ const Layout: React.FC = () => {
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
                 padding: isMobile ? '0 0.75rem' : '0 1.5rem',
-                minHeight: isMobile ? '34px' : '46px',
+                // The bar's own height, from one place — see --header-h. Nothing
+                // inside it was resized; the extra room is air around it.
+                minHeight: 'var(--header-h)',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
@@ -283,7 +285,6 @@ const Layout: React.FC = () => {
                         borderLeft: '2px solid #e53935',
                         paddingLeft: isMobile ? '6px' : '8px',
                         lineHeight: 1.1,
-                        marginTop: '-3px'
                     }}>
                         <span style={{
                             fontSize: isMobile ? '0.85rem' : '1.1rem',
@@ -329,11 +330,11 @@ const Layout: React.FC = () => {
                     className={`mobile-menu ${isMenuOpen ? 'open' : ''}`}
                     style={{
                         position: 'fixed',
-                        top: '64px',
+                        top: 'var(--header-h)',
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        height: 'calc(100dvh - 64px)',
+                        height: 'calc(100dvh - var(--header-h))',
                         background: 'rgba(26, 26, 26, 0.99)',
                         backdropFilter: 'blur(15px)',
                         padding: '1.5rem',

@@ -151,8 +151,11 @@ body {
 }
 
 @media (max-width: 480px) {
+    /* Sides only. Vertical padding here was added on top of the bar's own
+       height, so the bar ended up taller than --header-h said it was — and the
+       mobile menu, which starts where the bar ends, opened with a gap above it. */
     .main-header {
-        padding: 0.6rem 1rem !important;
+        padding: 0 1rem !important;
     }
     
     .mobile-menu {
