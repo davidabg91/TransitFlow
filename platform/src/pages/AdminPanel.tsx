@@ -60,6 +60,23 @@ interface ClientLog {
     performedBy?: string;
 }
 
+/**
+ * Едно качване в автобус, което ще бъде проверено за платен абонамент.
+ * Идва или от `unpaid_scans` (бързия път — вече преценено при сканирането), или
+ * от пълното четене на всички сканирания („Пълна проверка"). Двата източника се
+ * свеждат до тази форма, за да минат през една и съща проверка при рендиране.
+ */
+interface UnpaidScanRow {
+    clientId: string;
+    at: string;
+    route?: string;
+    /** Каквито са били при сканирането — остават, ако профилът бъде изтрит. */
+    name?: string;
+    cardNumber?: string;
+    /** Само при пълното четене: сканиране от служител на гишето. */
+    atDesk?: boolean;
+}
+
 interface Client {
     id: string;
     rfid?: string;
@@ -549,47 +566,73 @@ const AdminPanel: React.FC = () => {
         return () => { cancelled = true; };
     }, [showActionModal, selectedClient]);
 
-    // Пътувания без платен абонамент — всички сканирания за последните N дни,
-    // прочетени лениво (само когато табът е активен) чрез collection-group заявка.
-    const [unpaidScansRaw, setUnpaidScansRaw] = useState<{ clientId: string; at: string; route?: string }[] | null>(null);
+    // Пътувания без платен абонамент.
+    //
+    // Дали едно качване е било без абонамент, се решава веднъж — в момента на
+    // сканирането, от alertUnpaidScan, който и без това прави точно тази
+    // преценка, за да прати известие. Функцията записва по един малък ред в
+    // `unpaid_scans`, а отчетът чете само него: няколко десетки реда вместо
+    // всички сканирания на фирмата за периода.
+    //
+    // „Пълна проверка" пуска стария път — collection-group четене на всяко
+    // сканиране, преценено наново в браузъра. Държим го като контрола: така се
+    // вижда дали бързата колекция е пропуснала ред (напр. сканиране отпреди
+    // бекфила или докато функцията е падала).
+    const [unpaidScansRaw, setUnpaidScansRaw] = useState<UnpaidScanRow[] | null>(null);
     const [unpaidLoading, setUnpaidLoading] = useState(false);
     const [unpaidWindowDays, setUnpaidWindowDays] = useState(30);
-    // This report is a collection-group read over every scan in the window — 30 days
-    // is ~12,000 documents (~5 MB). It used to re-run that on every visit to the tab,
-    // so leaving and coming back paid for it again. Remember which window is already
-    // in memory and skip the refetch; the „Обнови" button forces a fresh read.
+    // Помни кой прозорец вече е в паметта и не го чете пак при връщане в таба;
+    // „Обнови" форсира ново четене.
     const [unpaidReloadKey, setUnpaidReloadKey] = useState(0);
+    const [unpaidFullScan, setUnpaidFullScan] = useState(false);
     const unpaidLoadedKey = useRef<string | null>(null);
     useEffect(() => {
         if (activeTab !== 'unpaid' || !getActiveTenant()) return;
-        const key = `${unpaidWindowDays}:${unpaidReloadKey}`;
+        const key = `${unpaidWindowDays}:${unpaidReloadKey}:${unpaidFullScan}`;
         if (unpaidLoadedKey.current === key) return;
         unpaidLoadedKey.current = key;
         let cancelled = false;
         const windowStart = new Date(Date.now() - unpaidWindowDays * 86400000).toISOString().slice(0, 10);
         setUnpaidLoading(true);
-        getDocs(query(collectionGroup(db, 'scans'), where('at', '>=', windowStart)))
-            .then(snap => {
-                if (cancelled) return;
-                const list = snap.docs.map(d => ({
-                    clientId: d.ref.parent.parent?.id ?? '',
-                    at: (d.data().at as string) || '',
-                    route: d.data().route as string | undefined,
-                    // A scan carries who made it only when somebody was signed in.
-                    // That is the desk: a card handed across the counter to be
-                    // renewed, opened to see what it owes. It is not a boarding,
-                    // and counting it here accused the passenger of travelling
-                    // without a subscription on the very visit they came to pay.
-                    // A bus terminal is signed in to nothing, so a real boarding
-                    // has no author.
-                    atDesk: !!(d.data().scannedBy || d.data().role),
-                })).filter(s => s.at && s.clientId && !s.atDesk);
-                setUnpaidScansRaw(list);
-            })
+
+        const readFast = async (): Promise<UnpaidScanRow[]> => {
+            // Тук няма какво да се отсява: функцията изобщо не записва ред за
+            // сканиране от служител, нито за платено качване.
+            const snap = await getDocs(query(collection(db, 'unpaid_scans'), where('at', '>=', windowStart)));
+            return snap.docs.map(d => ({
+                clientId: (d.data().clientId as string) || '',
+                at: (d.data().at as string) || '',
+                route: d.data().route as string | undefined,
+                // Името и номерът на картата, каквито са били при сканирането —
+                // единственото, което остава, ако профилът после бъде изтрит.
+                name: d.data().name as string | undefined,
+                cardNumber: d.data().cardNumber as string | undefined,
+            })).filter(s => s.at && s.clientId);
+        };
+
+        const readEverything = async (): Promise<UnpaidScanRow[]> => {
+            const snap = await getDocs(query(collectionGroup(db, 'scans'), where('at', '>=', windowStart)));
+            return snap.docs.map(d => ({
+                clientId: d.ref.parent.parent?.id ?? '',
+                at: (d.data().at as string) || '',
+                route: d.data().route as string | undefined,
+                // A scan carries who made it only when somebody was signed in.
+                // That is the desk: a card handed across the counter to be
+                // renewed, opened to see what it owes. It is not a boarding, and
+                // counting it here accused the passenger of travelling without a
+                // subscription on the very visit they came to pay. A bus
+                // terminal is signed in to nothing, so a real boarding has no
+                // author.
+                atDesk: !!(d.data().scannedBy || d.data().role),
+            })).filter(s => s.at && s.clientId && !s.atDesk);
+        };
+
+        (unpaidFullScan ? readEverything() : readFast())
+            .then(list => { if (!cancelled) setUnpaidScansRaw(list); })
             .catch(err => { console.error('Грешка при зареждане на сканиранията:', err); if (!cancelled) setUnpaidScansRaw([]); })
             .finally(() => { if (!cancelled) setUnpaidLoading(false); });
         return () => { cancelled = true; };
-    }, [activeTab, unpaidWindowDays, unpaidReloadKey]);
+    }, [activeTab, unpaidWindowDays, unpaidReloadKey, unpaidFullScan]);
 
     // Duplicate Check State
     
@@ -4020,18 +4063,28 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                 // Сканиране е "без абонамент", ако за месеца на сканирането няма
                                 // плащане, или картата е анулирана. Служебните карти имат записи
                                 // за всеки месец, така че автоматично отпадат.
-                                const unpaid = (unpaidScansRaw || []).map(s => {
+                                // Всеки ред се сверява с ЖИВИЯ клиентски документ, а не с
+                                // това, което е било вярно при сканирането. Затова месец,
+                                // платен задним числом на гишето, изчезва от отчета още при
+                                // следващото рендиране — без да се пипа записаният ред.
+                                type UnpaidRow = { clientId: string; at: string; route?: string; name: string; cardNumber: string; reason: string };
+                                const unpaid = (unpaidScansRaw || []).map((s): UnpaidRow | null => {
                                     const client = clientMap.get(s.clientId);
-                                    if (!client) return { ...s, name: 'Изтрит профил', cardNumber: '', reason: 'Непознат/изтрит профил' };
+                                    if (!client) return {
+                                        clientId: s.clientId, at: s.at, route: s.route,
+                                        name: s.name || 'Изтрит профил',
+                                        cardNumber: s.cardNumber || '',
+                                        reason: 'Непознат/изтрит профил',
+                                    };
                                     const hasPayment = (client.renewalHistory || []).some(rh => coversDate(rh, s.at.slice(0, 10)));
                                     if (hasPayment && !client.isCanceled) return null;
                                     return {
-                                        ...s,
+                                        clientId: s.clientId, at: s.at, route: s.route,
                                         name: client.name,
                                         cardNumber: getClientCardNumber(client) || '',
                                         reason: !hasPayment ? 'Без плащане за месеца' : 'Анулирана карта',
                                     };
-                                }).filter((x): x is { clientId: string; at: string; route?: string; name: string; cardNumber: string; reason: string } => x !== null)
+                                }).filter((x): x is UnpaidRow => x !== null)
                                   .sort((a, b) => b.at.localeCompare(a.at));
 
                                 const distinctCards = new Set(unpaid.map(u => u.clientId)).size;
@@ -4059,12 +4112,29 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                 >
                                                     <RefreshCw size={14} /> Обнови
                                                 </button>
+                                                <button
+                                                    onClick={() => setUnpaidFullScan(v => !v)}
+                                                    disabled={unpaidLoading}
+                                                    title={unpaidFullScan
+                                                        ? 'Върни се към бързия отчет'
+                                                        : 'Прочита всяко сканиране за периода и преценява наново — бавно, но независимо от готовите редове'}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.5rem 0.75rem', background: unpaidFullScan ? 'rgba(255,152,0,0.18)' : 'rgba(255,255,255,0.06)', border: `1px solid ${unpaidFullScan ? 'rgba(255,152,0,0.5)' : 'var(--surface-border)'}`, borderRadius: '8px', color: unpaidFullScan ? '#ff9800' : 'var(--text-secondary)', fontWeight: 700, fontSize: '0.8rem', cursor: unpaidLoading ? 'default' : 'pointer', opacity: unpaidLoading ? 0.5 : 1 }}
+                                                >
+                                                    <ShieldCheck size={14} /> Пълна проверка
+                                                </button>
                                             </div>
                                         </div>
 
                                         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
                                             Показва всяко <strong>качване в автобус</strong> с карта, която за съответния месец няма платен абонамент (или е анулирана) — за да се види кой пътува без абонамент и дали шофьорите реагират. Сканиранията на гишето, когато служител отвори карта, за да я поднови, не влизат тук.
+                                            {' '}Месец, платен по-късно на гишето, изчезва оттук веднага — всеки ред се сверява с картата такава, каквато е в момента.
                                         </div>
+
+                                        {unpaidFullScan && (
+                                            <div style={{ fontSize: '0.8rem', color: '#ff9800', background: 'rgba(255,152,0,0.08)', border: '1px solid rgba(255,152,0,0.25)', borderRadius: '10px', padding: '0.7rem 0.9rem', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+                                                <strong>Пълна проверка.</strong> Прочита всяко сканиране за периода и преценява всяко наново, вместо да ползва готовите редове. Бавно и скъпо при много сканирания — служи за сверка, че бързият отчет не пропуска нищо.
+                                            </div>
+                                        )}
 
                                         <div style={{ marginBottom: '1.5rem' }}>
                                             <UnpaidAlertsButton />

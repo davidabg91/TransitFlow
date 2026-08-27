@@ -516,7 +516,17 @@ const UNPAID_ALERT_THROTTLE_MS = 15 * 60 * 1000;
  * Alerts subscribed admins the moment a card is scanned without a valid
  * subscription for that month, so they can go and check the bus. Throttled per
  * card so frequent scans do not flood.
+ *
+ * It also records the row the admin report reads. The judgement of whether a
+ * boarding was paid for is made here anyway, once, at the moment of the scan —
+ * so the report no longer re-reads every scan in the company and re-decides in
+ * the browser. `unpaid_scans` holds only the boardings that failed, which is
+ * the handful of rows the report actually shows.
  */
+
+/** Why a boarding counts as travelling without a subscription. */
+type UnpaidReason = "no_payment" | "canceled" | "unknown_client" | "";
+
 /**
  * Does a subscription cover this day?
  *
@@ -550,9 +560,10 @@ export const alertUnpaidScan = fn.firestore
         const tenantId = context.params.tenantId as string;
         const clientId = context.params.clientId as string;
 
+        const scanId = context.params.scanId as string;
+
         const clientRef = tenantRef(tenantId).collection("clients").doc(clientId);
         const clientSnap = await clientRef.get();
-        if (!clientSnap.exists) return;
         const client = clientSnap.data() || {};
 
         // Mirrors the validity check on the terminal: is the card covered on the
@@ -564,7 +575,43 @@ export const alertUnpaidScan = fn.firestore
             (rh: { month?: string; from?: string; to?: string }) => rh && covers(rh, day)
         );
         const isCanceled = client.isCanceled === true;
-        if (hasPaid && !isCanceled) return;
+
+        // A card that no longer exists still boarded a bus. The old code left
+        // before deciding anything, so those boardings were invisible; the
+        // report is the one place they have to show up.
+        const reason: UnpaidReason = !clientSnap.exists
+            ? "unknown_client"
+            : !hasPaid
+                ? "no_payment"
+                : isCanceled
+                    ? "canceled"
+                    : "";
+        if (!reason) return;
+
+        const name = String(client.name || "");
+        const cardNumber = String(client.cardNumber || "");
+
+        // The report's row, written before anything that can decide not to
+        // proceed. Everything below this line is about the push notification,
+        // which is throttled — and a throttled push must not cost the report a
+        // boarding. The id is derived from the scan, so a retried delivery of
+        // this same event rewrites the row instead of adding a second one.
+        await tenantRef(tenantId).collection("unpaid_scans").doc(`${clientId}__${scanId}`).set({
+            tenant: tenantId,
+            clientId,
+            scanId,
+            at,
+            month: at.slice(0, 7),
+            route: String(scan.route || client.route || ""),
+            reason,
+            name,
+            cardNumber,
+        });
+
+        // Nothing to alert on when the card is gone: the throttle lives on the
+        // client document, and the notification names a passenger nobody can
+        // look up. The row above is what this scan was for.
+        if (!clientSnap.exists) return;
 
         const now = Date.now();
         let shouldAlert = false;
@@ -586,9 +633,8 @@ export const alertUnpaidScan = fn.firestore
         tokensSnap.forEach((t) => { const tok = t.data().token; if (tok) tokens.push(tok); });
         if (tokens.length === 0) return;
 
-        const name = String(client.name || "Без име");
-        const rawCard = String(client.cardNumber || "");
-        const cardNum = rawCard.replace(/^0+/, "") || rawCard;
+        const displayName = name || "Без име";
+        const cardNum = cardNumber.replace(/^0+/, "") || cardNumber;
         const route = String(scan.route || client.route || "");
         const timeStr = (() => {
             const d = new Date(at);
@@ -596,10 +642,10 @@ export const alertUnpaidScan = fn.firestore
                 ? at
                 : d.toLocaleTimeString("bg-BG", { timeZone: "Europe/Sofia", hour: "2-digit", minute: "2-digit" });
         })();
-        const reason = !hasPaid ? "без платен абонамент" : "анулирана карта";
+        const reasonText = reason === "no_payment" ? "без платен абонамент" : "анулирана карта";
         const cardPart = cardNum ? ` (Карта № ${cardNum})` : "";
         const routePart = route ? ` по ${route}` : "";
-        const text = `${name}${cardPart} се качи${routePart} в ${timeStr} ч. — ${reason}.`;
+        const text = `${displayName}${cardPart} се качи${routePart} в ${timeStr} ч. — ${reasonText}.`;
 
         const response = await admin.messaging().sendEachForMulticast({
             notification: { title: "🚨 Пътуване без абонамент", body: text },

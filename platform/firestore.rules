@@ -136,10 +136,22 @@ service cloud.firestore {
           // drivers actually work. The shape is pinned so the collection cannot
           // be stuffed with arbitrary documents, and the tenant must match the
           // path it is being written into.
+          //
+          // The three staff markers are what tells a boarding apart from a card
+          // opened at the desk, and a scan carrying them is left out of the
+          // unpaid-travel report. So they may only be written by someone who
+          // actually is staff, and only naming the role their own token carries
+          // — otherwise an anonymous terminal could stamp every boarding as desk
+          // work and empty the report from the bus.
           allow create: if stampedCorrectly(tenantId)
             && request.resource.data.at is string
             && request.resource.data.keys().hasOnly(
-                 ['at', 'route', 'tenant', 'scannedBy', 'scannedByName', 'role']);
+                 ['at', 'route', 'tenant', 'scannedBy', 'scannedByName', 'role'])
+            && (
+                 !request.resource.data.keys().hasAny(['scannedBy', 'scannedByName', 'role'])
+                 || ((isStaff(tenantId) || isInspector(tenantId))
+                     && request.resource.data.role == role())
+               );
           allow update, delete: if canAdmin(tenantId);
         }
       }
@@ -276,6 +288,18 @@ service cloud.firestore {
         allow read: if isStaff(tenantId);
         allow create: if canStaff(tenantId) && stampedCorrectly(tenantId);
         allow update, delete: if canAdmin(tenantId);
+      }
+
+      // ---- Travelling without a subscription ----
+      // One small row per boarding that had no paid subscription, written by
+      // the alertUnpaidScan function at the moment of the scan. The report reads
+      // this instead of every scan in the company. Nothing in the browser writes
+      // here: the Admin SDK bypasses these rules, so the function is unaffected
+      // by the flat refusal, and a row cannot be forged or quietly edited away.
+      match /unpaid_scans/{rowId} {
+        allow read: if isStaff(tenantId);
+        allow create, update: if false;
+        allow delete: if canAdmin(tenantId);
       }
 
       // ---- Precomputed monthly totals ----
