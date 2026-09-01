@@ -72,6 +72,15 @@ service cloud.firestore {
     // The platform owner administers the companies but is not a member of any.
     // They may see which companies exist and how much each one uses the system —
     // never the passengers' personal data, which belongs to the operator.
+    // Is the chip this write names free, or already this very card's?
+    // Written as a short-circuit: the lookup only happens on a write that
+    // actually touches nfcUid, so an ordinary scan bump pays nothing for it.
+    function uidFree(tenantId, clientId, uid) {
+      return uid == null || uid == ''
+        || !exists(/databases/$(database)/documents/tenants/$(tenantId)/nfc_uids/$(uid))
+        || get(/databases/$(database)/documents/tenants/$(tenantId)/nfc_uids/$(uid)).data.clientId == clientId;
+    }
+
     function isPlatformOwner() {
       return signedIn() && request.auth.token.platformAdmin == true;
     }
@@ -125,18 +134,17 @@ service cloud.firestore {
         // chip that already belongs to somebody is refused at the door rather
         // than left to be noticed later.
         allow create: if canStaff(tenantId) && stampedCorrectly(tenantId)
-          && (
-               !('nfcUid' in request.resource.data)
-               || request.resource.data.nfcUid == ''
-               || !exists(/databases/$(database)/documents/tenants/$(tenantId)/nfc_uids/$(request.resource.data.nfcUid))
-             );
+          && (!('nfcUid' in request.resource.data)
+              || uidFree(tenantId, clientId, request.resource.data.nfcUid));
         // Staff may edit anything. A terminal may bump only the scan counters —
         // never the route, expiry, name or photo.
-        allow update: if canStaff(tenantId)
-          || (canDevice(tenantId)
-              && request.resource.data.diff(resource.data).affectedKeys()
-                   .hasOnly(['scanCount', 'lastScanAt', 'lastScanCounter', 'nfcUid',
-                             'dailyScanCount', 'lastScanDate', 'scanHistory']));
+        allow update: if (canStaff(tenantId)
+              || (canDevice(tenantId)
+                  && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['scanCount', 'lastScanAt', 'lastScanCounter', 'nfcUid',
+                                 'dailyScanCount', 'lastScanDate', 'scanHistory'])))
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['nfcUid'])
+              || uidFree(tenantId, clientId, request.resource.data.nfcUid));
         allow delete: if canAdmin(tenantId);
 
         match /scans/{scanId} {
