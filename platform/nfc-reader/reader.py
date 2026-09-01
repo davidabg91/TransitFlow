@@ -12,11 +12,12 @@ TransitFlow NFC — четец за гише.
     FF CA 00 00 00   →  серийният номер на чипа
     FF B0 ..         →  адресът, записан в картата
 
-после долепя номера към адреса и го отваря в собствения си прозорец. Затова на
-гишето картата се допира веднъж, а системата въпреки това научава кой чип е.
+после отваря адреса и подава номера на самата страница. Затова на гишето
+картата се допира веднъж, а системата въпреки това научава кой чип е.
 
-Записаният в картата адрес остава чист: номерът се добавя тук, в момента на
-сканиране, и не се вижда никъде върху картата.
+Номерът не влиза в адреса. Той се предава на страницата отделно, остава само в
+паметта ѝ, и не се появява нито в адресната лента, нито в историята, нито в
+нещо, което може да се копира.
 """
 
 import json
@@ -210,7 +211,7 @@ class ReaderThread(QThread):
     reader_status = pyqtSignal(str, str)          # text, colour
     scan_status = pyqtSignal(str, str, str, str)  # icon, text, colour, detail
     history = pyqtSignal(str, bool)               # text, went well
-    card_scanned = pyqtSignal(str)                # the address to open
+    card_scanned = pyqtSignal(str, str)           # address, chip serial
 
     def __init__(self):
         super().__init__()
@@ -281,13 +282,12 @@ class ReaderThread(QThread):
                 if not url.startswith("http"):
                     url = "https://" + url
 
-                # The serial is added here, at the moment of the tap. It is not
-                # written on the card and does not appear on it anywhere.
-                joined = f"{url}{'&' if '?' in url else '?'}uid={uid}"
-
+                # The two travel separately: the address is opened, and the
+                # serial is handed to the page. It is written nowhere on the
+                # card and appears in no address bar.
                 self.history.emit(f"Карта прочетена\n{url}\nЧип: {uid}", True)
                 self.scan_status.emit("✅", "Прочетена", GOOD, f"Чип: {uid}")
-                self.card_scanned.emit(joined)
+                self.card_scanned.emit(url, uid)
 
                 time.sleep(2)
                 self.scan_status.emit("📡", "Готов за следваща", CYAN,
@@ -361,7 +361,7 @@ class MainWindow(QMainWindow):
         self.thread.reader_status.connect(self.set_reader_status)
         self.thread.scan_status.connect(self.set_scan_status)
         self.thread.history.connect(self.add_history)
-        self.thread.card_scanned.connect(self.open_url)
+        self.thread.card_scanned.connect(self.open_card)
         self.thread.start()
 
         self.log.connect(lambda text: self.add_history(text, True))
@@ -468,10 +468,43 @@ class MainWindow(QMainWindow):
         )
         self.history_box.moveCursor(QTextCursor.MoveOperation.End)
 
-    def open_url(self, url):
+    def open_card(self, url, uid):
+        """
+        Open the card, then hand the page its serial.
+
+        The page is a single-page application, so opening another card is often
+        only a change of fragment and no page load happens — there is no load
+        event to wait for. The serial is therefore offered a few times over the
+        next moment, and it names the card it came from, so the page takes it
+        only if that is the card it is showing. Neither side has to arrive first.
+        """
+        found = re.search(r"/client/([0-9A-Fa-f]{12})", url)
+        code = found.group(1).upper() if found else ""
+
         self.browser.setUrl(QUrl(url))
         self.raise_()
         self.activateWindow()
+        self.hand_over_serial(uid, code, 0)
+
+    def hand_over_serial(self, uid, code, attempt):
+        script = (
+            "(function(){"
+            "if (typeof window.transitflowChip !== 'function') return false;"
+            f"return window.transitflowChip('{uid}', '{code}');"
+            "})()"
+        )
+
+        def answered(accepted):
+            if accepted:
+                return
+            if attempt >= 8:
+                # The page never offered the channel. The card still works; its
+                # serial is simply not recorded from this tap.
+                self.add_history("Страницата не прие номера на чипа", False)
+                return
+            QTimer.singleShot(350, lambda: self.hand_over_serial(uid, code, attempt + 1))
+
+        self.browser.page().runJavaScript(script, answered)
 
     # ── What the page is allowed to do ──────────────────────────────────────
 

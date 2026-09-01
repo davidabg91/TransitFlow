@@ -22,6 +22,7 @@ import { MIXED_METHOD } from '../data/paymentMethods';
 import { getDoc, doc as tdoc, setActiveTenant } from '../tenant/db';
 import { normalizeUid } from '../tenant/cards';
 import ChipReader from '../components/ChipReader';
+import { getChipSerial, onChipSerial, setChipSerial } from '../tenant/chip';
 import { MUNICIPALITY_CUSTOM, needsMunicipality, usePlaces } from '../tenant/settings';
 
 interface Client {
@@ -212,19 +213,28 @@ const ClientProfile: React.FC = () => {
     /**
      * The card's own serial number.
      *
-     * It does not travel in the link, and should not: a link carrying it puts it
-     * in the address bar next to the card's code, where copying the address
-     * hands over both halves of what a forged card needs.
-     *
-     * It arrives one of two ways — read from the chip by this page when the card
-     * is issued, or passed in by a terminal that read it at the door. A link is
-     * still accepted if one carries it, because cards written before this change
-     * do, but nothing depends on that any more.
+     * Three ways in, none of which needs it written on the card: the desk reader
+     * hands it to the page directly, this page reads it off the chip itself, or —
+     * for cards and readers from before either — it arrives in the address, which
+     * is accepted and then wiped from the address bar.
      */
-    const [chipUid, setChipUid] = useState(() =>
-        normalizeUid(new URLSearchParams(window.location.hash.split('?')[1] || '').get('uid'))
-    );
+    const [chipUid, setChipUid] = useState('');
     const urlUid = chipUid;
+
+    // Look for one already handed over for this card, and keep listening: the
+    // reader's call and the navigation are separate events, in no fixed order.
+    useEffect(() => {
+        const held = normalizeUid(getChipSerial(id))
+            || normalizeUid(new URLSearchParams(window.location.hash.split('?')[1] || '').get('uid'));
+        setChipUid(held);
+        // Everything goes through the same rule about what a serial looks like,
+        // wherever it came from.
+        return onChipSerial((uid, code) => {
+            if (code && code !== id) return;
+            const clean = normalizeUid(uid);
+            if (clean) setChipUid(clean);
+        });
+    }, [id]);
 
     // Whatever it arrived as, it does not stay in the address bar.
     useEffect(() => {
@@ -1468,7 +1478,7 @@ const ClientProfile: React.FC = () => {
                                 )}
                                 <div style={{ marginBottom: '1rem' }}>
                                     <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>ЧИП НА КАРТАТА</label>
-                                    <ChipReader value={chipUid} onRead={setChipUid} />
+                                    <ChipReader value={chipUid} onRead={uid => setChipSerial(uid, id)} />
                                 </div>
                                 <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>МАРШРУТ (КУРС)</label><select value={regRoute} onChange={e => setRegRoute(e.target.value)} style={{ width: '100%', padding: '1rem', background: '#222', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none' }}><option value="">{ROUTES.length ? 'Избери маршрут...' : 'Няма добавени линии — добави ги в Настройки'}</option>{ROUTES.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
                                 {regCardType !== 'Служебна карта' && (
