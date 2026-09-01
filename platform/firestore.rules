@@ -120,7 +120,16 @@ service cloud.firestore {
       match /clients/{clientId} {
         allow get: if belongs(tenantId);
         allow list: if isStaff(tenantId) || isInspector(tenantId);
-        allow create: if canStaff(tenantId) && stampedCorrectly(tenantId);
+        // A chip may stand behind one card and no other. The map of chip to card
+        // is written by a Cloud Function and readable here, so activation with a
+        // chip that already belongs to somebody is refused at the door rather
+        // than left to be noticed later.
+        allow create: if canStaff(tenantId) && stampedCorrectly(tenantId)
+          && (
+               !('nfcUid' in request.resource.data)
+               || request.resource.data.nfcUid == ''
+               || !exists(/databases/$(database)/documents/tenants/$(tenantId)/nfc_uids/$(request.resource.data.nfcUid))
+             );
         // Staff may edit anything. A terminal may bump only the scan counters —
         // never the route, expiry, name or photo.
         allow update: if canStaff(tenantId)

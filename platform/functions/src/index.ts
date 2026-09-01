@@ -258,6 +258,34 @@ export const enrollDevice = fn.https.onCall(async (data, context) => {
  * still resolves the card. Runs only when the UID actually changes, so ordinary
  * scan-counter writes are ignored.
  */
+/**
+ * Marks a minted card as used once a passenger is registered onto it, and frees
+ * it again if that registration is deleted.
+ *
+ * Without this every card in the batch reads as "free" forever, so nobody can
+ * tell from the stock which cards have gone out — the one question the stock
+ * exists to answer.
+ */
+export const markCardUsed = fn.firestore
+    .document("tenants/{tenantId}/clients/{clientId}")
+    .onWrite(async (change, context) => {
+        const existedBefore = change.before.exists;
+        const existsNow = change.after.exists;
+        if (existedBefore === existsNow) return;
+
+        const tenantId = context.params.tenantId as string;
+        const code = context.params.clientId as string;
+        const ref = tenantRef(tenantId).collection("card_stock").doc(code);
+        if (!(await ref.get()).exists) return;
+
+        await ref.set(
+            existsNow
+                ? { status: "used", activatedAt: nowIso() }
+                : { status: "free", activatedAt: admin.firestore.FieldValue.delete() },
+            { merge: true }
+        );
+    });
+
 export const syncNfcUid = fn.firestore
     .document("tenants/{tenantId}/clients/{clientId}")
     .onWrite(async (change, context) => {

@@ -693,6 +693,28 @@ const ClientProfile: React.FC = () => {
             alert(`Картата изглежда прочетена НЕПЪЛНО (къс код: "${id}").\n\nМоля, сканирайте картата отново — по-бавно и плътно до четеца — преди да я активирате.`);
             return;
         }
+        // A chip belongs to one card. Checked here so the operator is told which
+        // card it already is, rather than only being refused by the rules — the
+        // rules refuse it too, since a check in the browser is a courtesy and not
+        // a guarantee.
+        if (urlUid) {
+            try {
+                const bound = await getDoc(tdoc(db, 'nfc_uids', urlUid.toUpperCase()));
+                const owner = bound.exists() ? String(bound.data()?.clientId || '') : '';
+                if (owner && owner !== id) {
+                    alert(
+                        `Тази карта вече е активирана в системата.
+
+` +
+                        `Чипът ѝ е записан на карта с код ${owner}. ` +
+                        `Една физическа карта може да стои зад един профил.`
+                    );
+                    return;
+                }
+            } catch (e) {
+                console.error('UID check failed:', e);
+            }
+        }
         // The id must correspond to a real printed card (i.e. exist in the card
         // list with a number). Otherwise the profile would have no card number.
         if (!stockCard) {
