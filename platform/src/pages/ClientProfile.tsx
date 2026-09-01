@@ -21,6 +21,7 @@ import ModeratorInactivityWarningModal from '../components/ModeratorInactivityWa
 import { MIXED_METHOD } from '../data/paymentMethods';
 import { getDoc, doc as tdoc, setActiveTenant } from '../tenant/db';
 import { normalizeUid } from '../tenant/cards';
+import ChipReader from '../components/ChipReader';
 import { MUNICIPALITY_CUSTOM, needsMunicipality, usePlaces } from '../tenant/settings';
 
 interface Client {
@@ -209,22 +210,23 @@ const ClientProfile: React.FC = () => {
     const [stockChecked, setStockChecked] = useState(false);
     const id = sanitizeId(rawId);
     /**
-     * The chip's serial, taken from the link once and then wiped from the
-     * address bar.
+     * The card's own serial number.
      *
-     * The serial is not a secret — any phone reads it off the card by holding it
-     * near, and it sits in the fragment, which browsers never send to a server.
-     * But after a tap it is sitting in the address bar next to the card's code,
-     * and a passenger who copies that address to somebody hands over both halves
-     * of what a forged card would need.
+     * It does not travel in the link, and should not: a link carrying it puts it
+     * in the address bar next to the card's code, where copying the address
+     * hands over both halves of what a forged card needs.
      *
-     * So it is captured in state, where the registration and the clone check can
-     * still use it, and taken out of the URL immediately after.
+     * It arrives one of two ways — read from the chip by this page when the card
+     * is issued, or passed in by a terminal that read it at the door. A link is
+     * still accepted if one carries it, because cards written before this change
+     * do, but nothing depends on that any more.
      */
-    const [urlUid] = useState(() =>
+    const [chipUid, setChipUid] = useState(() =>
         normalizeUid(new URLSearchParams(window.location.hash.split('?')[1] || '').get('uid'))
     );
+    const urlUid = chipUid;
 
+    // Whatever it arrived as, it does not stay in the address bar.
     useEffect(() => {
         const [path, qs] = window.location.hash.split('?');
         if (!qs) return;
@@ -1464,6 +1466,10 @@ const ClientProfile: React.FC = () => {
                                         </div>
                                     </div>
                                 )}
+                                <div style={{ marginBottom: '1rem' }}>
+                                    <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>ЧИП НА КАРТАТА</label>
+                                    <ChipReader value={chipUid} onRead={setChipUid} />
+                                </div>
                                 <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>МАРШРУТ (КУРС)</label><select value={regRoute} onChange={e => setRegRoute(e.target.value)} style={{ width: '100%', padding: '1rem', background: '#222', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none' }}><option value="">{ROUTES.length ? 'Избери маршрут...' : 'Няма добавени линии — добави ги в Настройки'}</option>{ROUTES.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
                                 {regCardType !== 'Служебна карта' && (
                                 <>

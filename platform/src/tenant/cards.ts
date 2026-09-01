@@ -36,22 +36,12 @@ export const normalizeCardInput = (raw: string): string => {
 const isNumeric = (s: string) => /^\d+$/.test(s.replace(/\s/g, ''));
 
 /**
- * The placeholder written into a card's link so the chip can fill it in.
- *
- * NTAG21x tags can mirror their own serial number into the NDEF message as
- * ASCII: the tag overwrites this many characters with its real number on every
- * read. Fourteen characters, because a 7-byte serial is fourteen hex digits.
- * Nothing is typed by hand — the card carries its own number.
- */
-export const UID_SLOT = '0'.repeat(14);
-
-/**
  * A chip number, or an empty string when there is not really one.
  *
- * A link whose slot was never filled — a tag written without the mirror, or a
- * link opened by hand — arrives as all zeros. Treating that as a serial would
+ * Cards written before the serial moved out of the link carry a slot of zeros
+ * where the chip was meant to write itself in. Treating that as a serial would
  * bind every such card to the same number and make the second one look like a
- * duplicate of the first, so it is read as "not supplied" instead.
+ * duplicate of the first, so it reads as "not supplied" instead.
  */
 export const normalizeUid = (raw?: string | null): string => {
     const hex = String(raw || '').trim().toUpperCase().replace(/[^0-9A-F]/g, '');
