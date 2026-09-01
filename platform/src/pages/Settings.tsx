@@ -9,7 +9,7 @@ import { doc, deleteDoc, setDoc } from '../tenant/db';
 import { db } from '../firebase';
 import {
     ALL_PERIODS, DEFAULT_CARD_TYPES, emptyRoute, useCompanySettings, useRoutes,
-    type PeriodId, type RouteDef,
+    type PeriodId, type RouteDef, type School,
 } from '../tenant/settings';
 import { EMPTY_COMPANY, useCompanyProfile, type CompanyProfile } from '../tenant/company';
 import { prepareLogo, uploadCompanyLogo } from '../utils/photoStorage';
@@ -54,6 +54,13 @@ const Settings: React.FC = () => {
 
     const [periods, setPeriods] = useState<PeriodId[]>([]);
     const [cardTypes, setCardTypes] = useState<string[]>([]);
+    // Общини and schools: a compiled list of one oblast until now, which a
+    // company anywhere else recognised none of.
+    const [municipalities, setMunicipalities] = useState<string[]>([]);
+    const [schools, setSchools] = useState<School[]>([]);
+    const [newMunicipality, setNewMunicipality] = useState('');
+    const [newSchool, setNewSchool] = useState('');
+    const [newSchoolMunicipality, setNewSchoolMunicipality] = useState('');
     const [savingSettings, setSavingSettings] = useState(false);
     const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
 
@@ -73,6 +80,8 @@ const Settings: React.FC = () => {
         if (settings.loading) return;
         setPeriods(settings.periods);
         setCardTypes(settings.cardTypes);
+        setMunicipalities(settings.municipalities);
+        setSchools(settings.schools);
     }, [settings.loading, settings.periods, settings.cardTypes]);
 
     useEffect(() => {
@@ -179,6 +188,20 @@ const Settings: React.FC = () => {
         setPeriods(list => list.includes(id) ? list.filter(p => p !== id) : [...list, id]);
     };
 
+    const addMunicipality = () => {
+        const name = newMunicipality.trim();
+        if (!name || municipalities.includes(name)) { setNewMunicipality(''); return; }
+        setMunicipalities([...municipalities, name]);
+        setNewMunicipality('');
+    };
+
+    const addSchool = () => {
+        const name = newSchool.trim();
+        if (!name || schools.some(x => x.name === name)) { setNewSchool(''); return; }
+        setSchools([...schools, { name, municipality: newSchoolMunicipality }]);
+        setNewSchool('');
+    };
+
     const saveSettings = async () => {
         if (periods.length === 0) {
             setMessage({ text: 'Оставете поне един вид абонамент.', ok: false });
@@ -187,7 +210,11 @@ const Settings: React.FC = () => {
         setSavingSettings(true);
         setMessage(null);
         try {
-            await setDoc(doc(db, 'settings', 'general'), { periods, cardTypes }, { merge: true });
+            await setDoc(
+                doc(db, 'settings', 'general'),
+                { periods, cardTypes, municipalities, schools },
+                { merge: true }
+            );
             setMessage({ text: 'Настройките са запазени.', ok: true });
         } catch (e) {
             setMessage({ text: (e as { message?: string }).message || 'Неуспешен запис.', ok: false });
@@ -491,6 +518,115 @@ const Settings: React.FC = () => {
                 >
                     {savingSettings ? <Loader2 size={16} /> : <Save size={16} />} Запази
                 </button>
+            </section>
+
+            {/* ── Places ────────────────────────────────────────────────── */}
+            <section style={{ ...card, marginBottom: '2rem' }}>
+                <h2 style={{ margin: '0 0 0.4rem', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <MapPin size={19} color="var(--primary-color)" /> Общини и училища
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginTop: 0 }}>
+                    Използват се при ученически, пенсионерски, учителски и инвалидни карти.
+                    Изборът на училище попълва общината му автоматично.
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.75rem', marginTop: '1.25rem' }}>
+
+                    <div>
+                        <label style={label}>Общини ({municipalities.length})</label>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <input
+                                value={newMunicipality}
+                                onChange={e => setNewMunicipality(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addMunicipality(); } }}
+                                placeholder="Име на община"
+                                style={{ ...input, flex: 1 }}
+                            />
+                            <button onClick={addMunicipality} style={{
+                                padding: '0 1rem', borderRadius: '11px', cursor: 'pointer',
+                                background: 'rgba(0,200,83,0.12)', border: '1px solid rgba(0,200,83,0.35)',
+                                color: '#00c853', fontWeight: 800,
+                            }}><Plus size={15} /></button>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', marginTop: '0.8rem' }}>
+                            {municipalities.length === 0 && (
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.86rem' }}>Няма въведени общини.</span>
+                            )}
+                            {municipalities.map(m => (
+                                <span key={m} style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                                    padding: '0.4rem 0.5rem 0.4rem 0.85rem', borderRadius: '50px',
+                                    background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)',
+                                    fontSize: '0.86rem', fontWeight: 600,
+                                }}>
+                                    {m}
+                                    <button
+                                        onClick={() => {
+                                            setMunicipalities(municipalities.filter(x => x !== m));
+                                            setSchools(schools.map(sc => sc.municipality === m ? { ...sc, municipality: '' } : sc));
+                                        }}
+                                        title="Премахни"
+                                        style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', padding: 0 }}
+                                    ><X size={14} /></button>
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style={label}>Училища ({schools.length})</label>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <input
+                                value={newSchool}
+                                onChange={e => setNewSchool(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSchool(); } }}
+                                placeholder="Име на училище"
+                                style={{ ...input, flex: '2 1 150px' }}
+                            />
+                            <select
+                                value={newSchoolMunicipality}
+                                onChange={e => setNewSchoolMunicipality(e.target.value)}
+                                style={{ ...input, flex: '1 1 130px' }}
+                            >
+                                <option value="" style={{ background: '#222' }}>Община…</option>
+                                {municipalities.map(m => <option key={m} value={m} style={{ background: '#222' }}>{m}</option>)}
+                            </select>
+                            <button onClick={addSchool} style={{
+                                padding: '0 1rem', borderRadius: '11px', cursor: 'pointer',
+                                background: 'rgba(0,200,83,0.12)', border: '1px solid rgba(0,200,83,0.35)',
+                                color: '#00c853', fontWeight: 800,
+                            }}><Plus size={15} /></button>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.8rem', maxHeight: '15rem', overflowY: 'auto' }}>
+                            {schools.length === 0 && (
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.86rem' }}>Няма въведени училища.</span>
+                            )}
+                            {schools.map(sc => (
+                                <div key={sc.name} style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem',
+                                    padding: '0.5rem 0.75rem', borderRadius: '10px',
+                                    background: 'rgba(255,255,255,0.03)', border: '1px solid var(--surface-border)',
+                                }}>
+                                    <span style={{ fontSize: '0.86rem', fontWeight: 600 }}>{sc.name}</span>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                            {sc.municipality || '—'}
+                                        </span>
+                                        <button
+                                            onClick={() => setSchools(schools.filter(x => x.name !== sc.name))}
+                                            title="Премахни"
+                                            style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', padding: 0 }}
+                                        ><X size={14} /></button>
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '1.25rem', marginBottom: 0 }}>
+                    Запазва се с бутона „Запази" в „Видове абонамент" по-горе.
+                </p>
             </section>
 
             {/* ── Lines ─────────────────────────────────────────────────── */}

@@ -36,13 +36,42 @@ export const ALL_PERIODS: PeriodDef[] = [
 /** A company that has configured nothing still sells a month, as before. */
 export const DEFAULT_PERIODS: PeriodId[] = ['month'];
 
+export interface School {
+    name: string;
+    /** The община the school belongs to, filled in automatically when chosen. */
+    municipality: string;
+}
+
 export interface CompanySettings {
     /** Which subscriptions this company offers. */
     periods: PeriodId[];
     /** Card types it issues. */
     cardTypes: string[];
+    /** The общини this company issues cards in. */
+    municipalities: string[];
+    /** The schools its student cards are issued to. */
+    schools: School[];
     loading: boolean;
 }
+
+/**
+ * Card types that carry an община. Normal and service cards do not.
+ *
+ * This is a rule about the card, not a list of places, so it stays in the code
+ * while the places themselves belong to the company.
+ */
+export const MUNICIPALITY_CARD_TYPES = [
+    'Ученическа карта',
+    'Пенсионерска карта',
+    'Учителска карта',
+    'Инвалидна карта',
+];
+
+export const needsMunicipality = (cardType?: string) =>
+    MUNICIPALITY_CARD_TYPES.includes(cardType || '');
+
+/** Sentinel the <select> uses to switch to free-text entry. */
+export const MUNICIPALITY_CUSTOM = 'custom';
 
 export const DEFAULT_CARD_TYPES = [
     'Нормална карта', 'Ученическа карта', 'Пенсионерска карта',
@@ -185,6 +214,8 @@ export const useCompanySettings = (): CompanySettings => {
     const [settings, setSettings] = useState<CompanySettings>({
         periods: DEFAULT_PERIODS,
         cardTypes: DEFAULT_CARD_TYPES,
+        municipalities: [],
+        schools: [],
         loading: true,
     });
 
@@ -200,6 +231,11 @@ export const useCompanySettings = (): CompanySettings => {
                 setSettings({
                     periods: Array.isArray(d.periods) && d.periods.length ? d.periods : DEFAULT_PERIODS,
                     cardTypes: Array.isArray(d.cardTypes) && d.cardTypes.length ? d.cardTypes : DEFAULT_CARD_TYPES,
+                    // No defaults: one operator's общини and schools are nobody
+                    // else's. An empty list means "not configured yet", and the
+                    // forms say so rather than offering another company's places.
+                    municipalities: Array.isArray(d.municipalities) ? d.municipalities : [],
+                    schools: Array.isArray(d.schools) ? d.schools : [],
                     loading: false,
                 });
             },
@@ -209,6 +245,42 @@ export const useCompanySettings = (): CompanySettings => {
     }, [tenantId]);
 
     return settings;
+};
+
+/**
+ * The общини and schools this company works with.
+ *
+ * These were a compiled list of Pleven oblast — eleven municipalities and the
+ * schools inside them — shipped to every operator. A company in another part of
+ * the country recognised none of it.
+ *
+ * A value already saved on a card is offered too, even when it is no longer in
+ * the company's list, so editing an old card does not silently blank the field
+ * it was registered with.
+ */
+export const usePlaces = () => {
+    const { municipalities, schools, loading } = useCompanySettings();
+
+    return useMemo(() => {
+        const byName: Record<string, string> = {};
+        schools.forEach(s => { if (s?.name) byName[s.name] = s.municipality || ''; });
+        return {
+            loading,
+            municipalities,
+            schoolNames: schools.map(s => s.name).filter(Boolean),
+            /** The община a school sits in, for filling the field in automatically. */
+            municipalityOfSchool: byName,
+            /** The община to assume when nothing else says otherwise. */
+            defaultMunicipality: municipalities[0] || '',
+            /** Includes `saved` so an existing card keeps the value it was given. */
+            municipalitiesWith: (saved?: string) =>
+                saved && !municipalities.includes(saved) ? [saved, ...municipalities] : municipalities,
+            schoolsWith: (saved?: string) => {
+                const names = schools.map(s => s.name).filter(Boolean);
+                return saved && !names.includes(saved) ? [saved, ...names] : names;
+            },
+        };
+    }, [municipalities, schools, loading]);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

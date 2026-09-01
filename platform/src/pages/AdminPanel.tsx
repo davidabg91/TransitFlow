@@ -47,10 +47,9 @@ import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanProblem, 
 import type { PeriodChoice } from '../components/PeriodPicker';
 import PaymentMethodSelector from '../components/PaymentMethodSelector';
 import { MIXED_METHOD, PAYMENT_METHODS } from '../data/paymentMethods';
-import { MUNICIPALITIES, MUNICIPALITY_CUSTOM, DEFAULT_MUNICIPALITY, needsMunicipality } from '../data/municipalities';
-import { SCHOOLS, SCHOOL_MUNICIPALITY } from '../data/schools';
-import { SERVICE_ROSTERS } from '../data/serviceRosters';
-import type { ServiceRoster, ServiceRosterEntry } from '../data/serviceRosters';
+import { MUNICIPALITY_CUSTOM, needsMunicipality, usePlaces } from '../tenant/settings';
+import { useServiceRosters } from '../tenant/rosters';
+import type { ServiceRoster, ServiceRosterEntry } from '../tenant/rosters';
 
 interface ClientLog {
     date: string;
@@ -371,6 +370,10 @@ const AdminPanel: React.FC = () => {
     // Настройки. Empty until the company adds its first line — the pickers then
     // say so rather than offering another operator's routes.
     const { names: ROUTES, priceOf, has: hasRoute } = useRoutePricing();
+    // The общини and schools this company works in, from its own settings.
+    const places = usePlaces();
+    // The rosters it agreed with its община, against which service cards are checked.
+    const { rosters: serviceRosters } = useServiceRosters();
     // The card price for a route + card type, used by bulk renewal. A line with
     // no price set (and service cards) counts as 0.
     const computeCardAmount = (route: string, cardType?: string): number =>
@@ -470,14 +473,14 @@ const AdminPanel: React.FC = () => {
     const openSchoolEditor = () => {
         const school = selectedClient?.school || '';
         const muni = selectedClient?.municipality || '';
-        if (school && SCHOOLS.includes(school)) {
+        if (school && places.schoolNames.includes(school)) {
             setSchoolEdit(school);
             setSchoolEditCustom('');
         } else {
             setSchoolEdit(school ? 'custom' : '');
             setSchoolEditCustom(school);
         }
-        if (muni && MUNICIPALITIES.includes(muni)) {
+        if (muni && places.municipalities.includes(muni)) {
             setSchoolEditMunicipality(muni);
             setSchoolEditCustomMunicipality('');
         } else {
@@ -1705,7 +1708,7 @@ const AdminPanel: React.FC = () => {
         const year = new Date().getFullYear();
         const serviceCards = clients.filter(c => c.cardType === 'Служебна карта' && !c.isCanceled);
         const allEntries: { roster: ServiceRoster; entry: ServiceRosterEntry }[] = [];
-        for (const r of SERVICE_ROSTERS) for (const e of r.entries) allEntries.push({ roster: r, entry: e });
+        for (const r of serviceRosters) for (const e of r.entries) allEntries.push({ roster: r, entry: e });
 
         // Without a roster there is nothing to compare against. Reporting every
         // service card as unauthorised would be worse than reporting nothing —
@@ -1752,7 +1755,7 @@ const AdminPanel: React.FC = () => {
         const duplicates: { entry: ServiceRosterEntry; roster: ServiceRoster; cards: Client[] }[] = [];
         const missing: { entry: ServiceRosterEntry; roster: ServiceRoster }[] = [];
         const coverage: { roster: ServiceRoster; have: number; total: number }[] = [];
-        for (const r of SERVICE_ROSTERS) {
+        for (const r of serviceRosters) {
             let have = 0;
             for (const e of r.entries) {
                 const cs = entryCards.get(e) || [];
@@ -1776,7 +1779,7 @@ const AdminPanel: React.FC = () => {
             coverage,
             noRoster: false,
         };
-    }, [clients]);
+    }, [clients, serviceRosters]);
 
     // Split received revenue by payment method for a date prefix (YYYY-MM-DD day or
     // YYYY-MM month). Counted by payment date. A "Смесено" payment is split into its
@@ -3342,7 +3345,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                 <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Община</label>
                                                 <select value={reportMunicipality} onChange={e => setReportMunicipality(e.target.value)} style={{ padding: '0.6rem', background: '#fff', border: '1px solid var(--surface-border)', color: '#000', borderRadius: '8px', outline: 'none', fontWeight: 600 }}>
                                                     <option value="all">Всички Общини</option>
-                                                    {MUNICIPALITIES.map(m => <option key={m} value={m}>{m}</option>)}
+                                                    {places.municipalities.map(m => <option key={m} value={m}>{m}</option>)}
                                                 </select>
                                             </div>
 
@@ -3379,7 +3382,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                                                         <button
                                                             type="button"
-                                                            onClick={() => setContractMunicipalities([...MUNICIPALITIES])}
+                                                            onClick={() => setContractMunicipalities([...places.municipalities])}
                                                             style={{ fontSize: '0.7rem', padding: '2px 8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', color: '#fff', borderRadius: '4px', cursor: 'pointer' }}
                                                         >
                                                             Всички
@@ -3394,7 +3397,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                     </div>
                                                 </div>
                                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.6rem' }}>
-                                                    {MUNICIPALITIES.map(m => {
+                                                    {places.municipalities.map(m => {
                                                         const isChecked = contractMunicipalities.includes(m);
                                                         return (
                                                             <label key={m} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.85rem', color: isChecked ? '#fff' : 'var(--text-secondary)', cursor: 'pointer', userSelect: 'none' }}>
@@ -3622,7 +3625,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                 >
                                     <option value="all" style={{ background: '#222' }}>Всички училища</option>
                                     {Array.from(new Set([
-                                        ...SCHOOLS,
+                                        ...places.schoolNames,
                                         ...clients.filter(c => c.cardType === 'Ученическа карта' && c.school).map(c => c.school as string)
                                     ])).sort((a, b) => a.localeCompare(b, 'bg')).map(s => (
                                         <option key={s} value={s} style={{ background: '#222' }}>{s}</option>
@@ -4784,14 +4787,14 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                                 if (val === 'custom' || val === '') {
                                                                     setSchoolEditMunicipality('');
                                                                 } else {
-                                                                    setSchoolEditMunicipality(SCHOOL_MUNICIPALITY[val] || DEFAULT_MUNICIPALITY);
+                                                                    setSchoolEditMunicipality(places.municipalityOfSchool[val] || places.defaultMunicipality);
                                                                 }
                                                                 setSchoolEditCustomMunicipality('');
                                                             }}
                                                             style={{ width: '100%', padding: '0.55rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--surface-border)', borderRadius: '8px', color: '#fff', colorScheme: 'dark', fontSize: '0.85rem' }}
                                                         >
                                                             <option value="" style={{ background: '#222' }}>-- Изберете училище --</option>
-                                                            {SCHOOLS.map(sc => <option key={sc} value={sc} style={{ background: '#222' }}>{sc}</option>)}
+                                                            {places.schoolsWith(selectedClient?.school).map(sc => <option key={sc} value={sc} style={{ background: '#222' }}>{sc}</option>)}
                                                             <option value="custom" style={{ background: '#222' }}>Друго (въведи ръчно)...</option>
                                                         </select>
                                                     </div>
@@ -4812,7 +4815,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                             style={{ width: '100%', padding: '0.55rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--surface-border)', borderRadius: '8px', color: '#fff', colorScheme: 'dark', fontSize: '0.85rem' }}
                                                         >
                                                             <option value="" style={{ background: '#222' }}>-- Изберете община --</option>
-                                                            {MUNICIPALITIES.map(m => <option key={m} value={m} style={{ background: '#222' }}>{m}</option>)}
+                                                            {places.municipalitiesWith(selectedClient?.municipality).map(m => <option key={m} value={m} style={{ background: '#222' }}>{m}</option>)}
                                                             <option value={MUNICIPALITY_CUSTOM} style={{ background: '#222' }}>Друго (въведи ръчно)...</option>
                                                         </select>
                                                     </div>

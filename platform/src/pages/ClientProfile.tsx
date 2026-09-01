@@ -20,8 +20,7 @@ import PaymentMethodSelector from '../components/PaymentMethodSelector';
 import ModeratorInactivityWarningModal from '../components/ModeratorInactivityWarningModal';
 import { MIXED_METHOD } from '../data/paymentMethods';
 import { getDoc, doc as tdoc, setActiveTenant } from '../tenant/db';
-import { MUNICIPALITIES, MUNICIPALITY_CUSTOM, DEFAULT_MUNICIPALITY, needsMunicipality } from '../data/municipalities';
-import { SCHOOLS, SCHOOL_MUNICIPALITY } from '../data/schools';
+import { MUNICIPALITY_CUSTOM, needsMunicipality, usePlaces } from '../tenant/settings';
 
 interface Client {
     id: string;
@@ -214,6 +213,8 @@ const ClientProfile: React.FC = () => {
     const [client, setClient] = useState<Client | null>(null);
     // The company's own lines and fares, set under Настройки.
     const { names: ROUTES, priceOf, has: hasRoute } = useRoutePricing();
+    // Its own общини and schools, likewise.
+    const places = usePlaces();
     // What renewing this card costs, at the period it was last sold on — a
     // passenger who buys quarters should not be quoted a monthly rate, and the
     // panel used to show a fixed 50.80 € regardless of route, type or period.
@@ -1298,8 +1299,8 @@ const ClientProfile: React.FC = () => {
                                 <div><label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', display: 'block' }}>ВИД КАРТА</label><select value={regCardType} onChange={e => {
                                     const val = e.target.value;
                                     setRegCardType(val);
-                                    if (val === 'Ученическа карта') setRegMunicipality(regSelectedSchool && regSelectedSchool !== 'custom' ? (SCHOOL_MUNICIPALITY[regSelectedSchool] || DEFAULT_MUNICIPALITY) : '');
-                                    else if (needsMunicipality(val)) setRegMunicipality(DEFAULT_MUNICIPALITY);
+                                    if (val === 'Ученическа карта') setRegMunicipality(regSelectedSchool && regSelectedSchool !== 'custom' ? (places.municipalityOfSchool[regSelectedSchool] || places.defaultMunicipality) : '');
+                                    else if (needsMunicipality(val)) setRegMunicipality(places.defaultMunicipality);
                                     else setRegMunicipality('');
                                     setRegCustomMunicipality('');
                                 }} style={{ width: '100%', padding: '1rem', background: '#222', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', outline: 'none' }}>
@@ -1320,14 +1321,14 @@ const ClientProfile: React.FC = () => {
                                                     const val = e.target.value;
                                                     setRegSelectedSchool(val);
                                                     if (val === 'custom' || val === '') setRegMunicipality('');
-                                                    else setRegMunicipality(SCHOOL_MUNICIPALITY[val] || DEFAULT_MUNICIPALITY);
+                                                    else setRegMunicipality(places.municipalityOfSchool[val] || places.defaultMunicipality);
                                                     setRegCustomMunicipality('');
                                                 }}
                                                 style={{ width: '100%', padding: '1rem', background: '#222', border: '1px solid var(--primary-color)', borderRadius: '12px', color: '#fff', outline: 'none' }}
                                                 required={regCardType === 'Ученическа карта'}
                                             >
                                                 <option value="">Избери училище...</option>
-                                                {SCHOOLS.map(s => <option key={s} value={s}>{s}</option>)}
+                                                {places.schoolsWith(regSelectedSchool).map(s => <option key={s} value={s}>{s}</option>)}
                                                 <option value="custom">Друго (въведи ръчно)...</option>
                                             </select>
                                         </div>
@@ -1368,7 +1369,7 @@ const ClientProfile: React.FC = () => {
                                                 required={needsMunicipality(regCardType)}
                                             >
                                                 <option value="">Избери община...</option>
-                                                {MUNICIPALITIES.map(m => <option key={m} value={m}>{m}</option>)}
+                                                {places.municipalitiesWith(regMunicipality).map(m => <option key={m} value={m}>{m}</option>)}
                                                 <option value={MUNICIPALITY_CUSTOM}>Друго (въведи ръчно)...</option>
                                             </select>
                                         </div>

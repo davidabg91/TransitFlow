@@ -167,6 +167,13 @@ service cloud.firestore {
         allow read: if true;
         allow write: if canAdmin(tenantId);
       }
+      match /service_rosters/{rosterId} {
+        // The official list of people entitled to a free service card. Staff
+        // check cards against it; only an admin writes it.
+        allow read: if belongs(tenantId);
+        allow write: if canAdmin(tenantId);
+      }
+
       match /settings/{docId} {
         allow read: if belongs(tenantId);
         allow write: if canAdmin(tenantId);
