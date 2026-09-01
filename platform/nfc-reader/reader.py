@@ -497,11 +497,14 @@ class MainWindow(QMainWindow):
         def answered(accepted):
             if accepted:
                 return
-            if attempt >= 8:
+            if attempt >= 16:
                 # The page never offered the channel. The card still works; its
                 # serial is simply not recorded from this tap.
                 self.add_history("Страницата не прие номера на чипа", False)
                 return
+            # Roughly six seconds in all. By the time a card is tapped the app is
+            # normally long since loaded and the first try succeeds; this covers a
+            # card presented in the first seconds after the program starts.
             QTimer.singleShot(350, lambda: self.hand_over_serial(uid, code, attempt + 1))
 
         self.browser.page().runJavaScript(script, answered)
