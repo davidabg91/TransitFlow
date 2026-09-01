@@ -33,15 +33,21 @@
 
 ## Правене на .exe
 
-    pip install pyinstaller
-    pyinstaller TransitFlow-NFC.spec
+    python -m venv .venv
+    .venv\Scripts\python -m pip install PyQt6 PyQt6-WebEngine pyscard pyinstaller
+    .venv\Scripts\pyinstaller TransitFlow-NFC.spec --noconfirm
+    copy settings.json dist\TransitFlow-NFC
+Готовото излиза в `dist/TransitFlow-NFC/` и е около **560 MB** — почти всичкото
+е Qt WebEngine, тоест браузърът вътре в програмата.
 
-Готовото излиза в `dist/TransitFlow-NFC/`. Цялата папка се копира на компютъра
-на гишето — не само `.exe`-то.
+**Копира се цялата папка**, не само `.exe`-то. Без `_internal` до него програмата
+не тръгва.
+
+Проверено с Python 3.13 на Windows, PyQt6 6.11 и pyscard 2.3.1.
 
 ## Настройка
 
-`settings.json`, до програмата:
+`settings.json`, **до `.exe`-то**:
 
 ```json
 { "home": "https://app.transitflow.org/" }

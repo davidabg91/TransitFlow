@@ -75,16 +75,26 @@ def load_settings() -> dict:
     the card's own address or in the system, so the reader needs to know none of
     it.
     """
-    path = os.path.join(base_dir(), "settings.json")
     settings = {"home": DEFAULT_HOME}
-    if os.path.exists(path):
+
+    # Beside the program first, because that is the copy somebody can open and
+    # edit; the one packaged inside is the fallback.
+    places = [os.path.join(base_dir(), "settings.json")]
+    bundled = getattr(sys, "_MEIPASS", None)
+    if bundled:
+        places.append(os.path.join(bundled, "settings.json"))
+
+    for path in places:
+        if not os.path.exists(path):
+            continue
         try:
             with open(path, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
             if isinstance(loaded, dict) and isinstance(loaded.get("home"), str):
                 settings["home"] = loaded["home"].strip() or DEFAULT_HOME
+            break
         except Exception:
-            pass
+            continue
     return settings
 
 

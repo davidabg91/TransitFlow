@@ -1,0 +1,7 @@
+# Build products and the isolated environment they are made in — 500 MB of Qt
+# that anybody can regenerate from the spec.
+.venv/
+build/
+dist/
+__pycache__/
+*.pyc
