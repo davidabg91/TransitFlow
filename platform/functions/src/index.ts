@@ -1191,6 +1191,100 @@ export const lookupCard = fn.https.onCall(async (data, context) => {
  * because a read returns the whole document no matter what the page chooses to
  * draw. Only the fields the card actually shows are copied here.
  */
+/**
+ * Records which number was printed on the card carrying each link.
+ *
+ * Generating a batch already pairs a link with a number, and when the printer
+ * uses those numbers there is nothing to import. Card makers often do not: the
+ * cards come pre-numbered, or the batch is printed out of order. Then the
+ * pairing the system holds is wrong, the number on the card in somebody's hand
+ * finds nothing, and the only fix is to say what actually happened.
+ *
+ * Takes rows of `{ code, cardNumber }`, checks each one, and applies them
+ * together or not at all. A card already issued to a passenger has its number
+ * corrected on the passenger's record too, since that is the copy the search
+ * and the printed documents read.
+ */
+export const assignCardNumbers = fn.https.onCall(async (data, context) => {
+    const caller = requireAdmin(context);
+    const rows = Array.isArray(data?.rows) ? data.rows : [];
+    if (rows.length === 0) {
+        throw new functions.https.HttpsError("invalid-argument", "Няма подадени редове.");
+    }
+    if (rows.length > 2000) {
+        throw new functions.https.HttpsError("invalid-argument", "Наведнъж се приемат до 2000 реда.");
+    }
+
+    const company = tenantRef(caller.tenant);
+    const stock = company.collection("card_stock");
+
+    // Normalise first, so a bad row is reported before anything is written.
+    const wanted = new Map<string, string>();
+    const problems: string[] = [];
+    for (const raw of rows) {
+        const code = String(raw?.code || "").trim().toUpperCase().replace(/[^0-9A-F]/g, "");
+        const digits = String(raw?.cardNumber || "").replace(/\D/g, "");
+        if (!code || !digits) { problems.push(`Непълен ред: ${JSON.stringify(raw).slice(0, 60)}`); continue; }
+        const cardNumber = digits.padStart(10, "0");
+        if (wanted.has(code) && wanted.get(code) !== cardNumber) {
+            problems.push(`Кодът ${code} се среща два пъти с различни номера.`);
+            continue;
+        }
+        wanted.set(code, cardNumber);
+    }
+
+    // A number identifies one card to the people using the system, so two cards
+    // must never carry the same one.
+    const seenNumbers = new Map<string, string>();
+    for (const [code, number] of wanted) {
+        const other = seenNumbers.get(number);
+        if (other) problems.push(`Номер ${number} е даден на две карти (${other} и ${code}).`);
+        else seenNumbers.set(number, code);
+    }
+
+    const snaps = await Promise.all([...wanted.keys()].map(code => stock.doc(code).get()));
+    const activated: { code: string; cardNumber: string }[] = [];
+    snaps.forEach((snap, i) => {
+        const code = [...wanted.keys()][i];
+        if (!snap.exists) {
+            problems.push(`Кодът ${code} не е издаван от системата.`);
+            return;
+        }
+        if (snap.data()?.status === "used") activated.push({ code, cardNumber: wanted.get(code) as string });
+    });
+
+    // Any number already on a card outside this import would become a duplicate.
+    const clashes = await Promise.all([...seenNumbers.keys()].map(number =>
+        stock.where("cardNumber", "==", number).limit(2).get()
+    ));
+    clashes.forEach((found, i) => {
+        const number = [...seenNumbers.keys()][i];
+        found.docs.forEach(d => {
+            if (!wanted.has(d.id)) problems.push(`Номер ${number} вече е на карта ${d.id}.`);
+        });
+    });
+
+    if (problems.length > 0) {
+        throw new functions.https.HttpsError(
+            "failed-precondition",
+            `Нищо не е променено. ${problems.length} проблема:\n` + problems.slice(0, 12).join("\n")
+        );
+    }
+
+    const batch = db().batch();
+    for (const [code, cardNumber] of wanted) {
+        batch.set(stock.doc(code), { cardNumber, numberedAt: nowIso() }, { merge: true });
+    }
+    // The passenger's own record carries a copy, because that is what the search
+    // and the printed documents read.
+    for (const a of activated) {
+        batch.set(company.collection("clients").doc(a.code), { cardNumber: a.cardNumber }, { merge: true });
+    }
+    await batch.commit();
+
+    return { updated: wanted.size, alreadyIssued: activated.length };
+});
+
 export const syncPublicCard = fn.firestore
     .document("tenants/{tenantId}/clients/{clientId}")
     .onWrite(async (change, context) => {

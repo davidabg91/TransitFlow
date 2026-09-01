@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
-    Users, PlusCircle, ExternalLink, 
+    Hash, Users, PlusCircle, ExternalLink, 
     Trash2, XCircle, Clock, DollarSign, 
     RefreshCw, List, 
     ShieldCheck, Shield, TrendingUp,
@@ -642,6 +642,9 @@ const AdminPanel: React.FC = () => {
     // NFC Tools State
     const [nfcQuantity, setNfcQuantity] = useState<number>(100);
     const [generatedLinks, setGeneratedLinks] = useState<string[]>([]);
+    const [numbersInput, setNumbersInput] = useState('');
+    const [numbersBusy, setNumbersBusy] = useState(false);
+    const [numbersMsg, setNumbersMsg] = useState<{ text: string; ok: boolean } | null>(null);
     
 
     const [filterMonth, setFilterMonth] = useState<string>(() => {
@@ -1437,6 +1440,72 @@ const AdminPanel: React.FC = () => {
             setMessage({ text: (e as { message?: string }).message || 'Неуспешно генериране.', type: 'error' });
         } finally {
             setNfcBusy(false);
+        }
+    };
+
+    /**
+     * Read pasted rows of "number <tab> link" (or number and code, in either
+     * order) into pairs the server can check.
+     *
+     * Deliberately forgiving about the separator and the order, because this is
+     * pasted out of whatever spreadsheet the card maker sent back, and strict
+     * about what a code is, because a wrong one must be reported rather than
+     * quietly skipped.
+     */
+    const parseNumberRows = (text: string) => {
+        const rows: { code: string; cardNumber: string }[] = [];
+        const bad: string[] = [];
+        text.split(/\r?\n/).forEach(line => {
+            const raw = line.trim();
+            if (!raw) return;
+            const parts = raw.split(/[\t;,]+|\s{2,}|\s+/).filter(Boolean);
+            let code = '';
+            let cardNumber = '';
+            for (const part of parts) {
+                const fromLink = part.match(/\/client\/([0-9A-Fa-f]{12})/);
+                if (fromLink) { code = fromLink[1].toUpperCase(); continue; }
+                if (/^[0-9A-Fa-f]{12}$/.test(part)) { code = part.toUpperCase(); continue; }
+                const digits = part.replace(/\D/g, '');
+                if (digits && !cardNumber) cardNumber = digits;
+            }
+            if (code && cardNumber) rows.push({ code, cardNumber });
+            else bad.push(raw.slice(0, 60));
+        });
+        return { rows, bad };
+    };
+
+    const applyCardNumbers = async () => {
+        const { rows, bad } = parseNumberRows(numbersInput);
+        if (rows.length === 0) {
+            setNumbersMsg({ text: 'Няма разчетени редове. Всеки ред трябва да съдържа номер и линк (или код).', ok: false });
+            return;
+        }
+        if (bad.length > 0) {
+            setNumbersMsg({ text: `${bad.length} неразчетени реда, например: ${bad[0]}`, ok: false });
+            return;
+        }
+        if (!window.confirm(
+            `Да се запишат ли номерата на ${rows.length} карти?\n\n` +
+            'Номерът на вече издадена карта се поправя и в профила на клиента.'
+        )) return;
+
+        setNumbersBusy(true);
+        setNumbersMsg(null);
+        try {
+            const fn = httpsCallable(getFunctions(app, FUNCTIONS_REGION), 'assignCardNumbers');
+            const res = await fn({ rows });
+            const out = res.data as { updated: number; alreadyIssued: number };
+            setNumbersMsg({
+                text: `Записани номера на ${out.updated} карти`
+                    + (out.alreadyIssued ? `, от които ${out.alreadyIssued} вече издадени — поправени и в профилите.` : '.'),
+                ok: true,
+            });
+            setNumbersInput('');
+            logGlobalActivity('Свързване на номера на карти', 'Система', `Записани номера на ${out.updated} карти.`);
+        } catch (e) {
+            setNumbersMsg({ text: (e as { message?: string }).message || 'Записът не успя.', ok: false });
+        } finally {
+            setNumbersBusy(false);
         }
     };
 
@@ -4275,6 +4344,71 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                     </div>
                 )}
 
+
+                {activeTab === 'nfc' && isAdmin && (
+                    <div style={{ animation: 'fadeIn 0.4s ease', marginTop: '2rem' }}>
+                        <Card style={{ padding: isMobile ? '1.25rem' : '2rem' }}>
+                            <h2 style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--accent-color)' }}>
+                                <Hash size={22} /> Свързване на напечатани номера
+                            </h2>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.65, marginTop: 0 }}>
+                                При генериране всяка карта вече получава номер и той стои до линка ѝ.
+                                Този панел е за случая, когато производителят е отпечатал <b>други</b>
+                                {' '}номера или е разбъркал реда — тогава кажете тук кой номер на коя карта
+                                е излязъл, и системата се пренастройва.
+                            </p>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.65 }}>
+                                По един ред на карта: <b>номер</b> и <b>линк</b> (или само кода), разделени с
+                                табулация, запетая или интервал. Редът им няма значение.
+                            </p>
+
+                            <textarea
+                                value={numbersInput}
+                                onChange={e => setNumbersInput(e.target.value)}
+                                rows={8}
+                                spellCheck={false}
+                                placeholder={'0000000142\thttps://app.transitflow.org/#/t/фирма/client/A7F3C21E9B04?uid=00000000000000\n0000000143\tB2E4D19C7A50'}
+                                style={{
+                                    width: '100%', marginTop: '0.75rem', padding: '0.9rem 1rem',
+                                    background: 'rgba(0,0,0,0.25)', border: '1px solid var(--surface-border)',
+                                    borderRadius: '12px', color: '#fff', fontFamily: 'monospace',
+                                    fontSize: '0.82rem', lineHeight: 1.6, resize: 'vertical', outline: 'none',
+                                    boxSizing: 'border-box',
+                                }}
+                            />
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginTop: '0.9rem' }}>
+                                <button
+                                    onClick={applyCardNumbers}
+                                    disabled={numbersBusy || !numbersInput.trim()}
+                                    style={{
+                                        background: 'var(--primary-color)', color: '#00252a', border: 'none',
+                                        borderRadius: '10px', padding: '0.8rem 1.6rem', fontWeight: 800,
+                                        cursor: numbersBusy || !numbersInput.trim() ? 'default' : 'pointer',
+                                        opacity: numbersBusy || !numbersInput.trim() ? 0.5 : 1,
+                                    }}
+                                >
+                                    {numbersBusy ? 'Записване…' : 'Запиши номерата'}
+                                </button>
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                    Проверява се всичко наведнъж — при грешка не се променя нищо.
+                                </span>
+                            </div>
+
+                            {numbersMsg && (
+                                <div style={{
+                                    marginTop: '1rem', padding: '0.85rem 1.1rem', borderRadius: '11px',
+                                    whiteSpace: 'pre-line', fontSize: '0.86rem', fontWeight: 600, lineHeight: 1.6,
+                                    background: numbersMsg.ok ? 'rgba(0,200,83,0.12)' : 'rgba(255,82,82,0.12)',
+                                    border: `1px solid ${numbersMsg.ok ? 'rgba(0,200,83,0.4)' : 'rgba(255,82,82,0.4)'}`,
+                                    color: numbersMsg.ok ? 'var(--success-color)' : '#ff5252',
+                                }}>
+                                    {numbersMsg.text}
+                                </div>
+                            )}
+                        </Card>
+                    </div>
+                )}
 
                 {activeTab === 'signals' && !modules.signals && <ModuleLocked module="signals" />}
 
