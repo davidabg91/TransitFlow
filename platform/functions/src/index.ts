@@ -697,12 +697,65 @@ const METHOD_FIELD: Record<string, string> = {
 };
 
 /**
+ * A route name used as a map key. Firestore field paths choke on dots and a few
+ * other characters, and route names carry them ("Д.Митрополия"), so the key is
+ * sanitised and the readable name travels inside the value.
+ */
+const routeKey = (route?: string): string =>
+    (String(route || "").trim() || "Без линия").replace(/[.*~/[\]`$]/g, "_").slice(0, 120);
+
+/** The calendar months a subscription covers, "YYYY-MM" each. */
+const monthsCovered = (r: Renewal & { from?: string; to?: string }): string[] => {
+    if (r?.from && r?.to) {
+        const out: string[] = [];
+        const [fy, fm] = r.from.slice(0, 7).split("-").map(Number);
+        const [ty, tm] = r.to.slice(0, 7).split("-").map(Number);
+        if (!fy || !fm || !ty || !tm) return r.month ? [r.month] : [];
+        let y = fy, m = fm;
+        // A quarter sold in September is live through December; guard the loop so
+        // a corrupt span cannot spin.
+        for (let i = 0; i < 60 && (y < ty || (y === ty && m <= tm)); i++) {
+            out.push(`${y}-${String(m).padStart(2, "0")}`);
+            m += 1;
+            if (m > 12) { m = 1; y += 1; }
+        }
+        return out;
+    }
+    return r?.month ? [r.month] : [];
+};
+
+interface MonthDelta {
+    revenue: number;
+    payments: number;
+    byMethod: Record<string, number>;
+    byRoute: Record<string, { name: string; revenue: number; payments: number }>;
+    /** Money taken on each day of the month, keyed "01".."31". */
+    byDay: Record<string, number>;
+    activeCards: number;
+}
+
+const emptyDelta = (): MonthDelta => ({
+    revenue: 0, payments: 0, byMethod: {}, byRoute: {}, byDay: {}, activeCards: 0,
+});
+
+/** The day of the month a payment was taken, "01".."31", from its timestamp. */
+const dayKey = (iso?: string): string | null => {
+    const d = String(iso || "").slice(8, 10);
+    return /^\d{2}$/.test(d) ? d : null;
+};
+
+/**
  * Keeps `tenants/{id}/rollups/{YYYY-MM}` current so the dashboard can read one
  * document instead of every card in the company.
  *
  * Deliberately incremental: it compares the card's payment history before and
  * after the write and applies only the difference. Recomputing from the whole
  * collection on every change would cost more than the reads it is meant to save.
+ *
+ * Each month holds the money taken in it — in total, by payment method and by
+ * line — and how many cards it covers. That last one is counted from this one
+ * card's history, so a card whose quarter spans four months adds one to each of
+ * them and never to the same month twice.
  */
 export const updateRollups = fn.firestore
     .document("tenants/{tenantId}/clients/{clientId}")
@@ -714,44 +767,98 @@ export const updateRollups = fn.firestore
             return Array.isArray(h) ? h : [];
         };
 
-        const before = new Map<string, Renewal>();
-        listOf(change.before).forEach(r => before.set(renewalKey(r), r));
-        const after = new Map<string, Renewal>();
-        listOf(change.after).forEach(r => after.set(renewalKey(r), r));
+        const beforeList = listOf(change.before);
+        const afterList = listOf(change.after);
 
-        // Only the payments that appeared or disappeared in this write.
-        const deltas = new Map<string, admin.firestore.UpdateData<Record<string, unknown>>>();
-        const apply = (r: Renewal, sign: 1 | -1) => {
-            const month = r.month;
-            if (!month) return;
-            const amount = Number(r.amount) || 0;
-            const entry = deltas.get(month) || {};
-            const bump = (field: string, by: number) => {
-                if (!by) return;
-                entry[field] = admin.firestore.FieldValue.increment(sign * by);
-            };
-            bump("revenue", amount);
-            bump("payments", 1);
-            const field = METHOD_FIELD[String(r.paymentMethod || "")] || "other";
-            bump(`byMethod.${field}`, amount);
-            if (field === "mixed") {
-                bump("byMethod.mixedBank", Number(r.bankAmount) || 0);
-                bump("byMethod.mixedCash", Number(r.cashAmount) || 0);
-            }
-            deltas.set(month, entry);
+        const before = new Map<string, Renewal>();
+        beforeList.forEach(r => before.set(renewalKey(r), r));
+        const after = new Map<string, Renewal>();
+        afterList.forEach(r => after.set(renewalKey(r), r));
+
+        // Plain numbers first, turned into increments once. Assigning an
+        // increment straight into the map lost a payment whenever one write
+        // carried two for the same month — the second assignment replaced the
+        // first rather than adding to it.
+        const deltas = new Map<string, MonthDelta>();
+        const at = (month: string) => {
+            let d = deltas.get(month);
+            if (!d) { d = emptyDelta(); deltas.set(month, d); }
+            return d;
         };
 
-        for (const [k, r] of after) if (!before.has(k)) apply(r, 1);
-        for (const [k, r] of before) if (!after.has(k)) apply(r, -1);
+        const applyMoney = (r: Renewal, sign: 1 | -1) => {
+            const month = r.month;
+            if (!month) return;
+            const amount = (Number(r.amount) || 0) * sign;
+            const d = at(month);
+            d.revenue += amount;
+            d.payments += sign;
+
+            const method = METHOD_FIELD[String(r.paymentMethod || "")] || "other";
+            d.byMethod[method] = (d.byMethod[method] || 0) + amount;
+            if (method === "mixed") {
+                d.byMethod.mixedBank = (d.byMethod.mixedBank || 0) + (Number(r.bankAmount) || 0) * sign;
+                d.byMethod.mixedCash = (d.byMethod.mixedCash || 0) + (Number(r.cashAmount) || 0) * sign;
+            }
+
+            const key = routeKey((r as { route?: string }).route);
+            const line = d.byRoute[key] || {
+                name: String((r as { route?: string }).route || "Без линия"),
+                revenue: 0, payments: 0,
+            };
+            line.revenue += amount;
+            line.payments += sign;
+            d.byRoute[key] = line;
+
+            // The dashboard's takings for one day come from here rather than from
+            // a scan of every card's payment list.
+            const day = dayKey((r as { date?: string }).date);
+            if (day) d.byDay[day] = (d.byDay[day] || 0) + amount;
+        };
+
+        for (const [k, r] of after) if (!before.has(k)) applyMoney(r, 1);
+        for (const [k, r] of before) if (!after.has(k)) applyMoney(r, -1);
+
+        // How many months this one card covers, before and after. Counted as
+        // sets, so two subscriptions overlapping a month still count the card
+        // once for it.
+        const coveredBefore = new Set<string>();
+        beforeList.forEach(r => monthsCovered(r).forEach(m => coveredBefore.add(m)));
+        const coveredAfter = new Set<string>();
+        afterList.forEach(r => monthsCovered(r).forEach(m => coveredAfter.add(m)));
+
+        for (const m of coveredAfter) if (!coveredBefore.has(m)) at(m).activeCards += 1;
+        for (const m of coveredBefore) if (!coveredAfter.has(m)) at(m).activeCards -= 1;
+
         if (deltas.size === 0) return;
 
+        const inc = admin.firestore.FieldValue.increment;
         const batch = db().batch();
-        for (const [month, data] of deltas) {
-            batch.set(
-                tenantRef(tenantId).collection("rollups").doc(month),
-                { month, tenant: tenantId, updatedAt: nowIso(), ...data },
-                { merge: true }
-            );
+        for (const [month, d] of deltas) {
+            const data: Record<string, unknown> = { month, tenant: tenantId, updatedAt: nowIso() };
+            if (d.revenue) data.revenue = inc(d.revenue);
+            if (d.payments) data.payments = inc(d.payments);
+            if (d.activeCards) data.activeCards = inc(d.activeCards);
+
+            const byMethod: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(d.byMethod)) if (v) byMethod[k] = inc(v);
+            if (Object.keys(byMethod).length) data.byMethod = byMethod;
+
+            const byDay: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(d.byDay)) if (v) byDay[k] = inc(v);
+            if (Object.keys(byDay).length) data.byDay = byDay;
+
+            const byRoute: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(d.byRoute)) {
+                if (!v.revenue && !v.payments) continue;
+                const cell: Record<string, unknown> = { name: v.name };
+                if (v.revenue) cell.revenue = inc(v.revenue);
+                if (v.payments) cell.payments = inc(v.payments);
+                byRoute[k] = cell;
+            }
+            if (Object.keys(byRoute).length) data.byRoute = byRoute;
+
+            batch.set(tenantRef(tenantId).collection("rollups").doc(month), data, { merge: true });
         }
         await batch.commit();
     });
@@ -767,33 +874,58 @@ export const rebuildRollups = fn.runWith({ timeoutSeconds: 540, memory: "512MB" 
         const caller = requireAdmin(context);
         const snap = await tenantRef(caller.tenant).collection("clients").get();
 
-        const totals = new Map<string, {
-            revenue: number; payments: number; byMethod: Record<string, number>;
-        }>();
+        // Same shape the incremental path maintains, so a rebuild and a live
+        // update cannot disagree about what a month holds.
+        const totals = new Map<string, MonthDelta>();
+        const at = (month: string) => {
+            let t = totals.get(month);
+            if (!t) { t = emptyDelta(); totals.set(month, t); }
+            return t;
+        };
 
         snap.forEach(docSnap => {
             const history = docSnap.data()?.renewalHistory;
             if (!Array.isArray(history)) return;
+
+            const covered = new Set<string>();
             for (const r of history as Renewal[]) {
+                monthsCovered(r).forEach(m => covered.add(m));
                 if (!r?.month) continue;
-                const t = totals.get(r.month) || { revenue: 0, payments: 0, byMethod: {} };
+
+                const t = at(r.month);
                 const amount = Number(r.amount) || 0;
                 t.revenue += amount;
                 t.payments += 1;
+
                 const field = METHOD_FIELD[String(r.paymentMethod || "")] || "other";
                 t.byMethod[field] = (t.byMethod[field] || 0) + amount;
                 if (field === "mixed") {
                     t.byMethod.mixedBank = (t.byMethod.mixedBank || 0) + (Number(r.bankAmount) || 0);
                     t.byMethod.mixedCash = (t.byMethod.mixedCash || 0) + (Number(r.cashAmount) || 0);
                 }
-                totals.set(r.month, t);
+
+                const key = routeKey((r as { route?: string }).route);
+                const line = t.byRoute[key] || {
+                    name: String((r as { route?: string }).route || "Без линия"),
+                    revenue: 0, payments: 0,
+                };
+                line.revenue += amount;
+                line.payments += 1;
+                t.byRoute[key] = line;
+
+                const day = dayKey((r as { date?: string }).date);
+                if (day) t.byDay[day] = (t.byDay[day] || 0) + amount;
             }
+            // One card counts once for every month it covers.
+            covered.forEach(m => { at(m).activeCards += 1; });
         });
 
         const batch = db().batch();
         for (const [month, t] of totals) {
             batch.set(tenantRef(caller.tenant).collection("rollups").doc(month), {
-                month, tenant: caller.tenant, updatedAt: nowIso(), rebuiltAt: nowIso(), ...t,
+                month, tenant: caller.tenant, updatedAt: nowIso(), rebuiltAt: nowIso(),
+                revenue: t.revenue, payments: t.payments, activeCards: t.activeCards,
+                byMethod: t.byMethod, byRoute: t.byRoute, byDay: t.byDay,
             });
         }
         await batch.commit();

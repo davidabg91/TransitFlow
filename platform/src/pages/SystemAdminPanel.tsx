@@ -5,12 +5,16 @@ import {
     RefreshCw, Search, Clock, Shield,
     UserPlus, Trash2, AlertTriangle, Pencil, Check, X
 } from 'lucide-react';
-import { collection, collectionGroup, query, where, orderBy, limit, onSnapshot, updateDoc, doc, writeBatch, deleteField, getDocs, getActiveTenant } from '../tenant/db';
+import { collection, collectionGroup, query, where, orderBy, limit, onSnapshot, updateDoc, doc, writeBatch, deleteField, getDoc, getDocs, getActiveTenant } from '../tenant/db';
 import { db } from '../firebase';
+import { getApp } from 'firebase/app';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { FUNCTIONS_REGION } from '../tenant/db';
 import { useAuth } from '../context/AuthContext';
 import { useRouteNames } from '../tenant/settings';
-import { coversDate, coversMonth } from '../tenant/settings';
-import { localToday } from '../components/PeriodPicker';
+import {
+    useRollups, useCardCounts, monthOf, allMonths, routeTotals,
+} from '../tenant/rollups';
 import Card from '../components/Card';
 import AdminAlertsButton from '../components/AdminAlertsButton';
 import SecurityLog from '../components/SecurityLog';
@@ -94,7 +98,11 @@ const SystemAdminPanel: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'audit'>('dashboard');
 
     // Global Data
-    const [clients, setClients] = useState<Client[]>([]);
+    // No longer the whole collection: the dashboard's totals come from the
+    // monthly rollups a Cloud Function keeps, and the few per-card lists it still
+    // shows are fetched as themselves.
+    const [topScanned, setTopScanned] = useState<Client[]>([]);
+    const [flaggedCards, setFlaggedCards] = useState<Record<string, Client>>({});
     // Two separate scan reads. АНАЛИЗ НА ТРАФИКА only ever looks at the selected
     // day (~0.24 MB); КОНТРОЛ НА ЗЛОУПОТРЕБИ is the one that needs 60 days (~6.8 MB).
     // Serving both from one 60-day listener made the chart wait ~6 s for data it
@@ -106,8 +114,9 @@ const SystemAdminPanel: React.FC = () => {
     const [globalLogs, setGlobalLogs] = useState<GlobalLog[]>([]);
     const [fines, setFines] = useState<{ amount: number; month: string; date: string }[]>([]);
     const [logLimit, setLogLimit] = useState(20);
-    const [loading, setLoading] = useState(true);
-    const [loadError, setLoadError] = useState<string | null>(null);
+    // The dashboard waits on the monthly totals now, not on a download of every
+    // card, so its loading state and its errors come from there.
+    const { months: rollupMonths, loading, error: loadError } = useRollups();
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
     // One-off maintenance (delete legacy scanHistory arrays)
@@ -127,6 +136,9 @@ const SystemAdminPanel: React.FC = () => {
     });
     const [chartRoute, setChartRoute] = useState<string>('all_routes');
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    // Counted on the server: how many cards exist, how many were issued that day,
+    // how many were scanned today. None of them downloads a card.
+    const cardCounts = useCardCounts(selectedDate);
 
     // Users State
     const [newUsername, setNewUsername] = useState('');
@@ -168,27 +180,40 @@ const SystemAdminPanel: React.FC = () => {
         if (activeTab === 'dashboard') setDashboardOpened(true);
     }, [activeTab]);
 
-    // Clients — loaded in full because the dashboard aggregates (revenue, route
-    // stats, abuse) need every client.
+    // The five cards scanned most, which is a query for five documents rather
+    // than a reason to download the company.
     useEffect(() => {
         if (!dashboardOpened || !getActiveTenant()) return;
-        const unsub = onSnapshot(query(collection(db, 'clients')), (snap) => {
-            const list: Client[] = [];
-            snap.forEach(d => list.push({ id: d.id, ...d.data() } as Client));
-            setClients(list);
-            setLoadError(null);
-            setLoading(false);
-        }, (err) => {
-            // Previously there was no error callback at all, so a rules/offline error
-            // left `loading` true and the tab pulsed a skeleton forever with no hint
-            // why. Surface it instead — never fall through to rendering zeroes, which
-            // would read as "no revenue" rather than "not loaded".
-            console.error('Clients listener error:', err);
-            setLoadError(err instanceof Error ? err.message : 'Неизвестна грешка');
-            setLoading(false);
-        });
-        return () => unsub();
+        let cancelled = false;
+        getDocs(query(collection(db, 'clients'), orderBy('scanCount', 'desc'), limit(5)))
+            .then(snap => {
+                if (cancelled) return;
+                setTopScanned(snap.docs
+                    .map(d => ({ id: d.id, ...d.data() } as Client))
+                    .filter(c => (c.scanCount || 0) > 0));
+            })
+            .catch(err => console.error('Top scanned unavailable:', err));
+        return () => { cancelled = true; };
     }, [dashboardOpened]);
+
+    // The cards behind the scans flagged as abuse — fetched by id, because the
+    // flagged set is a handful and the collection is not.
+    useEffect(() => {
+        const ids = Object.keys(scansByClient);
+        if (ids.length === 0) { setFlaggedCards({}); return; }
+        let cancelled = false;
+        Promise.all(ids.slice(0, 40).map(id =>
+            getDoc(doc(db, 'clients', id))
+                .then(d => (d.exists() ? { id: d.id, ...d.data() } as Client : null))
+                .catch(() => null)
+        )).then(found => {
+            if (cancelled) return;
+            const map: Record<string, Client> = {};
+            found.forEach(c => { if (c) map[c.id] = c; });
+            setFlaggedCards(map);
+        });
+        return () => { cancelled = true; };
+    }, [abuseScans]);
 
     const toScanRecords = (snap: { docs: { ref: { parent: { parent: { id: string } | null } }; data: () => Record<string, unknown> }[] }): ScanRecord[] =>
         snap.docs.map(d => ({
@@ -248,17 +273,6 @@ const SystemAdminPanel: React.FC = () => {
 
 
     // --- Helper Functions ---
-    const isExpired = (monthStr: string | undefined, client?: Client) => {
-        if (!monthStr) return true;
-        const now = new Date();
-        if (client?.renewalHistory) {
-            return !client.renewalHistory.some(rh => coversDate(rh, localToday()));
-        }
-        const [year, month] = monthStr.split('-');
-        const expiry = new Date(Number(year), Number(month), 0, 23, 59, 59);
-        return now > expiry;
-    };
-
     const getActionColor = (action: string) => {
         const a = action.toLowerCase();
         if (a.includes('създаване')) return '#00e676'; // Green
@@ -272,39 +286,34 @@ const SystemAdminPanel: React.FC = () => {
 
     // --- Dashboard Calculations ---
     const isAll = statsMonth === 'all';
+    const period = isAll ? allMonths(rollupMonths) : monthOf(rollupMonths, statsMonth);
     // Fines counted for the selected period (all / a given month).
     const finesForPeriod = isAll
         ? fines.reduce((acc, f) => acc + f.amount, 0)
         : fines.filter(f => f.month === statsMonth).reduce((acc, f) => acc + f.amount, 0);
-    const subscriptionRevenue = isAll
-        ? clients.reduce((acc, c) => acc + (c.amountPaid || 0), 0)
-        : clients.reduce((acc, c) => {
-            const monthlyRenewal = (c.renewalHistory || []).find(r => r.month === statsMonth);
-            return acc + (monthlyRenewal ? monthlyRenewal.amount : 0);
-        }, 0);
+    const subscriptionRevenue = period.revenue;
     const totalRevenue = subscriptionRevenue + finesForPeriod;
 
-    const activeClientsCount = isAll
-        ? clients.filter(c => !c.isCanceled && !isExpired(c.expiryDate, c)).length
-        : clients.filter(c => (c.renewalHistory || []).some(r => coversMonth(r, statsMonth))).length;
+    // Over "всички" the question is how many cards are live now; for one month it
+    // is how many the month covers, which the rollup counts as the subscriptions
+    // are written.
+    const activeClientsCount = isAll ? cardCounts.active : period.activeCards;
 
-    const totalNonCanceled = clients.filter(c => !c.isCanceled).length;
+    const totalNonCanceled = cardCounts.active;
     const paymentRate = totalNonCanceled > 0 ? Math.round((activeClientsCount / totalNonCanceled) * 100) : 0;
     const avgProfit = activeClientsCount > 0 ? Math.round(totalRevenue / activeClientsCount) : 0;
 
-    const topScannedClients = [...clients]
-        .filter(c => (c.scanCount || 0) > 0)
-        .sort((a, b) => (b.scanCount || 0) - (a.scanCount || 0))
-        .slice(0, 5);
+    const topScannedClients = topScanned;
 
     const todayIso = new Date().toISOString().split('T')[0];
 
-    // Revenue for selected day (subscription renewals + fines booked that day)
-    const revenueSelectedDay = clients.reduce((acc, c) => {
-        const payments = (c.renewalHistory || []).filter(r => r.date?.startsWith(selectedDate));
-        return acc + payments.reduce((sum, p) => sum + p.amount, 0);
-    }, 0) + fines.filter(f => f.date?.startsWith(selectedDate)).reduce((sum, f) => sum + f.amount, 0);
-    const registrationsSelectedDay = clients.filter(c => c.createdAt?.startsWith(selectedDate)).length;
+    // Revenue for selected day (subscription renewals + fines booked that day).
+    // The day's takings are kept inside its month's rollup, so this is a lookup
+    // rather than a pass over every card's payment history.
+    const revenueSelectedDay =
+        (monthOf(rollupMonths, selectedDate.slice(0, 7)).byDay[selectedDate.slice(8, 10)] || 0)
+        + fines.filter(f => f.date?.startsWith(selectedDate)).reduce((sum, f) => sum + f.amount, 0);
+    const registrationsSelectedDay = cardCounts.registeredOnDay;
 
     const hourlyDistribution = (() => {
         const dist = Array(24).fill(0);
@@ -321,27 +330,20 @@ const SystemAdminPanel: React.FC = () => {
     const maxScans = Math.max(...hourlyDistribution, 1);
     const peakHour = hourlyDistribution.indexOf(Math.max(...hourlyDistribution));
 
-    const scannedToday = clients.filter(c => c.lastScanAt?.startsWith(todayIso)).length;
+    const scannedToday = cardCounts.scannedToday;
 
     // Renewals & Pending
-    const renewedCount = clients.filter(c => (c.renewalHistory || []).some(r => coversMonth(r, statsMonth))).length;
-    const pendingTotal = totalNonCanceled - renewedCount;
+    const renewedCount = isAll ? cardCounts.active : period.activeCards;
+    const pendingTotal = Math.max(0, totalNonCanceled - renewedCount);
 
-    // Route Stats
-    const routeStats = ROUTES.map(route => {
-        const routeClients = clients.filter(c => c.route === route);
-        const revenue = isAll
-            ? routeClients.reduce((acc, c) => acc + (c.amountPaid || 0), 0)
-            : routeClients.reduce((acc, c) => {
-                const monthlyRenewal = (c.renewalHistory || []).find(r => r.month === statsMonth);
-                return acc + (monthlyRenewal ? monthlyRenewal.amount : 0);
-            }, 0);
-        const count = isAll
-            ? routeClients.length
-            : routeClients.filter(c => (c.renewalHistory || []).some(r => coversMonth(r, statsMonth))).length;
-
-        return { route, count, revenue };
-    }).sort((a, b) => b.revenue - a.revenue);
+    // Route Stats — the money each line took, as the rollup recorded it when the
+    // subscriptions were sold. Lines with no takings in the period are left out
+    // rather than listed as zeroes.
+    const routeStats = routeTotals(period).map(r => ({
+        route: r.name,
+        count: r.payments,
+        revenue: r.revenue,
+    }));
 
     // Suspicious Activity (Abuse detection) — group the recent-window scans by
     // client, then flag days with more than 3 scans on the same card.
@@ -355,7 +357,7 @@ const SystemAdminPanel: React.FC = () => {
         return map;
     })();
 
-    const suspiciousClientsData = clients.map(c => {
+    const suspiciousClientsData = Object.values(flaggedCards).map(c => {
         const allScans = scansByClient[c.id];
         if (!allScans || allScans.length === 0) return null;
 
@@ -396,21 +398,46 @@ const SystemAdminPanel: React.FC = () => {
     // One-off maintenance: scans now live in the clients/{id}/scans subcollection,
     // so the legacy inline scanHistory arrays are dead weight. This deletes them in
     // write batches. Safe to remove this button once it has been run.
+    /**
+     * Recomputes every month from the cards themselves.
+     *
+     * The totals are maintained as subscriptions are written, so this is not part
+     * of normal running. It is needed once for a company whose cards predate the
+     * totals, and afterwards only if an update was ever missed.
+     */
+    const [rebuilding, setRebuilding] = useState(false);
+    const [rebuildMsg, setRebuildMsg] = useState<string | null>(null);
+    const handleRebuildRollups = async () => {
+        if (!window.confirm(
+            'Да се преизчислят ли месечните обобщения от картите?\n\n' +
+            'Чете всички карти веднъж и презаписва сумите по месеци. Данните на ' +
+            'картите не се променят.'
+        )) return;
+        setRebuilding(true);
+        setRebuildMsg(null);
+        try {
+            const fn = httpsCallable(getFunctions(getApp(), FUNCTIONS_REGION), 'rebuildRollups');
+            const res = await fn({});
+            const out = res.data as { months?: number; cardsScanned?: number };
+            setRebuildMsg(`Готово. Преизчислени ${out.months ?? 0} месеца от ${out.cardsScanned ?? 0} карти.`);
+        } catch (err) {
+            setRebuildMsg((err as { message?: string }).message || 'Преизчисляването не успя.');
+        } finally {
+            setRebuilding(false);
+        }
+    };
+
     const handleCleanupScanHistory = async () => {
         if (!window.confirm('Изтриване на старите scanHistory масиви от всички клиенти? Това освобождава място и не може да се върне.')) return;
         setCleanupRunning(true);
         setCleanupMsg(null);
         try {
-            // This button lives in the ПОТРЕБИТЕЛИ tab, which deliberately does not
-            // subscribe to clients, so read them once here instead of running against
-            // an empty in-memory list and reporting "0 cleaned".
-            let targets = clients.filter(c => Array.isArray((c as { scanHistory?: unknown }).scanHistory));
-            if (!clients.length) {
-                const snap = await getDocs(collection(db, 'clients'));
-                targets = snap.docs
-                    .filter(d => Array.isArray((d.data() as { scanHistory?: unknown }).scanHistory))
-                    .map(d => ({ id: d.id }) as Client);
-            }
+            // A one-off repair, so it reads the collection itself. Nothing else in
+            // the panel holds every card any more.
+            const snap = await getDocs(collection(db, 'clients'));
+            const targets = snap.docs
+                .filter(d => Array.isArray((d.data() as { scanHistory?: unknown }).scanHistory))
+                .map(d => ({ id: d.id }) as Client);
             for (let i = 0; i < targets.length; i += 400) {
                 const batch = writeBatch(db);
                 targets.slice(i, i + 400).forEach(c => {
@@ -522,7 +549,7 @@ const SystemAdminPanel: React.FC = () => {
                                             onChange={(e) => setStatsMonth(e.target.value)}
                                             style={{ background: 'transparent', color: '#fff', border: 'none', fontSize: '0.9rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
                                         >
-                                            {Array.from(new Set([todayIso.slice(0, 7), ...clients.flatMap(c => (c.renewalHistory || []).map(r => r.month))])).sort().reverse().map(m => (
+                                            {Array.from(new Set([todayIso.slice(0, 7), ...rollupMonths.map(m => m.month)])).sort().reverse().map(m => (
                                                 <option key={m} value={m} style={{ background: '#222' }}>{m}</option>
                                             ))}
                                         </select>
@@ -856,6 +883,26 @@ const SystemAdminPanel: React.FC = () => {
                             {cleanupRunning ? 'Изчистване...' : 'Изчисти стари scanHistory данни'}
                         </button>
                         {cleanupMsg && <div style={{ marginTop: '1rem', fontSize: '0.85rem', fontWeight: 700, color: '#00c853' }}>{cleanupMsg}</div>}
+
+                        <div style={{ height: '1px', background: 'var(--surface-border)', margin: '1.75rem 0' }} />
+
+                        <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', fontWeight: 800 }}>
+                            Преизчисляване на месечните обобщения
+                        </h3>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
+                            Таблото чете сумите по месеци, а не всяка карта. Обобщенията се
+                            обновяват сами при всяко плащане — този бутон ги пресмята наново от
+                            картите. Нужен е веднъж за фирма с по-стари карти, и после само ако
+                            нещо се разминава.
+                        </p>
+                        <button
+                            onClick={handleRebuildRollups}
+                            disabled={rebuilding}
+                            style={{ background: 'rgba(0,173,181,0.12)', color: 'var(--primary-color)', border: '1px solid rgba(0,173,181,0.35)', borderRadius: '10px', padding: '0.75rem 1.5rem', fontWeight: 800, cursor: rebuilding ? 'default' : 'pointer', opacity: rebuilding ? 0.6 : 1 }}
+                        >
+                            {rebuilding ? 'Преизчисляване…' : 'Преизчисли обобщенията'}
+                        </button>
+                        {rebuildMsg && <div style={{ marginTop: '1rem', fontSize: '0.85rem', fontWeight: 700, color: '#00c853' }}>{rebuildMsg}</div>}
                     </Card>
             </div>
 
