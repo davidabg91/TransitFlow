@@ -5,3 +5,10 @@ build/
 dist/
 __pycache__/
 *.pyc
+
+# Somebody else's redistributables, fetched rather than kept: Microsoft's
+# runtime and the reader manufacturer's driver. See README.md.
+installer/prereq/
+
+# The finished installer, ~170 MB.
+installer/*.exe
