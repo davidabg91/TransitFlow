@@ -20,6 +20,7 @@ import PaymentMethodSelector from '../components/PaymentMethodSelector';
 import ModeratorInactivityWarningModal from '../components/ModeratorInactivityWarningModal';
 import { MIXED_METHOD } from '../data/paymentMethods';
 import { getDoc, doc as tdoc, setActiveTenant } from '../tenant/db';
+import { normalizeUid } from '../tenant/cards';
 import { MUNICIPALITY_CUSTOM, needsMunicipality, usePlaces } from '../tenant/settings';
 
 interface Client {
@@ -209,7 +210,8 @@ const ClientProfile: React.FC = () => {
     const id = sanitizeId(rawId);
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
-    const urlUid = queryParams.get('uid') || '';
+    // A link whose slot the chip never filled reads as no chip at all.
+    const urlUid = normalizeUid(queryParams.get('uid'));
     const [client, setClient] = useState<Client | null>(null);
     // The company's own lines and fares, set under Настройки.
     const { names: ROUTES, priceOf, has: hasRoute } = useRoutePricing();

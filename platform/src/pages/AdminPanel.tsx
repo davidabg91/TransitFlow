@@ -13,7 +13,7 @@ import Card from '../components/Card';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from '../firebase';
 import ModuleLocked from '../components/ModuleLocked';
-import { cardProfileHref } from '../tenant/cards';
+import { cardProfileHref, UID_SLOT } from '../tenant/cards';
 import { FUNCTIONS_REGION } from '../tenant/db';
 import { useModules } from '../tenant/modules';
 import UnpaidAlertsButton from '../components/UnpaidAlertsButton';
@@ -1427,7 +1427,9 @@ const AdminPanel: React.FC = () => {
             const res = await httpsCallable(getFunctions(app, FUNCTIONS_REGION), 'generateCardBatch')({ quantity: nfcQuantity });
             const payload = res.data as { tenant: string; codes: { code: string; cardNumber: string }[] };
             const base = `${window.location.origin}${window.location.pathname}#/t/${payload.tenant}/client/`;
-            setGeneratedLinks(payload.codes.map(c => `${base}${c.code}`));
+            // The trailing slot is what the chip writes its own serial into, so a
+            // card announces which chip it is without anybody typing it anywhere.
+            setGeneratedLinks(payload.codes.map(c => `${base}${c.code}?uid=${UID_SLOT}`));
             setGeneratedCards(payload.codes);
             logGlobalActivity('Генериране на NFC карти', 'Система', `Издадени ${payload.codes.length} нови карти (№ ${payload.codes[0]?.cardNumber} – ${payload.codes[payload.codes.length - 1]?.cardNumber}).`);
             setMessage({ text: `Издадени са ${payload.codes.length} карти. Запишете линковете в чиповете.`, type: 'success' });
@@ -4219,6 +4221,24 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
 
                             {generatedLinks.length > 0 && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                                    <div style={{
+                                        display: 'flex', gap: '0.7rem', alignItems: 'flex-start',
+                                        padding: '0.9rem 1.1rem', marginBottom: '1.1rem', borderRadius: '12px',
+                                        background: 'rgba(0,173,181,0.08)', border: '1px solid rgba(0,173,181,0.25)',
+                                    }}>
+                                        <ExternalLink size={16} color="var(--primary-color)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                                        <div style={{ fontSize: '0.84rem', lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+                                            Всеки линк завършва с <code style={{ color: '#fff' }}>?uid=00000000000000</code>.
+                                            Това е мястото, където самата карта записва своя фабричен номер при
+                                            всяко допиране — при програмирането на чиповете трябва да е включено
+                                            <b style={{ color: '#fff' }}> огледало на серийния номер (UID mirror)</b> точно
+                                            върху тези 14 знака. Нищо не се въвежда ръчно: картата сама си казва номера
+                                            и системата го записва при активирането ѝ.
+                                            <br />
+                                            Ако огледалото не е включено, картата пак работи — номерът ѝ просто
+                                            остава незаписан и защитата срещу дублиране не важи за нея.
+                                        </div>
+                                    </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                         <h3 style={{ fontSize: '1rem' }}>Генерирани линкове ({generatedLinks.length})</h3>
                                         <button 

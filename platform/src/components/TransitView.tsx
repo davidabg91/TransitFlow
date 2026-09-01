@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRouteNames } from '../tenant/settings';
 import { coversDate, currentEntry, formatDayBG, formatSpanBG } from '../tenant/settings';
+import { normalizeUid } from '../tenant/cards';
 import { localToday } from './PeriodPicker';
 import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanProblem } from './PeriodPicker';
 import type { PeriodChoice } from './PeriodPicker';
@@ -298,9 +299,9 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
                 // physical UID (not a document id). Resolve it via the public
                 // nfc_uids/{UID} -> clientId map so the card is still recognised.
                 let snap = firstSnap;
-                if (!snap.exists() && physicalUid) {
+                if (!snap.exists() && normalizeUid(physicalUid)) {
                     try {
-                        const mapSnap = await getDoc(doc(db, 'nfc_uids', physicalUid.toUpperCase()));
+                        const mapSnap = await getDoc(doc(db, 'nfc_uids', normalizeUid(physicalUid)));
                         if (mapSnap.exists()) {
                             const mappedId = mapSnap.data().clientId as string | undefined;
                             if (mappedId && mappedId !== id) {
@@ -321,7 +322,7 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
                     // - If nfcUid is not set yet → auto-register the physical UID now (first scan)
                     // - If nfcUid is already set AND differs from the scanned card → clone detected
                     const registeredNfcUid = (data.nfcUid || '').toUpperCase();
-                    const scannedNfcUid = (physicalUid || '').toUpperCase();
+                    const scannedNfcUid = normalizeUid(physicalUid);
                     let clonedVal = false;
 
                     if (scannedNfcUid && !registeredNfcUid) {
