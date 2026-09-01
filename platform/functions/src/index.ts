@@ -753,24 +753,24 @@ const monthsCovered = (r: Renewal & { from?: string; to?: string }): string[] =>
 };
 
 interface MonthDelta {
+    /** Money for subscriptions *of* this month — what the month earned. */
     revenue: number;
     payments: number;
+    /** Money that came *in* during this month, whichever month it was for. */
+    received: number;
     byMethod: Record<string, number>;
     byRoute: Record<string, { name: string; revenue: number; payments: number }>;
     /** Money taken on each day of the month, keyed "01".."31". */
     byDay: Record<string, number>;
+    /** Cards issued on each day of the month, keyed the same way. */
+    byDayNew: Record<string, number>;
     activeCards: number;
 }
 
 const emptyDelta = (): MonthDelta => ({
-    revenue: 0, payments: 0, byMethod: {}, byRoute: {}, byDay: {}, activeCards: 0,
+    revenue: 0, payments: 0, received: 0,
+    byMethod: {}, byRoute: {}, byDay: {}, byDayNew: {}, activeCards: 0,
 });
-
-/** The day of the month a payment was taken, "01".."31", from its timestamp. */
-const dayKey = (iso?: string): string | null => {
-    const d = String(iso || "").slice(8, 10);
-    return /^\d{2}$/.test(d) ? d : null;
-};
 
 /**
  * Keeps `tenants/{id}/rollups/{YYYY-MM}` current so the dashboard can read one
@@ -814,10 +814,29 @@ export const updateRollups = fn.firestore
             return d;
         };
 
+        /**
+         * A payment sits on two axes and they are not the same month.
+         *
+         * A subscription bought in August for September earns September and is
+         * received in August. Booking both under one month made a day's takings
+         * appear in the wrong month — the desk's cash for the day did not match
+         * what the panel showed. Each axis now has its own field.
+         */
         const applyMoney = (r: Renewal, sign: 1 | -1) => {
+            const amount = (Number(r.amount) || 0) * sign;
+
+            // Which month the money came in, and on which day of it.
+            const paidOn = String((r as { date?: string }).date || "").slice(0, 10);
+            if (paidOn.length === 10) {
+                const cash = at(paidOn.slice(0, 7));
+                cash.received += amount;
+                const day = paidOn.slice(8, 10);
+                cash.byDay[day] = (cash.byDay[day] || 0) + amount;
+            }
+
+            // Which month the money was for.
             const month = r.month;
             if (!month) return;
-            const amount = (Number(r.amount) || 0) * sign;
             const d = at(month);
             d.revenue += amount;
             d.payments += sign;
@@ -837,15 +856,24 @@ export const updateRollups = fn.firestore
             line.revenue += amount;
             line.payments += sign;
             d.byRoute[key] = line;
-
-            // The dashboard's takings for one day come from here rather than from
-            // a scan of every card's payment list.
-            const day = dayKey((r as { date?: string }).date);
-            if (day) d.byDay[day] = (d.byDay[day] || 0) + amount;
         };
 
         for (const [k, r] of after) if (!before.has(k)) applyMoney(r, 1);
         for (const [k, r] of before) if (!after.has(k)) applyMoney(r, -1);
+
+        // A card appearing or disappearing, counted on the day it was issued —
+        // so "issued today" is a lookup rather than a question asked of every
+        // card in the company.
+        const issuedOn = (snap: admin.firestore.DocumentSnapshot) =>
+            String(snap.exists ? snap.data()?.createdAt || "" : "").slice(0, 10);
+        if (change.after.exists !== change.before.exists) {
+            const day = issuedOn(change.after.exists ? change.after : change.before);
+            if (day.length === 10) {
+                const d = at(day.slice(0, 7));
+                const key = day.slice(8, 10);
+                d.byDayNew[key] = (d.byDayNew[key] || 0) + (change.after.exists ? 1 : -1);
+            }
+        }
 
         // How many months this one card covers, before and after. Counted as
         // sets, so two subscriptions overlapping a month still count the card
@@ -858,6 +886,26 @@ export const updateRollups = fn.firestore
         for (const m of coveredAfter) if (!coveredBefore.has(m)) at(m).activeCards += 1;
         for (const m of coveredBefore) if (!coveredAfter.has(m)) at(m).activeCards -= 1;
 
+        // The same set, written onto the card itself.
+        //
+        // "Has this card paid for October" cannot be asked of Firestore while the
+        // answer lives inside an array of payment objects, so the panel had to
+        // download every card to work it out. As a plain array of months it is a
+        // query, and the set is already computed here.
+        //
+        // Writing to the card re-enters this trigger once. The second pass finds
+        // the payment history unchanged and the months already correct, so it
+        // writes nothing and stops.
+        if (change.after.exists) {
+            const stored: string[] = Array.isArray(change.after.data()?.coveredMonths)
+                ? change.after.data()!.coveredMonths
+                : [];
+            const wanted = [...coveredAfter].sort();
+            if (stored.length !== wanted.length || stored.some((m, i) => m !== wanted[i])) {
+                await change.after.ref.set({ coveredMonths: wanted }, { merge: true });
+            }
+        }
+
         if (deltas.size === 0) return;
 
         const inc = admin.firestore.FieldValue.increment;
@@ -865,6 +913,7 @@ export const updateRollups = fn.firestore
         for (const [month, d] of deltas) {
             const data: Record<string, unknown> = { month, tenant: tenantId, updatedAt: nowIso() };
             if (d.revenue) data.revenue = inc(d.revenue);
+            if (d.received) data.received = inc(d.received);
             if (d.payments) data.payments = inc(d.payments);
             if (d.activeCards) data.activeCards = inc(d.activeCards);
 
@@ -875,6 +924,10 @@ export const updateRollups = fn.firestore
             const byDay: Record<string, unknown> = {};
             for (const [k, v] of Object.entries(d.byDay)) if (v) byDay[k] = inc(v);
             if (Object.keys(byDay).length) data.byDay = byDay;
+
+            const byDayNew: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(d.byDayNew)) if (v) byDayNew[k] = inc(v);
+            if (Object.keys(byDayNew).length) data.byDayNew = byDayNew;
 
             const byRoute: Record<string, unknown> = {};
             for (const [k, v] of Object.entries(d.byRoute)) {
@@ -905,6 +958,7 @@ export const rebuildRollups = fn.runWith({ timeoutSeconds: 540, memory: "512MB" 
         // Same shape the incremental path maintains, so a rebuild and a live
         // update cannot disagree about what a month holds.
         const totals = new Map<string, MonthDelta>();
+        const pendingMonths: { ref: admin.firestore.DocumentReference; months: string[] }[] = [];
         const at = (month: string) => {
             let t = totals.get(month);
             if (!t) { t = emptyDelta(); totals.set(month, t); }
@@ -912,12 +966,31 @@ export const rebuildRollups = fn.runWith({ timeoutSeconds: 540, memory: "512MB" 
         };
 
         snap.forEach(docSnap => {
+            // Counted before the payment history is looked at: a card issued
+            // today has none yet, and it is still a card issued today.
+            const issued = String(docSnap.data()?.createdAt || "").slice(0, 10);
+            if (issued.length === 10) {
+                const d = at(issued.slice(0, 7));
+                const key = issued.slice(8, 10);
+                d.byDayNew[key] = (d.byDayNew[key] || 0) + 1;
+            }
+
             const history = docSnap.data()?.renewalHistory;
             if (!Array.isArray(history)) return;
 
             const covered = new Set<string>();
             for (const r of history as Renewal[]) {
                 monthsCovered(r).forEach(m => covered.add(m));
+
+                // The cash axis: when the money actually came in.
+                const paidOn = String((r as { date?: string }).date || "").slice(0, 10);
+                if (paidOn.length === 10) {
+                    const cash = at(paidOn.slice(0, 7));
+                    cash.received += Number(r.amount) || 0;
+                    const day = paidOn.slice(8, 10);
+                    cash.byDay[day] = (cash.byDay[day] || 0) + (Number(r.amount) || 0);
+                }
+
                 if (!r?.month) continue;
 
                 const t = at(r.month);
@@ -941,24 +1014,43 @@ export const rebuildRollups = fn.runWith({ timeoutSeconds: 540, memory: "512MB" 
                 line.payments += 1;
                 t.byRoute[key] = line;
 
-                const day = dayKey((r as { date?: string }).date);
-                if (day) t.byDay[day] = (t.byDay[day] || 0) + amount;
             }
             // One card counts once for every month it covers.
             covered.forEach(m => { at(m).activeCards += 1; });
+
+            // Backfill the card's own list, for cards written before it existed.
+            const stored: string[] = Array.isArray(docSnap.data()?.coveredMonths)
+                ? docSnap.data()!.coveredMonths
+                : [];
+            const wanted = [...covered].sort();
+            if (stored.length !== wanted.length || stored.some((m, i) => m !== wanted[i])) {
+                pendingMonths.push({ ref: docSnap.ref, months: wanted });
+            }
         });
+
+        // Written in their own batches: a company of several thousand cards would
+        // otherwise overflow the single batch the rollups go in.
+        for (let i = 0; i < pendingMonths.length; i += 400) {
+            const chunk = db().batch();
+            for (const item of pendingMonths.slice(i, i + 400)) {
+                chunk.set(item.ref, { coveredMonths: item.months }, { merge: true });
+            }
+            await chunk.commit();
+        }
 
         const batch = db().batch();
         for (const [month, t] of totals) {
             batch.set(tenantRef(caller.tenant).collection("rollups").doc(month), {
                 month, tenant: caller.tenant, updatedAt: nowIso(), rebuiltAt: nowIso(),
-                revenue: t.revenue, payments: t.payments, activeCards: t.activeCards,
-                byMethod: t.byMethod, byRoute: t.byRoute, byDay: t.byDay,
+                revenue: t.revenue, received: t.received,
+                payments: t.payments, activeCards: t.activeCards,
+                byMethod: t.byMethod, byRoute: t.byRoute,
+                byDay: t.byDay, byDayNew: t.byDayNew,
             });
         }
         await batch.commit();
 
-        return { months: totals.size, cardsScanned: snap.size };
+        return { months: totals.size, cardsScanned: snap.size, monthsStamped: pendingMonths.length };
     });
 
 /**

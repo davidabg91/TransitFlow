@@ -32,6 +32,7 @@ import {
     arrayUnion,
     deleteField,
     runTransaction,
+    getDoc,
     getDocs,
     collectionGroup,
     where,
@@ -42,6 +43,7 @@ import { personName } from '../types/auth';
 import { requisitesLine, useCompanyProfile } from '../tenant/company';
 import { useRoutePricing } from '../tenant/settings';
 import { coversDate, coversMonth, formatSpanBG, spanEndDay, spanSortKey } from '../tenant/settings';
+import { useRollups, monthOf, takingsOn, issuedOn } from '../tenant/rollups';
 import { localToday } from '../components/PeriodPicker';
 import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanProblem, spanStartDay } from '../components/PeriodPicker';
 import type { PeriodChoice } from '../components/PeriodPicker';
@@ -370,6 +372,10 @@ const AdminPanel: React.FC = () => {
     // Настройки. Empty until the company adds its first line — the pickers then
     // say so rather than offering another operator's routes.
     const { names: ROUTES, priceOf, has: hasRoute } = useRoutePricing();
+    // The company's monthly totals, kept by a Cloud Function. Every figure below
+    // that used to be worked out by adding up every card reads from these — one
+    // small document per month rather than the whole collection.
+    const { months: rollupMonths } = useRollups();
     // The общини and schools this company works in, from its own settings.
     const places = usePlaces();
     // The rosters it agreed with its община, against which service cards are checked.
@@ -582,6 +588,9 @@ const AdminPanel: React.FC = () => {
     // вижда дали бързата колекция е пропуснала ред (напр. сканиране отпреди
     // бекфила или докато функцията е падала).
     const [unpaidScansRaw, setUnpaidScansRaw] = useState<UnpaidScanRow[] | null>(null);
+    // The cards behind the flagged scans, fetched by id. The flagged set is a
+    // handful; the collection is not, and this tab no longer holds it.
+    const [unpaidCards, setUnpaidCards] = useState<Record<string, Client>>({});
     const [unpaidLoading, setUnpaidLoading] = useState(false);
     const [unpaidWindowDays, setUnpaidWindowDays] = useState(30);
     // Помни кой прозорец вече е в паметта и не го чете пак при връщане в таба;
@@ -808,7 +817,7 @@ const AdminPanel: React.FC = () => {
     // Derived data for reports and filters
     const allMonths = Array.from(new Set([
         new Date().toISOString().slice(0, 7),
-        ...clients.flatMap(c => (c.renewalHistory || []).map(r => r.month))
+        ...rollupMonths.map(m => m.month),
     ])).sort().reverse();
     const logGlobalActivity = async (action: string, targetName: string, details: string, amount?: number) => {
         try {
@@ -844,38 +853,64 @@ const AdminPanel: React.FC = () => {
 
 
 
+    /**
+     * The card list, for the tabs that work across all of them.
+     *
+     * Кой таб иска целия списък е нарочно кратък списък: клиентите се търсят и
+     * филтрират, финансите смятат отчети и одити върху всичко. Известията, NFC
+     * кодовете, сигналите и наемите не пипат карти — а панелът досега сваляше
+     * цялата фирма щом се отвори, независимо къде отиваш.
+     *
+     * Числата на таблото вече идват от месечните обобщения, така че това е
+     * последното, което още иска колекцията, и то само на две места.
+     */
+    const needsAllClients = activeTab === 'clients' || activeTab === 'finances';
+
+    useEffect(() => {
+        const ids = Array.from(new Set((unpaidScansRaw || []).map(s => s.clientId).filter(Boolean)));
+        if (ids.length === 0) { setUnpaidCards({}); return; }
+        let cancelled = false;
+        Promise.all(ids.map(id =>
+            getDoc(doc(db, 'clients', id))
+                .then(d => (d.exists() ? { id: d.id, ...d.data() } as Client : null))
+                .catch(() => null)
+        )).then(found => {
+            if (cancelled) return;
+            const map: Record<string, Client> = {};
+            found.forEach(c => { if (c) map[c.id] = c; });
+            setUnpaidCards(map);
+        });
+        return () => { cancelled = true; };
+    }, [unpaidScansRaw]);
+
+    useEffect(() => {
+        if (!needsAllClients || !getActiveTenant()) return;
+        const unsub = onSnapshot(query(collection(db, 'clients')), (snapshot) => {
+            const clientList: Client[] = [];
+            snapshot.forEach((d) => clientList.push({ id: d.id, ...d.data() } as Client));
+            setClients(clientList);
+
+            // Opened straight from a link: /#/admin?tab=clients&edit=<code>
+            const editId = new URLSearchParams(location.search).get('edit');
+            if (editId) {
+                const wanted = clientList.find((c: Client) => c.id === editId);
+                if (wanted) {
+                    setSelectedClient(wanted);
+                    setNewRoute(wanted.route);
+                    setShowActionModal(true);
+                    setActiveTab('clients');
+                }
+            }
+        }, (err) => console.error('Clients listener error:', err));
+        return () => unsub();
+    }, [needsAllClients, location.search]);
+
     useEffect(() => {
         // Signing out clears the company outside React's state, so for a tick
         // the panel still believes it belongs to one. Ask the same place the
         // query builder asks: no company means do nothing, rather than a thrown
         // error that takes the whole app to the crash screen.
         if (!getActiveTenant()) return;
-
-        // 1. Listen for Clients in Real-time
-        const q = query(collection(db, 'clients'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const clientList: Client[] = [];
-            snapshot.forEach((doc) => {
-                clientList.push({ id: doc.id, ...doc.data() } as Client);
-            });
-            setClients(clientList);
-
-            // Check for edit param in URL after clients are loaded
-            const params = new URLSearchParams(location.search);
-            const editId = params.get('edit');
-            if (editId) {
-                const clientToEdit = clientList.find((c: Client) => c.id === editId);
-                if (clientToEdit) {
-                    setSelectedClient(clientToEdit as Client);
-                    setNewRoute(clientToEdit.route);
-                    setShowActionModal(true);
-                    setActiveTab('clients');
-                }
-            }
-        }, (err) => {
-            console.error("Firestore error:", err);
-        });
-
 
         // 4. Listen for Admin Actions (Cloud Scan)
         // 2. Listen for Signals in Real-time
@@ -929,7 +964,6 @@ const AdminPanel: React.FC = () => {
         }, (err) => console.error('Fines listener error:', err));
 
         return () => {
-            unsubscribe();
             unsubscribeSignals();
             unsubscribeRentals();
             unsubscribeNotifications();
@@ -1714,27 +1748,19 @@ const AdminPanel: React.FC = () => {
 
     // Financial Calculations for Accountant
     const todayIso = new Date().toISOString().split('T')[0];
-    const registrationsToday = clients.filter(c => c.createdAt?.startsWith(todayIso)).length;
-    const revenueToday = clients.reduce((acc, c) => {
-        const todayPayments = (c.renewalHistory || []).filter(r => r.date?.startsWith(todayIso));
-        return acc + todayPayments.reduce((sum, p) => sum + p.amount, 0);
-    }, 0);
+    const registrationsToday = issuedOn(rollupMonths, todayIso);
+    const revenueToday = takingsOn(rollupMonths, todayIso);
 
-    const registrationsSelectedDay = clients.filter(c => c.createdAt?.startsWith(selectedDate)).length;
-    const revenueSelectedDay = clients.reduce((acc, c) => {
-        const payments = (c.renewalHistory || []).filter(r => r.date?.startsWith(selectedDate));
-        return acc + payments.reduce((sum, p) => sum + p.amount, 0);
-    }, 0) + fines.filter(f => f.date?.startsWith(selectedDate)).reduce((sum, f) => sum + f.amount, 0);
+    const registrationsSelectedDay = issuedOn(rollupMonths, selectedDate);
+    const revenueSelectedDay = takingsOn(rollupMonths, selectedDate)
+        + fines.filter(f => f.date?.startsWith(selectedDate)).reduce((sum, f) => sum + f.amount, 0);
 
     const currentMonthIso = todayIso.substring(0, 7);
     // Revenue actually RECEIVED during the calendar month — filter by payment date
     // (r.date), not by the subscription month being paid for (r.month). Otherwise a
     // payment made this month for another month's subscription wouldn't count, which
     // made the monthly total smaller than a single day's total.
-    const revenueMonthCurrent = clients.reduce((acc, c) => {
-        const monthPayments = (c.renewalHistory || []).filter(r => r.date?.startsWith(currentMonthIso));
-        return acc + monthPayments.reduce((sum, p) => sum + p.amount, 0);
-    }, 0);
+    const revenueMonthCurrent = monthOf(rollupMonths, currentMonthIso).received;
 
     // Cards whose last-charged amount differs from the system price for their route.
     // The "system price" is computeCardAmount(route, cardType) — the same value the
@@ -1888,12 +1914,7 @@ const AdminPanel: React.FC = () => {
         d.setDate(1);
         d.setMonth(d.getMonth() - (5 - i));
         const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        let rev = 0;
-        for (const c of clients) {
-            for (const r of (c.renewalHistory || [])) {
-                if (r.date && r.date.startsWith(iso)) rev += r.amount;
-            }
-        }
+        const rev = monthOf(rollupMonths, iso).received;
         return {
             month: iso,
             label: new Date(iso + '-01').toLocaleDateString('bg-BG', { month: 'short', year: '2-digit' }),
@@ -1907,12 +1928,7 @@ const AdminPanel: React.FC = () => {
         const d = new Date();
         d.setDate(d.getDate() - i);
         const iso = d.toISOString().split('T')[0];
-        const rev = clients.reduce((acc, c) => {
-            const dayPayments = (c.renewalHistory || []).filter(r => r.date?.startsWith(iso));
-            return acc + dayPayments.reduce((sum, p) => sum + p.amount, 0);
-        }, 0);
-        const curRegs = clients.filter(c => c.createdAt?.startsWith(iso)).length;
-        return { date: iso, revenue: rev, regs: curRegs };
+        return { date: iso, revenue: takingsOn(rollupMonths, iso), regs: issuedOn(rollupMonths, iso) };
     });
 
 
@@ -3693,10 +3709,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                     style={{ flex: 1, minWidth: '150px', padding: '0.8rem 1rem', borderRadius: '50px', background: 'rgba(0,173,181,0.08)', border: '1px solid rgba(0,173,181,0.3)', color: '#fff', outline: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700 }}
                                 >
                                     <option value="all" style={{ background: '#222' }}>Всички училища</option>
-                                    {Array.from(new Set([
-                                        ...places.schoolNames,
-                                        ...clients.filter(c => c.cardType === 'Ученическа карта' && c.school).map(c => c.school as string)
-                                    ])).sort((a, b) => a.localeCompare(b, 'bg')).map(s => (
+                                    {[...places.schoolNames].sort((a, b) => a.localeCompare(b, 'bg')).map(s => (
                                         <option key={s} value={s} style={{ background: '#222' }}>{s}</option>
                                     ))}
                                 </select>
@@ -4129,7 +4142,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                     <div style={{ animation: 'fadeIn 0.4s ease' }}>
                         <Card style={{ padding: isMobile ? '1.25rem' : '2rem' }}>
                             {(() => {
-                                const clientMap = new Map(clients.map(c => [c.id, c]));
+                                const clientMap = new Map(Object.entries(unpaidCards));
                                 const fmtDay = (iso: string) => { const d = new Date(iso); return isNaN(d.getTime()) ? iso : d.toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
                                 const fmtTime = (iso: string) => { const d = new Date(iso); return isNaN(d.getTime()) ? iso : d.toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' }); };
                                 // Сканиране е "без абонамент", ако за месеца на сканирането няма

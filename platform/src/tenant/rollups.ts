@@ -25,28 +25,42 @@ export interface RouteTotals {
 
 export interface MonthRollup {
     month: string;
+    /**
+     * Money for subscriptions *of* this month — what the month earned.
+     * A subscription bought in August for September earns September.
+     */
     revenue: number;
+    /**
+     * Money that came *in* during this month, whichever month it was for.
+     * This is the till: what the desk actually took.
+     */
+    received: number;
     payments: number;
     /** Cards whose subscription covers this month. */
     activeCards: number;
     byMethod: Record<string, number>;
     byRoute: Record<string, RouteTotals>;
-    /** Takings per day of the month, keyed "01".."31". */
+    /** Money received on each day of this month, keyed "01".."31". */
     byDay: Record<string, number>;
+    /** Cards issued on each day of this month. */
+    byDayNew: Record<string, number>;
 }
 
 const empty = (month: string): MonthRollup => ({
-    month, revenue: 0, payments: 0, activeCards: 0, byMethod: {}, byRoute: {}, byDay: {},
+    month, revenue: 0, received: 0, payments: 0, activeCards: 0,
+    byMethod: {}, byRoute: {}, byDay: {}, byDayNew: {},
 });
 
 const normalise = (month: string, d: Record<string, unknown>): MonthRollup => ({
     month,
     revenue: Number(d.revenue) || 0,
+    received: Number(d.received) || 0,
     payments: Number(d.payments) || 0,
     activeCards: Number(d.activeCards) || 0,
     byMethod: (d.byMethod as Record<string, number>) || {},
     byRoute: (d.byRoute as Record<string, RouteTotals>) || {},
     byDay: (d.byDay as Record<string, number>) || {},
+    byDayNew: (d.byDayNew as Record<string, number>) || {},
 });
 
 /**
@@ -91,6 +105,7 @@ export const allMonths = (months: MonthRollup[]): MonthRollup => {
     const total = empty('all');
     for (const m of months) {
         total.revenue += m.revenue;
+        total.received += m.received;
         total.payments += m.payments;
         for (const [k, v] of Object.entries(m.byMethod)) total.byMethod[k] = (total.byMethod[k] || 0) + v;
         for (const [k, v] of Object.entries(m.byRoute)) {
@@ -105,6 +120,14 @@ export const allMonths = (months: MonthRollup[]): MonthRollup => {
     // the caller uses the live card count instead.
     return total;
 };
+
+/** What the desk took on one day, from the month that day belongs to. */
+export const takingsOn = (months: MonthRollup[], dayIso: string): number =>
+    monthOf(months, dayIso.slice(0, 7)).byDay[dayIso.slice(8, 10)] || 0;
+
+/** Cards issued on one day. */
+export const issuedOn = (months: MonthRollup[], dayIso: string): number =>
+    monthOf(months, dayIso.slice(0, 7)).byDayNew[dayIso.slice(8, 10)] || 0;
 
 /** Lines by takings, largest first — what ПРИХОДИ ПО ЛИНИИ draws. */
 export const routeTotals = (r: MonthRollup): RouteTotals[] =>
