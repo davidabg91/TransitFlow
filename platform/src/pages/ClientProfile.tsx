@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Ban, Clock, Settings, Camera, AlertTriangle, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
@@ -208,10 +208,35 @@ const ClientProfile: React.FC = () => {
     const [stockCard, setStockCard] = useState<{ cardNumber: string } | null>(null);
     const [stockChecked, setStockChecked] = useState(false);
     const id = sanitizeId(rawId);
-    const location = useLocation();
-    const queryParams = new URLSearchParams(location.search);
-    // A link whose slot the chip never filled reads as no chip at all.
-    const urlUid = normalizeUid(queryParams.get('uid'));
+    /**
+     * The chip's serial, taken from the link once and then wiped from the
+     * address bar.
+     *
+     * The serial is not a secret — any phone reads it off the card by holding it
+     * near, and it sits in the fragment, which browsers never send to a server.
+     * But after a tap it is sitting in the address bar next to the card's code,
+     * and a passenger who copies that address to somebody hands over both halves
+     * of what a forged card would need.
+     *
+     * So it is captured in state, where the registration and the clone check can
+     * still use it, and taken out of the URL immediately after.
+     */
+    const [urlUid] = useState(() =>
+        normalizeUid(new URLSearchParams(window.location.hash.split('?')[1] || '').get('uid'))
+    );
+
+    useEffect(() => {
+        const [path, qs] = window.location.hash.split('?');
+        if (!qs) return;
+        const params = new URLSearchParams(qs);
+        if (!params.has('uid')) return;
+        params.delete('uid');
+        const rest = params.toString();
+        window.history.replaceState(
+            null, '',
+            `${window.location.pathname}${path}${rest ? `?${rest}` : ''}`
+        );
+    }, []);
     const [client, setClient] = useState<Client | null>(null);
     // The company's own lines and fares, set under Настройки.
     const { names: ROUTES, priceOf, has: hasRoute } = useRoutePricing();
