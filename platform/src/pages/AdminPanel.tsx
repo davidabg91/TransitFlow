@@ -13,7 +13,7 @@ import Card from '../components/Card';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from '../firebase';
 import ModuleLocked from '../components/ModuleLocked';
-import { cardProfileHref } from '../tenant/cards';
+import { cardProfileHref, findCard, findClientsByName } from '../tenant/cards';
 import { FUNCTIONS_REGION } from '../tenant/db';
 import { useModules } from '../tenant/modules';
 import UnpaidAlertsButton from '../components/UnpaidAlertsButton';
@@ -34,6 +34,8 @@ import {
     runTransaction,
     getDoc,
     getDocs,
+    limit,
+    orderBy,
     collectionGroup,
     where,
     getActiveTenant
@@ -44,6 +46,7 @@ import { requisitesLine, useCompanyProfile } from '../tenant/company';
 import { useRoutePricing } from '../tenant/settings';
 import { coversDate, coversMonth, formatSpanBG, spanEndDay, spanSortKey } from '../tenant/settings';
 import { useRollups, monthOf, takingsOn, issuedOn } from '../tenant/rollups';
+import { getCountFromServer } from 'firebase/firestore';
 import { localToday } from '../components/PeriodPicker';
 import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanProblem, spanStartDay } from '../components/PeriodPicker';
 import type { PeriodChoice } from '../components/PeriodPicker';
@@ -416,6 +419,21 @@ const AdminPanel: React.FC = () => {
     const [selectedNotifRoutes, setSelectedNotifRoutes] = useState<string[]>(['all']);
     const [searchTerm, setSearchTerm] = useState('');
     const [visibleClients, setVisibleClients] = useState(20);
+    /**
+     * How many cards the panel holds.
+     *
+     * It used to hold every card in the company, live, from the moment the panel
+     * opened. Newest first and capped: the desk works with what was issued
+     * recently, and anybody older is found by searching, which asks the server
+     * rather than the copy in the browser.
+     */
+    const CARD_PAGE = 400;
+    const [cardLimit, setCardLimit] = useState(CARD_PAGE);
+    const [totalCards, setTotalCards] = useState<number | null>(null);
+    const [undatedCards, setUndatedCards] = useState(0);
+    /** Cards the server found for a search — shown instead of the loaded page. */
+    const [searchHits, setSearchHits] = useState<Client[] | null>(null);
+    const [searching, setSearching] = useState(false);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -885,7 +903,9 @@ const AdminPanel: React.FC = () => {
 
     useEffect(() => {
         if (!needsAllClients || !getActiveTenant()) return;
-        const unsub = onSnapshot(query(collection(db, 'clients')), (snapshot) => {
+        const unsub = onSnapshot(
+            query(collection(db, 'clients'), orderBy('createdAt', 'desc'), limit(cardLimit)),
+            (snapshot) => {
             const clientList: Client[] = [];
             snapshot.forEach((d) => clientList.push({ id: d.id, ...d.data() } as Client));
             setClients(clientList);
@@ -903,7 +923,73 @@ const AdminPanel: React.FC = () => {
             }
         }, (err) => console.error('Clients listener error:', err));
         return () => unsub();
-    }, [needsAllClients, location.search]);
+    }, [needsAllClients, cardLimit, location.search]);
+
+    // How many there are in all, so the panel can say what it is not showing.
+    // A count is answered on the server and never downloads a card.
+    //
+    // Counted twice on purpose. The list is ordered by the date a card was
+    // issued, and Firestore leaves out any document that has no such date — a
+    // card without one would simply never appear, with nothing to show it was
+    // missing. Every path that creates a card sets it, so the two counts should
+    // agree; if they ever stop agreeing the panel says so rather than quietly
+    // hiding cards.
+    useEffect(() => {
+        if (!needsAllClients || !getActiveTenant()) return;
+        let cancelled = false;
+        Promise.all([
+            getCountFromServer(query(collection(db, 'clients'))),
+            getCountFromServer(query(collection(db, 'clients'), orderBy('createdAt'))),
+        ])
+            .then(([all, dated]) => {
+                if (cancelled) return;
+                setTotalCards(all.data().count);
+                setUndatedCards(all.data().count - dated.data().count);
+            })
+            .catch(err => console.error('Card count unavailable:', err));
+        return () => { cancelled = true; };
+    }, [needsAllClients]);
+
+    /**
+     * Searching asks the server, so a card outside the loaded page is still
+     * found. By the start of a name, or by a card number, code or chip in full —
+     * Firestore matches the beginning of a value, never the middle, so a partial
+     * word from inside a name is the one thing that no longer works.
+     */
+    useEffect(() => {
+        const term = searchTerm.trim();
+        if (term.length < 2) { setSearchHits(null); setSearching(false); return; }
+        let cancelled = false;
+        setSearching(true);
+        const timer = setTimeout(async () => {
+            try {
+                const found = new Map<string, Client>();
+
+                const byName = await findClientsByName(term, 40);
+                for (const hit of byName) {
+                    const d = await getDoc(doc(db, 'clients', hit.id));
+                    if (d.exists()) found.set(d.id, { id: d.id, ...d.data() } as Client);
+                }
+
+                // The same box takes a card's number, its code, or its chip.
+                const card = await findCard(term).catch(() => null);
+                const codes = [card?.code, sanitizeId(term).toUpperCase(), term.toUpperCase()];
+                for (const code of codes) {
+                    if (!code || found.has(code)) continue;
+                    const d = await getDoc(doc(db, 'clients', code));
+                    if (d.exists()) found.set(d.id, { id: d.id, ...d.data() } as Client);
+                }
+
+                if (!cancelled) setSearchHits([...found.values()]);
+            } catch (err) {
+                console.error('Search failed:', err);
+                if (!cancelled) setSearchHits([]);
+            } finally {
+                if (!cancelled) setSearching(false);
+            }
+        }, 300);
+        return () => { cancelled = true; clearTimeout(timer); };
+    }, [searchTerm]);
 
     useEffect(() => {
         // Signing out clears the company outside React's state, so for a tick
@@ -1676,7 +1762,13 @@ const AdminPanel: React.FC = () => {
 
 
 
-    const filteredClientsByFilters = clients.filter(c => {
+    // What the filters run over: the server's answer while searching, otherwise
+    // the loaded page.
+    const shownClients = searchHits !== null ? searchHits : clients;
+    // An empty list during a search means "still looking", not "nobody".
+    const searchingNow = searching;
+
+    const filteredClientsByFilters = shownClients.filter(c => {
         const sTerm = searchTerm.toLowerCase();
         const sSanitized = sanitizeId(searchTerm).toLowerCase();
         const cCardNum = getClientCardNumber(c).toLowerCase();
@@ -1743,7 +1835,12 @@ const AdminPanel: React.FC = () => {
                 if (!seen.has(m)) { byMethod[m].count++; seen.add(m); }
             });
         }
-        return { total: filteredClientsByFilters.length, paid, unpaid, canceled, totalAmount, byMethod };
+        return {
+            total: filteredClientsByFilters.length, paid, unpaid, canceled, totalAmount, byMethod,
+            // True when the figures describe part of the company rather than all
+            // of it, so the panel can say so instead of implying a total.
+            partial: searchHits === null && totalCards !== null && clients.length < totalCards,
+        };
     })();
 
     // Financial Calculations for Accountant
@@ -3755,6 +3852,11 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                     {/* Small stats reflecting the current filters (payment for {filterMonth}) */}
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem 0.9rem', alignItems: 'center', marginBottom: '1.25rem', padding: '0.6rem 1rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--surface-border)', borderRadius: '12px', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
                         <span>Клиенти: <b style={{ color: '#fff' }}>{clientsTabStats.total}</b></span>
+                        {clientsTabStats.partial && (
+                            <span style={{ color: '#ffab00', fontWeight: 700 }}>
+                                (от заредените — не от всички)
+                            </span>
+                        )}
                         <span style={{ opacity: 0.35 }}>•</span>
                         <span>Платени за {filterMonth}: <b style={{ color: 'var(--success-color)' }}>{clientsTabStats.paid}</b></span>
                         <span>Неплатени: <b style={{ color: '#ff5252' }}>{clientsTabStats.unpaid}</b></span>
@@ -3919,7 +4021,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                     ) : (
                                         <tr>
                                             <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                                                Няма намерени клиенти по този критерий.
+                                                {searchingNow ? 'Търсене…' : 'Няма намерени клиенти по този критерий.'}
                                             </td>
                                         </tr>
                                     )}
@@ -4039,9 +4141,46 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                 );
                             })
                         ) : (
-                            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Няма намерени клиенти.</div>
+                            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>{searchingNow ? 'Търсене…' : 'Няма намерени клиенти по този критерий.'}</div>
                         )}
                     </div>
+
+                    {/* Two different kinds of "more": more of what is already
+                        here, and more fetched from the company. */}
+                    {searchHits === null && totalCards !== null && clients.length < totalCards && (
+                        <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            gap: '1rem', flexWrap: 'wrap', marginTop: '1.5rem',
+                            padding: '1rem 1.25rem', borderRadius: '14px',
+                            background: 'rgba(255,255,255,0.03)', border: '1px solid var(--surface-border)',
+                        }}>
+                            <span style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                                Заредени са <b style={{ color: '#fff' }}>{clients.length}</b> от{' '}
+                                <b style={{ color: '#fff' }}>{totalCards}</b> карти — най-новите.
+                                Търсенето намира и останалите.
+                                {undatedCards > 0 && (
+                                    <b style={{ color: '#ffab00', display: 'block', marginTop: '0.35rem' }}>
+                                        {undatedCards} карти нямат дата на издаване и не влизат в списъка —
+                                        намират се само чрез търсене.
+                                    </b>
+                                )}
+                            </span>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                <button
+                                    onClick={() => { setCardLimit(n => n + CARD_PAGE); setVisibleClients(n => n + 20); }}
+                                    style={{ background: 'rgba(0,173,181,0.12)', color: 'var(--primary-color)', border: '1px solid rgba(0,173,181,0.35)', padding: '0.6rem 1.2rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 800, fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                                >
+                                    Зареди още {Math.min(CARD_PAGE, totalCards - clients.length)}
+                                </button>
+                                <button
+                                    onClick={() => { setCardLimit(totalCards); setVisibleClients(n => n + 20); }}
+                                    style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--surface-border)', padding: '0.6rem 1.2rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                                >
+                                    Зареди всички
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {filteredClientsByFilters.length > visibleClients && (
                         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem' }}>
