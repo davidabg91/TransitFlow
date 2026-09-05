@@ -21,7 +21,7 @@ export class NFCService {
                 window.__DARY_NFC_READY__ = true;
                 
                 if (Capacitor.getPlatform() === 'android') {
-                    console.log('NFCService: Binding DaryScanner Hardware...');
+                    console.log('NFCService: Binding TransitFlowScanner Hardware...');
                     
                     await MyPosSmartSdk.addListener('nfcEvent', async (event) => {
                         console.log('!!! NFC SCAN RECEIVED !!!', event);

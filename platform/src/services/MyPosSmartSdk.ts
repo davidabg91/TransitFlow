@@ -17,6 +17,6 @@ export interface MyPosSmartSdkPlugin {
 }
 
 // Final unique name for the native lookup
-const MyPosSmartSdk = registerPlugin<MyPosSmartSdkPlugin>('DaryScanner');
+const MyPosSmartSdk = registerPlugin<MyPosSmartSdkPlugin>('TransitFlowScanner');
 
 export default MyPosSmartSdk;
