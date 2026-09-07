@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { NFCService } from './services/NFCService';
-import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -160,7 +161,7 @@ const DeviceHeartbeat = ({ version }: { version: string }) => {
 
 function App() {
   // 🛡️ NUCLEAR VERSIONING: The true bundle version
-  const INTERNAL_APP_VERSION = "2026.09.07.14.00";
+  const INTERNAL_APP_VERSION = "2026.09.07.22.00";
 
   useEffect(() => {
     // 🛡️ FORCE UPDATE LOGIC: Reusable check function
@@ -273,9 +274,16 @@ function App() {
 
             {/* App shell */}
             <Route path="/" element={<Layout />}>
-              {/* Where staff land: a way in, not a dashboard. */}
+              {/* Where staff land: a way in, not a dashboard.
+                  Except on a terminal, where there is no member of staff to
+                  land: a device on a bus has no email and no password, and
+                  cannot be given either. Sent here it would ask a driver to
+                  sign in as a person, which is exactly what it is not. Its own
+                  screen is where it belongs — to be enrolled, or to stand by. */}
               <Route index element={
-                <ProtectedRoute allowedRoles={['admin', 'moderator', 'inspector']}><Home /></ProtectedRoute>
+                Capacitor.isNativePlatform()
+                  ? <Navigate to="/device" replace />
+                  : <ProtectedRoute allowedRoles={['admin', 'moderator', 'inspector']}><Home /></ProtectedRoute>
               } />
               <Route path="portal" element={<StaffPortal />} />
 

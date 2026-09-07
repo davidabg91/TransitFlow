@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { signInAnonymously } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Smartphone, BatteryFull, Wifi, WifiOff, Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
@@ -275,6 +276,16 @@ const DeviceEnroll: React.FC = () => {
                     ? <><Loader2 size={19} style={{ animation: 'tfd-spin 1s linear infinite' }} /> Зачисляване…</>
                     : <><CheckCircle2 size={19} /> Зачисли устройството</>}
             </button>
+
+            <Link
+                to="/login"
+                style={{
+                    marginTop: '1.5rem', color: 'var(--text-secondary)', opacity: 0.4,
+                    fontSize: '0.75rem', textDecoration: 'underline',
+                }}
+            >
+                Вход за служител
+            </Link>
 
             {askAgain && (
                 <button
