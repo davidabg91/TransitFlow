@@ -3,15 +3,22 @@
   What the terminal shows in the moment between being tapped and being ready.
 
   A name of its own rather than the template's `splash`, which exists in a dozen
-  density folders and would have quietly overridden this on most screens. The
-  mark is the same one the launcher uses, on the same ground, so the opening
-  frame and the icon the driver just pressed are visibly the same thing.
+  density folders and would have quietly overridden this on most screens.
+
+  The size is stated in dp and the picture itself is kept out of the density
+  folders. Left in plain `drawable` it was taken for a medium-density image and
+  blown up by whatever the screen's density happened to be — on a terminal that
+  is two or three times over, which is why the mark arrived far too close and
+  with its ends off the screen.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/splash_background" />
-    <item>
+    <item
+        android:gravity="center"
+        android:width="190dp"
+        android:height="43dp">
         <bitmap
             android:src="@drawable/splash_logo"
-            android:gravity="center" />
+            android:gravity="fill" />
     </item>
 </layer-list>

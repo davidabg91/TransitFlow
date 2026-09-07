@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { NFCService } from './services/NFCService';
-import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
@@ -154,6 +154,22 @@ function DeepLinkHandler() {
  * and App is what renders the provider that knows — asking from outside it
  * throws, and takes the whole app with it. Renders nothing.
  */
+/**
+ * Puts every screen at its beginning.
+ *
+ * Changing screen in an application like this one does not reload the page, so
+ * nothing resets how far down it you had scrolled. Arriving at a long screen
+ * from halfway down another drops you into its middle with no explanation; on a
+ * screen shorter than the one before, into the blank space past its end, which
+ * reads as a page that has failed to draw. Which is exactly what it was being
+ * mistaken for.
+ */
+const ScrollToTop = () => {
+    const { pathname } = useLocation();
+    useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+    return null;
+};
+
 const DeviceHeartbeat = ({ version }: { version: string }) => {
     useDeviceHeartbeat(version);
     return null;
@@ -161,7 +177,7 @@ const DeviceHeartbeat = ({ version }: { version: string }) => {
 
 function App() {
   // 🛡️ NUCLEAR VERSIONING: The true bundle version
-  const INTERNAL_APP_VERSION = "2026.09.07.23.34";
+  const INTERNAL_APP_VERSION = "2026.09.08.01.02";
 
   useEffect(() => {
     // 🛡️ FORCE UPDATE LOGIC: Reusable check function
@@ -251,6 +267,7 @@ function App() {
     <AuthProvider>
       <DeviceHeartbeat version={INTERNAL_APP_VERSION} />
       <HashRouter>
+        <ScrollToTop />
         <DeepLinkHandler />
         <Suspense fallback={<PageLoader />}>
           <Routes>
