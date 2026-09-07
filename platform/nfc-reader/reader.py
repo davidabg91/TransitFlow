@@ -59,6 +59,7 @@ QWebEnginePage = None
 BrowserPage = None
 readers = None
 toHexString = None
+SCARD_RESET_CARD = 1  # replaced from pyscard once it is loaded
 smartcard_available = False
 
 
@@ -103,7 +104,7 @@ def load_settings() -> dict:
 
 def load_dependencies():
     global QWebEngineView, QWebEnginePage, BrowserPage
-    global readers, toHexString, smartcard_available
+    global readers, toHexString, smartcard_available, SCARD_RESET_CARD
 
     from PyQt6.QtWebEngineWidgets import QWebEngineView as _View
     from PyQt6.QtWebEngineCore import QWebEnginePage as _Page
@@ -155,8 +156,10 @@ def load_dependencies():
     try:
         from smartcard.System import readers as _readers
         from smartcard.util import toHexString as _toHexString
+        from smartcard.scard import SCARD_RESET_CARD as _reset
         readers = _readers
         toHexString = _toHexString
+        SCARD_RESET_CARD = _reset
         smartcard_available = True
     except ImportError:
         smartcard_available = False
@@ -218,14 +221,20 @@ def read_mifare_classic(connection, reconnect=None):
             return None
 
     tried = []
+    fresh_connection = True
     for key in NDEF_KEYS:
         name = "".join(f"{b:02X}" for b in key)
         for key_type, label in ((0x60, "A"), (0x61, "B")):
-            # Each attempt on its own connection, since the one before it may
-            # have left the card halted.
-            if reconnect and not reconnect():
-                tried.append(f"{name} ключ {label}: картата не се свърза наново")
-                continue
+            # The card is freshly connected on the way in, so the first attempt
+            # needs no reset — only the ones after an attempt that may have
+            # halted it.
+            if fresh_connection:
+                fresh_connection = False
+            elif reconnect:
+                problem = reconnect()
+                if problem:
+                    tried.append(f"{name} ключ {label}: {problem}")
+                    continue
             if not load_key(key):
                 tried.append(f"{name} ключ {label}: не се зареди в четеца")
                 continue
@@ -236,11 +245,14 @@ def read_mifare_classic(connection, reconnect=None):
             # own keys. Sixteen sectors on a 1K card; a message has never needed
             # to reach beyond them even on a 4K.
             for sector in range(1, 16):
-                first = sector * 4
-                if not authenticate(first, key_type):
+                # Not `first`: that name already means "the first attempt", and
+                # a block number is truthy, which quietly turned every second
+                # attempt into a first one and skipped its reset.
+                sector_start = sector * 4
+                if not authenticate(sector_start, key_type):
                     stopped_at = sector
                     break
-                for block in (first, first + 1, first + 2):
+                for block in (sector_start, sector_start + 1, sector_start + 2):
                     chunk = read_block(block)
                     if chunk is None:
                         stopped_at = sector
@@ -437,16 +449,31 @@ class ReaderThread(QThread):
                 self.last_uid, self.last_time = uid, now
 
                 def reconnect():
-                    # A halted card answers nothing until the link is remade.
+                    """
+                    Bring a halted card back.
+
+                    A reset is what is wanted — the card is still on the reader
+                    and simply stopped answering — so ask for exactly that. A
+                    disconnect followed by a connect asks the reader to let the
+                    card go and take it again, which it often refuses while the
+                    card is sitting there.
+
+                    Returns nothing when it worked, or why it did not.
+                    """
                     try:
-                        connection.disconnect()
-                    except Exception:
-                        pass
-                    try:
-                        connection.connect()
-                        return True
-                    except Exception:
-                        return False
+                        connection.reconnect(disposition=SCARD_RESET_CARD)
+                        return None
+                    except Exception as reset_error:
+                        try:
+                            connection.disconnect()
+                        except Exception:
+                            pass
+                        try:
+                            connection.connect()
+                            return None
+                        except Exception as connect_error:
+                            return f"нулирането не стана ({reset_error}); "\
+                                   f"повторното свързване също ({connect_error})"
 
                 atr = card_atr(connection)
                 memory, status = read_card_memory(connection, reconnect)
