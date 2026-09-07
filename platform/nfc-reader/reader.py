@@ -159,32 +159,54 @@ def load_dependencies():
         smartcard_available = False
 
 
-def read_ndef_url(connection):
+def read_card_memory(connection):
     """
-    The address written in the card.
+    The user memory of the card, page by page from block 4 — where an NTAG's
+    own data starts. Stops at the first page the card refuses, which is how the
+    end of memory announces itself.
 
-    Read page by page from block 4 — where the user memory of an NTAG starts —
-    until the card stops answering, then pick the URI record out of the NDEF
-    message. The one-byte prefix at its head stands for the scheme, which is why
-    "https://" takes no room on the card.
+    Returns the bytes and the status the card answered with, so a card that
+    refuses the very first page can be told apart from one that is simply empty.
     """
     raw = bytearray()
+    last_status = None
     for block in range(4, 36):
         try:
             data, s1, s2 = connection.transmit([0xFF, 0xB0, 0x00, block, 0x04])
+            last_status = (s1, s2)
             if s1 == 0x90 and s2 == 0x00:
                 raw.extend(data)
             else:
                 break
-        except Exception:
+        except Exception as e:
+            last_status = str(e)
             break
+    return bytes(raw), last_status
 
+
+def describe_memory(raw):
+    """The first bytes as hex and as text, for when nothing was recognised."""
+    if not raw:
+        return "картата не даде нито един байт"
+    head = raw[:32]
+    hex_part = " ".join(f"{b:02X}" for b in head)
+    text = "".join(chr(b) if 33 <= b <= 126 else "." for b in head)
+    return f"{len(raw)} байта прочетени\n{hex_part}\n{text}"
+
+
+def extract_ndef_url(raw):
+    """
+    The address out of an NDEF message.
+
+    The one-byte prefix at the head of a URI record stands for the scheme, which
+    is why "https://" takes no room on the card.
+    """
     if not raw:
         return None
 
     prefixes = {
         0x00: "", 0x01: "http://www.", 0x02: "https://www.",
-        0x03: "http://", 0x04: "https://",
+        0x03: "http://", 0x04: "https://", 0x05: "tel:", 0x06: "mailto:",
     }
 
     try:
@@ -278,11 +300,19 @@ class ReaderThread(QThread):
                     continue
                 self.last_uid, self.last_time = uid, now
 
-                url = read_ndef_url(connection)
+                memory, status = read_card_memory(connection)
+                url = extract_ndef_url(memory)
                 if not url:
-                    self.history.emit("Карта без адрес на TransitFlow", False)
-                    self.scan_status.emit("❌", "Непозната карта", BAD,
-                                          "В картата няма записан адрес")
+                    if not memory:
+                        reason = ("Картата не дава достъп до паметта си. "
+                                  "Вероятно не е NTAG или иска ключ.")
+                        detail = f"Отговор на четеца: {status}"
+                    else:
+                        reason = "В картата няма записан адрес — празна е."
+                        detail = describe_memory(memory)
+                    self.history.emit(
+                        f"Непозната карта\nЧип: {uid}\n{reason}\n{detail}", False)
+                    self.scan_status.emit("❌", "Непозната карта", BAD, reason)
                     time.sleep(2)
                     self.scan_status.emit("📡", "Готов за сканиране", CYAN,
                                           "Поставете карта върху четеца")
