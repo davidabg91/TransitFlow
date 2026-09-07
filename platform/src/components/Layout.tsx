@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { blur } from '../tenant/surface';
 import logo from '../assets/logo_main.png';
 import { useAuth } from '../context/AuthContext';
 import { personName } from '../types/auth';
@@ -246,8 +247,7 @@ const Layout: React.FC = () => {
                 top: 0,
                 zIndex: 1000,
                 background: 'rgba(26, 26, 26, 0.85)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
+                ...blur('12px'),
                 padding: isMobile ? '0 0.75rem' : '0 1.5rem',
                 // The bar's own height, from one place — see --header-h. Nothing
                 // inside it was resized; the extra room is air around it.
@@ -336,7 +336,7 @@ const Layout: React.FC = () => {
                         bottom: 0,
                         height: 'calc(100dvh - var(--header-h))',
                         background: 'rgba(26, 26, 26, 0.99)',
-                        backdropFilter: 'blur(15px)',
+                        ...blur('15px'),
                         padding: '1.5rem',
                         display: 'flex',
                         flexDirection: 'column',
@@ -375,8 +375,7 @@ const Layout: React.FC = () => {
                 borderTop: isClientProfilePath ? '1px solid rgba(255,255,255,0.08)' : (location.pathname === '/' ? 'none' : '1px solid var(--surface-border)'),
                 fontSize: '0.8rem',
                 background: isClientProfilePath ? 'rgba(26, 26, 26, 0.85)' : 'transparent',
-                backdropFilter: isClientProfilePath ? 'blur(12px)' : 'none',
-                WebkitBackdropFilter: isClientProfilePath ? 'blur(12px)' : 'none',
+                ...(isClientProfilePath ? blur('12px') : {}),
                 boxShadow: isClientProfilePath ? '0 -4px 20px rgba(0,0,0,0.4)' : 'none',
                 width: '100%',
                 boxSizing: 'border-box',

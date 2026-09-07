@@ -1,2 +1,15 @@
 @import './styles/variables.css';
 @import './styles/global.css';
+
+/*
+ * The bar at the top, where a blur is not affordable.
+ *
+ * Everything else about this lives in the components, because a stylesheet
+ * cannot say it reliably: the build merged "backdrop-filter" and its prefixed
+ * twin into the prefixed one alone, which this browser does not recognise, and
+ * the rule arrived empty. Only the background is stated here, and only because
+ * the bar is fixed over moving content and would otherwise be see-through.
+ */
+html.tf-plain .main-header {
+    background: #1a1a1a !important;
+}

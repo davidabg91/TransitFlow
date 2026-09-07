@@ -31,6 +31,26 @@
     
     
 
+    <script>
+      /*
+        Blurred backgrounds are recomputed every time the page moves under them.
+        Where the graphics card does that work it is free; where the processor
+        does it, it lands on every single frame of every scroll.
+
+        Two places here are drawn by the processor: the reader at the ticket desk,
+        whose graphics drivers cannot deliver frames correctly any other way, and
+        the terminals on the buses, which have little power to spare and a battery
+        to protect. Both are marked here, before a pixel is drawn, and the
+        stylesheet takes the blurs away for them.
+      */
+      try {
+        var ua = navigator.userAgent || '';
+        if (ua.indexOf('QtWebEngine') > -1 || window.androidBridge) {
+          document.documentElement.className += ' tf-plain';
+        }
+      } catch (e) { /* nothing here is worth failing over */ }
+    </script>
+
     <style>
       /* The same ground as the opening screen the system draws, so the
          handover from one to the other is not a change of colour. */
