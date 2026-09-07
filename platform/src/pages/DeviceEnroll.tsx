@@ -194,6 +194,14 @@ const DeviceEnroll: React.FC = () => {
                     В най-горния край на устройството, при този знак.
                 </p>
 
+                {/* Whose bus this is. Below the instruction, because a passenger
+                    needs to know what to do before they need to know who from. */}
+                <img
+                    src={logo}
+                    alt="TransitFlow"
+                    style={{ width: 'min(190px, 52vw)', height: 'auto', marginTop: '2.25rem', opacity: 0.85 }}
+                />
+
                 {/* Pushed to the bottom and kept quiet: this is the driver's
                     business, and a passenger has no use for it. */}
                 <div style={{ flex: 1 }} />
