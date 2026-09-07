@@ -192,16 +192,26 @@ service cloud.firestore {
       }
 
       match /devices/{deviceId} {
-        // Staff see the fleet; only the terminal itself keeps its own record,
-        // and only the parts of it that are its to know — where it is, how much
-        // charge it has, when it last spoke. Its label, and whether it exists at
-        // all, are the company's to decide, so they are written by the server.
+        // Two writers, each kept to what is theirs. The terminal reports its own
+        // state — where it is, how much charge it has, when it last spoke. The
+        // office names it: which bus it is in and who is driving it today, which
+        // the device has no way of knowing and no business deciding.
+        //
+        // Whether a device exists at all is neither one's call: it is created
+        // when a code is accepted and removed when the company says so, both by
+        // the server, which also revokes the device's access on the way out.
         allow read: if isStaff(tenantId);
-        allow update: if canDevice(tenantId)
-          && request.auth.uid == deviceId
-          && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['lastSeenAt', 'battery', 'charging', 'model',
-                         'platform', 'appVersion', 'online']);
+        allow update: if (canStaff(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['label', 'driver', 'note']))
+          || (canDevice(tenantId)
+            && request.auth.uid == deviceId
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['lastSeenAt', 'battery', 'charging', 'model',
+                           'platform', 'appVersion', 'online']));
+        // Note the absence of the low-battery mark: it is the server's, written
+        // when the warning goes out. A device that could clear it could silence
+        // its own warning by going flat quietly.
         allow create, delete: if false;
       }
 

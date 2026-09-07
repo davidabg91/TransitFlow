@@ -216,6 +216,110 @@ export const deleteStaffUser = fn.https.onCall(async (data, context) => {
  * token as a `device` role. From then on its scans carry a company and the
  * rules can check them, without a driver ever typing a password.
  */
+// ─────────────────────────────────────────────────────────────────────────────
+// Watching the fleet
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Warn at this much charge left. */
+const LOW_BATTERY = 20;
+/** And do not warn again until it has recovered to here. Without the gap a
+ *  terminal sitting at exactly the threshold would send a warning every scan. */
+const BATTERY_RECOVERED = 30;
+/** A terminal that has not reported for this long is off, or out of signal.
+ *  Either way its charge is old news and nobody should be told about it. */
+const STALE_MS = 15 * 60 * 1000;
+
+/**
+ * Tells the office when a terminal is about to go flat.
+ *
+ * On a schedule rather than on every heartbeat: a terminal reports once a minute,
+ * so reacting to each report would mean waking a function sixty times an hour per
+ * bus to learn nothing. Half-hourly is well ahead of a battery, which takes hours
+ * to fall.
+ *
+ * Only devices that are actually awake are considered. A bus parked overnight
+ * stopped reporting hours ago, and waking a manager at three in the morning about
+ * a terminal nobody is holding is how people learn to ignore notifications.
+ */
+export const checkDeviceBatteries = fn.pubsub
+    .schedule("every 30 minutes")
+    .timeZone("Europe/Sofia")
+    .onRun(async () => {
+        const devices = await db().collectionGroup("devices").get();
+        const now = Date.now();
+
+        // Grouped by company: the people to tell are that company's, and its
+        // push tokens are worth fetching once however many buses are low.
+        const lowByTenant = new Map<string, { label: string; battery: number }[]>();
+        const writes: Promise<unknown>[] = [];
+
+        devices.forEach((snap) => {
+            const d = snap.data();
+            const tenantId = String(d.tenant || "");
+            if (!tenantId) return;
+
+            const battery = typeof d.battery === "number" ? Math.round(d.battery) : null;
+            const seen = Date.parse(String(d.lastSeenAt || ""));
+            const awake = !isNaN(seen) && now - seen < STALE_MS;
+            const alerted = !!d.lowBatteryAlertedAt;
+
+            // Charging is a recovery in itself: somebody has already dealt with it.
+            if (alerted && (d.charging === true || (battery !== null && battery >= BATTERY_RECOVERED))) {
+                writes.push(snap.ref.update({ lowBatteryAlertedAt: admin.firestore.FieldValue.delete() }));
+                return;
+            }
+
+            if (!awake || alerted || d.charging === true) return;
+            if (battery === null || battery > LOW_BATTERY) return;
+
+            const list = lowByTenant.get(tenantId) || [];
+            list.push({ label: String(d.label || "Терминал"), battery });
+            lowByTenant.set(tenantId, list);
+            writes.push(snap.ref.update({ lowBatteryAlertedAt: nowIso() }));
+        });
+
+        for (const [tenantId, low] of lowByTenant) {
+            const tokensSnap = await tenantRef(tenantId)
+                .collection("admin_push_tokens")
+                .where("deviceAlerts", "==", true)
+                .get();
+            const tokens: string[] = [];
+            tokensSnap.forEach((t) => { const tok = t.data().token; if (tok) tokens.push(tok); });
+            if (tokens.length === 0) continue;
+
+            // One notification per company, not per bus: three terminals going
+            // flat at the end of a shift is one thing to deal with, not three.
+            const title = low.length === 1 ? "🔋 Нисък заряд" : `🔋 Нисък заряд — ${low.length} устройства`;
+            const body = low.length === 1
+                ? `${low[0].label} е на ${low[0].battery}% батерия.`
+                : low.map((d) => `${d.label} — ${d.battery}%`).join(", ") + ".";
+
+            const response = await admin.messaging().sendEachForMulticast({
+                notification: { title, body },
+                webpush: {
+                    notification: { title, body, ...notificationIcons, tag: `battery-${tenantId}` },
+                    fcmOptions: { link: `${PLATFORM_URL}/#/admin?tab=devices` },
+                },
+                android: { notification: { icon: "stock_white_24dp", color: "#ff9800" } },
+                tokens,
+            });
+
+            response.responses.forEach((res, i) => {
+                if (!res.success) {
+                    const code = res.error?.code;
+                    if (code === "messaging/registration-token-not-registered" ||
+                        code === "messaging/invalid-registration-token") {
+                        tokensSnap.docs[i].ref.delete().catch(() => { /* ignore */ });
+                    }
+                }
+            });
+        }
+
+        await Promise.all(writes);
+        return null;
+    });
+
+
 /**
  * A one-time code that lets a terminal join a company.
  *

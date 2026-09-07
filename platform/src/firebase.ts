@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
 import { initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
@@ -19,7 +19,15 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+// Where the signed-in account is kept, said out loud rather than left to the
+// default. A terminal on a bus signs in once, with a code somebody types in by
+// hand; if that were ever to land in memory only, switching the device off would
+// throw it out of the system and the driver could not work until an
+// administrator was found. IndexedDB survives a restart in the Android WebView;
+// localStorage is the fallback for anything that has no IndexedDB.
+export const auth = initializeAuth(app, {
+    persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+});
 
 import { persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 // Enabling persistence for INSTANT sub-second loading on myPOS terminals

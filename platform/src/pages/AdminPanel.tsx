@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
-    Hash, Users, PlusCircle, ExternalLink, Smartphone, BatteryFull, BatteryLow, Wifi, WifiOff, Copy, 
+    Hash, Users, PlusCircle, ExternalLink, Smartphone, BatteryFull, BatteryLow, Wifi, WifiOff, Copy, Pencil, UserRound, 
     Trash2, XCircle, Clock, DollarSign, 
     RefreshCw, List, 
     ShieldCheck, Shield, TrendingUp,
@@ -48,7 +48,8 @@ import { coversDate, coversMonth, formatSpanBG, spanEndDay, spanSortKey } from '
 import { useRollups, monthOf, takingsOn, issuedOn } from '../tenant/rollups';
 // `isOnline` here would collide with the panel's own — that one is about the
 // browser's connection, this one about a terminal's silence.
-import { useDevices, isOnline as deviceAwake, lastSeenText, type Device } from '../tenant/devices';
+import { useDevices, isOnline as deviceAwake, lastSeenText, renameDevice, type Device } from '../tenant/devices';
+import DeviceAlertsButton from '../components/DeviceAlertsButton';
 import { getCountFromServer } from 'firebase/firestore';
 import { localToday } from '../components/PeriodPicker';
 import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanProblem, spanStartDay } from '../components/PeriodPicker';
@@ -388,6 +389,9 @@ const AdminPanel: React.FC = () => {
     const [deviceCode, setDeviceCode] = useState<{ code: string; label: string } | null>(null);
     const [deviceLabel, setDeviceLabel] = useState('');
     const [deviceBusy, setDeviceBusy] = useState(false);
+    const [renaming, setRenaming] = useState<Device | null>(null);
+    const [renameLabel, setRenameLabel] = useState('');
+    const [renameDriver, setRenameDriver] = useState('');
     // The общини and schools this company works in, from its own settings.
     const places = usePlaces();
     // The rosters it agreed with its община, against which service cards are checked.
@@ -1625,6 +1629,22 @@ const AdminPanel: React.FC = () => {
             setMessage({ text: (e as { message?: string }).message || 'Кодът не беше издаден.', type: 'error' });
         } finally {
             setDeviceBusy(false);
+        }
+    };
+
+    const openRename = (device: Device) => {
+        setRenameLabel(device.label);
+        setRenameDriver(device.driver);
+        setRenaming(device);
+    };
+
+    const saveRename = async () => {
+        if (!renaming) return;
+        try {
+            await renameDevice(renaming.id, { label: renameLabel, driver: renameDriver });
+            setRenaming(null);
+        } catch (e) {
+            setMessage({ text: (e as { message?: string }).message || 'Промяната не се запази.', type: 'error' });
         }
     };
 
@@ -4629,6 +4649,10 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                 </div>
                             )}
 
+                            <div style={{ marginTop: '1.25rem' }}>
+                                <DeviceAlertsButton />
+                            </div>
+
                             {/* Adding one */}
                             <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', margin: '1.25rem 0' }}>
                                 <input
@@ -4703,6 +4727,13 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                         <div style={{ fontWeight: 800, fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                             {device.label}
                                                         </div>
+                                                        {device.driver && (
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                                                fontSize: '0.82rem', color: '#b39dff', marginTop: '0.25rem',
+                                                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                <UserRound size={13} /> {device.driver}
+                                                            </div>
+                                                        )}
                                                         <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                                                             {device.model || 'неизвестен модел'}
                                                             {device.appVersion ? ` · ${device.appVersion}` : ''}
@@ -4751,6 +4782,15 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                                                         Обади се {lastSeenText(device)}
                                                     </span>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                    <button
+                                                        onClick={() => openRename(device)}
+                                                        title="Преименувай / смени шофьора"
+                                                        style={{ background: 'none', border: 'none', color: 'var(--text-secondary)',
+                                                            cursor: 'pointer', display: 'flex', padding: '2px' }}
+                                                    >
+                                                        <Pencil size={15} />
+                                                    </button>
                                                     <button
                                                         onClick={() => removeDevice(device)}
                                                         title="Премахни устройството"
@@ -4759,6 +4799,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                                     >
                                                         <Trash2 size={15} />
                                                     </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
@@ -4766,6 +4807,77 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                 </div>
                             )}
                         </Card>
+
+                        {renaming && (
+                            <div
+                                onClick={() => setRenaming(null)}
+                                style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex',
+                                    alignItems: 'center', justifyContent: 'center', padding: '1.5rem',
+                                    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+                            >
+                                <div
+                                    onClick={e => e.stopPropagation()}
+                                    className="glass"
+                                    style={{ width: '100%', maxWidth: '26rem', padding: '1.75rem',
+                                        borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '1rem' }}
+                                >
+                                    <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                        <Pencil size={19} /> Име на устройството
+                                    </h3>
+                                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                                        Устройството не знае в кой автобус е, нито кой го държи.
+                                        Тук му го казвате.
+                                    </p>
+
+                                    <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                                        Устройство
+                                        <input
+                                            value={renameLabel}
+                                            onChange={e => setRenameLabel(e.target.value)}
+                                            placeholder="напр. Автобус 4"
+                                            autoFocus
+                                            style={{ width: '100%', marginTop: '0.35rem', padding: '0.7rem 0.9rem',
+                                                background: 'rgba(0,0,0,0.25)', color: '#fff', fontWeight: 400,
+                                                border: '1px solid var(--surface-border)', borderRadius: '11px',
+                                                outline: 'none', boxSizing: 'border-box' }}
+                                        />
+                                    </label>
+
+                                    <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                                        Шофьор
+                                        <input
+                                            value={renameDriver}
+                                            onChange={e => setRenameDriver(e.target.value)}
+                                            onKeyDown={e => { if (e.key === 'Enter') saveRename(); }}
+                                            placeholder="напр. Иван Петров"
+                                            style={{ width: '100%', marginTop: '0.35rem', padding: '0.7rem 0.9rem',
+                                                background: 'rgba(0,0,0,0.25)', color: '#fff', fontWeight: 400,
+                                                border: '1px solid var(--surface-border)', borderRadius: '11px',
+                                                outline: 'none', boxSizing: 'border-box' }}
+                                        />
+                                    </label>
+
+                                    <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.35rem' }}>
+                                        <button
+                                            onClick={() => setRenaming(null)}
+                                            style={{ flex: 1, padding: '0.75rem', borderRadius: '11px',
+                                                background: 'rgba(255,255,255,0.06)', color: '#fff',
+                                                border: '1px solid var(--surface-border)', fontWeight: 700, cursor: 'pointer' }}
+                                        >
+                                            Откажи
+                                        </button>
+                                        <button
+                                            onClick={saveRename}
+                                            style={{ flex: 1, padding: '0.75rem', borderRadius: '11px',
+                                                background: 'rgba(124,77,255,0.16)', color: '#b39dff',
+                                                border: '1px solid rgba(124,77,255,0.45)', fontWeight: 800, cursor: 'pointer' }}
+                                        >
+                                            Запази
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 

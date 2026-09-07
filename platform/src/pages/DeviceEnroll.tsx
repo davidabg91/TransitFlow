@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { signInAnonymously } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { Smartphone, BatteryFull, Wifi, WifiOff, Loader2, CheckCircle2 } from 'lucide-react';
+import { Smartphone, BatteryFull, Wifi, WifiOff, Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import app, { auth } from '../firebase';
 import { FUNCTIONS_REGION } from '../tenant/db';
@@ -25,6 +25,21 @@ import logo from '../assets/logo_main.png';
 
 const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
+/**
+ * That this device has been enrolled — the one thing it must not forget.
+ *
+ * The code is typed once, by whoever set the terminal up, and after that the
+ * driver is on his own. If the app ever came back to the code screen he could
+ * not work until somebody in the office was reached, so the screen asks only
+ * when this has never been written. Everything else — no signal, a slow start,
+ * a token that needs renewing — is a wait, not a question.
+ */
+const ENROLLED_KEY = 'tf_device_enrolled';
+
+const wasEnrolled = () => {
+    try { return localStorage.getItem(ENROLLED_KEY) === '1'; } catch { return false; }
+};
+
 const DeviceEnroll: React.FC = () => {
     const { currentUser, loading, refreshClaims } = useAuth();
     const enrolled = currentUser?.role === 'device';
@@ -35,6 +50,16 @@ const DeviceEnroll: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [reading, setReading] = useState<Reading | null>(null);
     const [offline, setOffline] = useState(isOffline());
+    const [everEnrolled, setEverEnrolled] = useState(wasEnrolled);
+    // The way back, for the one case that is not a wait: a device the company
+    // has removed, or one being moved to another company. Deliberately awkward.
+    const [askAgain, setAskAgain] = useState(false);
+
+    useEffect(() => {
+        if (!enrolled) return;
+        try { localStorage.setItem(ENROLLED_KEY, '1'); } catch { /* blocked */ }
+        setEverEnrolled(true);
+    }, [enrolled]);
 
     // Anonymous sign-in gives the device an account for the company to be
     // attached to. Nothing can be read with it until a code is accepted.
@@ -84,6 +109,9 @@ const DeviceEnroll: React.FC = () => {
             // The claim is new. Nothing else will pick it up — the auth listener
             // ran back when this account was anonymous and belonged to nobody.
             await refreshClaims();
+            try { localStorage.setItem(ENROLLED_KEY, '1'); } catch { /* blocked */ }
+            setEverEnrolled(true);
+            setAskAgain(false);
             setCode('');
         } catch (e) {
             setError((e as { message?: string }).message || 'Кодът не беше приет.');
@@ -98,10 +126,38 @@ const DeviceEnroll: React.FC = () => {
         padding: '2rem 1.5rem', gap: '1.5rem', textAlign: 'center',
     };
 
+    const spinner = (
+        <Loader2 size={34} style={{ color: 'var(--text-secondary)', animation: 'tfd-spin 1s linear infinite' }} />
+    );
+
     if (loading) {
+        return <div style={shell}>{spinner}<Keyframes /></div>;
+    }
+
+    // Enrolled once, but not confirmed yet — no signal, or a token being
+    // renewed. A wait, and it says so. It never asks for the code again on its
+    // own: that is what would strand a driver at the start of a shift.
+    if (everEnrolled && !enrolled && !askAgain) {
         return (
             <div style={shell}>
-                <Loader2 size={34} style={{ color: 'var(--text-secondary)', animation: 'tfd-spin 1s linear infinite' }} />
+                <img src={logo} alt="TransitFlow" style={{ height: '48px', opacity: 0.85 }} />
+                {spinner}
+                <div style={{ fontSize: '1rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: '28rem' }}>
+                    Свързване със системата…
+                    <br />
+                    Устройството вече е зачислено. Няма нужда от код.
+                </div>
+                <button
+                    onClick={() => setAskAgain(true)}
+                    style={{
+                        marginTop: '2rem', background: 'none', border: 'none',
+                        color: 'var(--text-secondary)', opacity: 0.45, fontSize: '0.75rem',
+                        textDecoration: 'underline', cursor: 'pointer',
+                    }}
+                >
+                    Зачисли към друга фирма
+                </button>
+                <Keyframes />
             </div>
         );
     }
@@ -220,14 +276,31 @@ const DeviceEnroll: React.FC = () => {
                     : <><CheckCircle2 size={19} /> Зачисли устройството</>}
             </button>
 
-            <style>{`
-                @keyframes tfd-spin { to { transform: rotate(360deg); } }
-                @media (prefers-reduced-motion: reduce) {
-                    [style*="tfd-spin"] { animation: none !important; }
-                }
-            `}</style>
+            {askAgain && (
+                <button
+                    onClick={() => setAskAgain(false)}
+                    style={{
+                        background: 'none', border: 'none', color: 'var(--text-secondary)',
+                        opacity: 0.55, fontSize: '0.8rem', cursor: 'pointer',
+                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                    }}
+                >
+                    <RefreshCw size={13} /> Назад
+                </button>
+            )}
+
+            <Keyframes />
         </div>
     );
 };
+
+const Keyframes = () => (
+    <style>{`
+        @keyframes tfd-spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) {
+            [style*="tfd-spin"] { animation: none !important; }
+        }
+    `}</style>
+);
 
 export default DeviceEnroll;

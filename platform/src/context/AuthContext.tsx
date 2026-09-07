@@ -52,6 +52,37 @@ interface AuthContextType {
 }
 
 /**
+ * The last claims we managed to read, kept between runs.
+ *
+ * A terminal starts up wherever the bus happens to be, which is sometimes a
+ * place with no signal. Its account is still on the device, but an expired token
+ * can only be renewed over the network, and the read throws. Without this the
+ * app would conclude the device belongs to nobody and ask the driver for an
+ * enrolment code he does not have, in a bus that is about to leave.
+ *
+ * This is for keeping the screen right, not for granting anything. Every read
+ * and write still goes to the server with the real token, and the rules decide;
+ * a stale claim here opens no door.
+ */
+const CLAIMS_CACHE_KEY = 'tf_last_claims';
+
+interface CachedClaims { uid: string; tenant: string | null; role?: UserRole }
+
+const readCachedClaims = (uid: string): CachedClaims | null => {
+    try {
+        const raw = localStorage.getItem(CLAIMS_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as CachedClaims;
+        // Only ever for the account that is actually signed in.
+        return parsed?.uid === uid ? parsed : null;
+    } catch { return null; }
+};
+
+const writeCachedClaims = (claims: CachedClaims) => {
+    try { localStorage.setItem(CLAIMS_CACHE_KEY, JSON.stringify(claims)); } catch { /* full or blocked */ }
+};
+
+/**
  * What a terminal looks like to the rest of the app.
  *
  * There is no account behind it to describe — it signed in anonymously and was
@@ -103,10 +134,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     // must happen before anything queries Firestore — every path is
                     // built from the active company.
                     setSignedInEmail(fbUser.email || null);
-                    const token = await fbUser.getIdTokenResult();
-                    const claimedTenant = (token.claims.tenant as string | undefined) || null;
-                    const claimedRole = token.claims.role as UserRole | undefined;
-                    const platformAdmin = token.claims.platformAdmin === true;
+
+                    let claimedTenant: string | null = null;
+                    let claimedRole: UserRole | undefined;
+                    let platformAdmin = false;
+                    try {
+                        const token = await fbUser.getIdTokenResult();
+                        claimedTenant = (token.claims.tenant as string | undefined) || null;
+                        claimedRole = token.claims.role as UserRole | undefined;
+                        platformAdmin = token.claims.platformAdmin === true;
+                        writeCachedClaims({ uid: fbUser.uid, tenant: claimedTenant, role: claimedRole });
+                    } catch (err) {
+                        // Almost always no network on a cold start. The account is
+                        // still here and still belongs where it did; carry on with
+                        // what it was last known to be, and let the server refuse
+                        // anything that is no longer true.
+                        const cached = readCachedClaims(fbUser.uid);
+                        if (!cached) throw err;
+                        console.warn('Token unreadable; using the last known claims.', err);
+                        claimedTenant = cached.tenant;
+                        claimedRole = cached.role;
+                    }
                     setIsPlatformAdmin(platformAdmin);
 
                     if (!claimedTenant) {
@@ -230,6 +278,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsPlatformAdmin(token.claims.platformAdmin === true);
         setActiveTenant(claimedTenant);
         setTenantId(claimedTenant);
+        // A terminal reaches this line seconds after being enrolled, and may be
+        // switched off a minute later. Remember what it now is before that.
+        writeCachedClaims({
+            uid: fbUser.uid,
+            tenant: claimedTenant,
+            role: token.claims.role as UserRole | undefined,
+        });
         // A terminal calls this the moment it is enrolled. Its claim is new, and
         // nothing else will set it up: the auth listener already ran, back when
         // this account was anonymous and belonged to nobody.

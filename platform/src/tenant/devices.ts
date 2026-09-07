@@ -28,6 +28,9 @@ export const HEARTBEAT_MS = 60 * 1000;
 export interface Device {
     id: string;
     label: string;
+    /** Who is driving it. The office writes this; the device cannot know. */
+    driver: string;
+    note: string;
     model: string;
     platform: string;
     appVersion: string;
@@ -41,6 +44,8 @@ export interface Device {
 const normalise = (id: string, d: Record<string, unknown>): Device => ({
     id,
     label: String(d.label || 'Терминал'),
+    driver: String(d.driver || ''),
+    note: String(d.note || ''),
     model: String(d.model || ''),
     platform: String(d.platform || ''),
     appVersion: String(d.appVersion || ''),
@@ -67,6 +72,21 @@ export const lastSeenText = (device: Device, now = Date.now()): string => {
     const hours = Math.round(mins / 60);
     if (hours < 24) return `преди ${hours} ч`;
     return `преди ${Math.round(hours / 24)} дни`;
+};
+
+/**
+ * Names a device: which bus it is, and who is driving it today.
+ *
+ * The office does this, not the device — a terminal has no way of knowing whose
+ * hands it is in, and a fleet of identically named terminals is exactly as
+ * useful as no names at all.
+ */
+export const renameDevice = async (id: string, fields: { label?: string; driver?: string; note?: string }) => {
+    const patch: Record<string, string> = {};
+    if (fields.label !== undefined) patch.label = fields.label.trim().slice(0, 60) || 'Терминал';
+    if (fields.driver !== undefined) patch.driver = fields.driver.trim().slice(0, 60);
+    if (fields.note !== undefined) patch.note = fields.note.trim().slice(0, 200);
+    await updateDoc(doc(db, 'devices', id), patch);
 };
 
 export const useDevices = () => {
