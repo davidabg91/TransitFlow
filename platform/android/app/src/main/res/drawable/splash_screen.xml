@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What the terminal shows in the moment between being tapped and being ready.
+
+  A name of its own rather than the template's `splash`, which exists in a dozen
+  density folders and would have quietly overridden this on most screens. The
+  mark is the same one the launcher uses, on the same ground, so the opening
+  frame and the icon the driver just pressed are visibly the same thing.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splash_background" />
+    <item>
+        <bitmap
+            android:src="@mipmap/ic_launcher_foreground"
+            android:gravity="center" />
+    </item>
+</layer-list>

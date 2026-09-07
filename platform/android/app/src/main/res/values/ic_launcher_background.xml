@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- The artwork's own ground. It was white, which is what turned the
+         launcher icon into a pale square and the opening screen into a white
+         flash before anything had loaded. -->
+    <color name="ic_launcher_background">#0B1120</color>
+    <color name="splash_background">#0B1120</color>
 </resources>

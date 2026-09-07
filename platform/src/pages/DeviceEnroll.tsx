@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { signInAnonymously } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { Smartphone, BatteryFull, Wifi, WifiOff, Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Smartphone, BatteryFull, Wifi, WifiOff, Loader2, CheckCircle2, RefreshCw, ArrowUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import app, { auth } from '../firebase';
 import { FUNCTIONS_REGION } from '../tenant/db';
@@ -163,43 +163,63 @@ const DeviceEnroll: React.FC = () => {
         );
     }
 
-    // ── Enrolled: the standby screen ────────────────────────────────────────
+    // ── Enrolled: what a passenger sees ────────────────────────────────────
     if (enrolled) {
         const battery = reading?.battery;
         return (
-            <div style={shell}>
-                <img src={logo} alt="TransitFlow" style={{ height: '56px', opacity: 0.9 }} />
+            <div style={{
+                minHeight: '100vh', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', textAlign: 'center',
+                padding: '1.5rem 1.25rem 1.25rem', boxSizing: 'border-box',
+            }}>
+                {/* The reader is behind the top edge of the device, so this is
+                    what the screen is for: pointing at it. The arrow sits as
+                    high as it can and moves towards the thing it means. */}
+                <ArrowUp size={64} strokeWidth={2.5} color="#20C0DA" style={{ animation: 'tfd-rise 1.8s ease-in-out infinite' }} />
 
-                <div style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '0.55rem',
-                    padding: '0.6rem 1.3rem', borderRadius: '50px',
-                    background: offline ? 'rgba(255,82,82,0.12)' : 'rgba(0,200,83,0.12)',
-                    border: `1px solid ${offline ? 'rgba(255,82,82,0.4)' : 'rgba(0,200,83,0.4)'}`,
-                    color: offline ? '#ff5252' : '#00c853', fontWeight: 800, letterSpacing: '0.05em',
+                <ContactlessMark />
+
+                <h1 style={{
+                    margin: '1.5rem 0 0', fontSize: 'clamp(1.5rem, 7vw, 2.1rem)',
+                    fontWeight: 900, lineHeight: 1.2, letterSpacing: '-0.01em',
                 }}>
-                    {offline ? <WifiOff size={17} /> : <Wifi size={17} />}
-                    {offline ? 'БЕЗ ВРЪЗКА' : 'СВЪРЗАН'}
+                    Допрете картата<br />отгоре
+                </h1>
+
+                <p style={{
+                    margin: '0.85rem 0 0', maxWidth: '22rem',
+                    fontSize: 'clamp(0.95rem, 4vw, 1.1rem)', lineHeight: 1.55,
+                    color: 'rgba(255,255,255,0.62)',
+                }}>
+                    В най-горния край на устройството, при този знак.
+                </p>
+
+                {/* Pushed to the bottom and kept quiet: this is the driver's
+                    business, and a passenger has no use for it. */}
+                <div style={{ flex: 1 }} />
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    gap: '0.9rem', flexWrap: 'wrap', paddingTop: '1rem', width: '100%',
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                    fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)',
+                }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        {offline ? <WifiOff size={13} /> : <Wifi size={13} />}
+                        {offline ? 'без връзка' : 'свързан'}
+                    </span>
+                    {battery !== null && battery !== undefined && (
+                        <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                            fontVariantNumeric: 'tabular-nums',
+                            color: battery <= 20 && !reading?.charging ? '#ff5252' : undefined,
+                        }}>
+                            <BatteryFull size={13} />
+                            {battery}%{reading?.charging ? ' ⚡' : ''}
+                        </span>
+                    )}
                 </div>
 
-                <div style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: '30rem' }}>
-                    Устройството е зачислено и готово за работа.
-                    {offline && <><br />Работи и без интернет. Ще се обади, щом има връзка.</>}
-                </div>
-
-                {battery !== null && battery !== undefined && (
-                    <div style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-                        color: battery <= 20 && !reading?.charging ? '#ff5252' : 'var(--text-secondary)',
-                        fontVariantNumeric: 'tabular-nums', fontWeight: 700,
-                    }}>
-                        <BatteryFull size={18} />
-                        {battery}%{reading?.charging ? ' ⚡' : ''}
-                    </div>
-                )}
-
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', opacity: 0.65, marginTop: '1rem' }}>
-                    Поднесете карта към четеца.
-                </div>
+                <Keyframes />
             </div>
         );
     }
@@ -305,11 +325,42 @@ const DeviceEnroll: React.FC = () => {
     );
 };
 
+/**
+ * The contactless mark, drawn rather than photographed.
+ *
+ * The same four arcs that are moulded into the top of the terminal. A passenger
+ * who has never used the system reads the symbol on the case and the symbol on
+ * the screen as one instruction, which is the whole point of putting it here —
+ * words alone would have to be read, and in a moving bus they will not be.
+ */
+const ContactlessMark = () => (
+    <svg width="118" height="118" viewBox="0 0 22 32" fill="none" aria-hidden="true"
+         style={{ marginTop: '1.5rem' }}>
+        {[
+            'M 5.68 13.03 A 4.0 4.0 0 0 1 5.68 18.97',
+            'M 8.75 9.61 A 8.6 8.6 0 0 1 8.75 22.39',
+            'M 11.83 6.19 A 13.2 13.2 0 0 1 11.83 25.81',
+            'M 14.91 2.77 A 17.8 17.8 0 0 1 14.91 29.23',
+        ].map((d, i) => (
+            <path
+                key={d}
+                d={d}
+                stroke="#20C0DA"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                style={{ animation: `tfd-wave 1.8s ease-in-out ${i * 0.16}s infinite` }}
+            />
+        ))}
+    </svg>
+);
+
 const Keyframes = () => (
     <style>{`
         @keyframes tfd-spin { to { transform: rotate(360deg); } }
+        @keyframes tfd-rise { 0%, 100% { transform: translateY(4px); } 50% { transform: translateY(-6px); } }
+        @keyframes tfd-wave { 0%, 100% { opacity: 0.25; } 45% { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) {
-            [style*="tfd-spin"] { animation: none !important; }
+            [style*="tfd-spin"], [style*="tfd-rise"], [style*="tfd-wave"] { animation: none !important; }
         }
     `}</style>
 );
