@@ -187,6 +187,17 @@ KEY_SLOTS = (
 )
 
 
+# What the reader says when the card is no longer on it. This is the ordinary
+# outcome of moving a card across too quickly, not a fault worth reporting in
+# detail — the person just needs to hold it a moment longer.
+CARD_GONE = ("0x80100069", "has been removed", "no smart card")
+
+
+def card_was_lifted(error) -> bool:
+    text = str(error).lower()
+    return any(mark.lower() in text for mark in CARD_GONE)
+
+
 def read_mifare_classic(connection, renew=None, log=None):
     """
     The memory of a MIFARE Classic card.
@@ -237,6 +248,8 @@ def read_mifare_classic(connection, renew=None, log=None):
                     [0xFF, 0x82, p1, slot, 0x06] + list(key)
                 )
             except Exception as e:
+                if card_was_lifted(e):
+                    return b"", ("gone", tried), tried
                 note(f"{key_name} [{p1:02X}/{slot}]: зареждането хвърли — {e}")
                 active = None
                 continue
@@ -266,6 +279,8 @@ def read_mifare_classic(connection, renew=None, log=None):
                         [0xFF, 0x86, 0x00, 0x00, 0x05, 0x01, 0x00, 0x04, key_type, slot]
                     )
                 except Exception as e:
+                    if card_was_lifted(e):
+                        return b"", ("gone", tried), tried
                     note(f"{key_name} ключ {label} [{p1:02X}/{slot}]: "
                          f"удостоверяването хвърли — {e}")
                     active = None
@@ -280,6 +295,7 @@ def read_mifare_classic(connection, renew=None, log=None):
                 # Authenticated. Read what the card holds.
                 raw = bytearray()
                 stopped_at = None
+                lifted = False
                 for sector in range(1, 16):
                     sector_start = sector * 4
                     if sector > 1:
@@ -291,7 +307,8 @@ def read_mifare_classic(connection, renew=None, log=None):
                             if (b1, b2) != (0x90, 0x00):
                                 stopped_at = sector
                                 break
-                        except Exception:
+                        except Exception as e:
+                            lifted = card_was_lifted(e)
                             stopped_at = sector
                             break
                     for block in (sector_start, sector_start + 1, sector_start + 2):
@@ -299,7 +316,8 @@ def read_mifare_classic(connection, renew=None, log=None):
                             data, r1, r2 = connection.transmit(
                                 [0xFF, 0xB0, 0x00, block, 0x10]
                             )
-                        except Exception:
+                        except Exception as e:
+                            lifted = card_was_lifted(e)
                             stopped_at = sector
                             break
                         if (r1, r2) != (0x90, 0x00):
@@ -310,6 +328,12 @@ def read_mifare_classic(connection, renew=None, log=None):
                         break
 
                 if raw:
+                    # A card taken away mid-read leaves a piece of the message.
+                    # If enough of it arrived to hold the address, that is a good
+                    # read; if not, the person simply moved too fast and should
+                    # be told that rather than shown a broken card.
+                    if lifted and not extract_ndef_url(bytes(raw)):
+                        return b"", ("gone", tried), tried
                     return bytes(raw), ("MIFARE Classic",
                                         f"{key_name} ключ {label}"), tried
                 note(f"{key_name} ключ {label} [{p1:02X}/{slot}]: "
@@ -353,6 +377,8 @@ def read_card_memory(connection, open_connection=None):
                 else:
                     break
             except Exception as e:
+                if card_was_lifted(e):
+                    return b"", ("gone", [])
                 last_status = str(e)
                 break
         if raw:
@@ -539,6 +565,19 @@ class ReaderThread(QThread):
                 memory, status = read_card_memory(connection, open_connection)
                 url = extract_ndef_url(memory)
                 if not url:
+                    if isinstance(status, tuple) and status[0] == "gone":
+                        # Nothing is wrong. Say so plainly and wait for the next
+                        # attempt rather than filling the log with diagnostics.
+                        self.history.emit(
+                            "Картата беше вдигната твърде рано — задръжте я малко "
+                            "по-дълго върху четеца.", False)
+                        self.scan_status.emit(
+                            "✋", "Задръжте картата", WARN,
+                            "Вдигната е, преди да бъде прочетена")
+                        time.sleep(1.5)
+                        self.scan_status.emit("📡", "Готов за сканиране", CYAN,
+                                              "Поставете карта върху четеца")
+                        continue
                     if not memory:
                         reason = ("Картата не дава достъп до паметта си "
                                   "с познатите ключове.")
