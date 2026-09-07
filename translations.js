@@ -540,6 +540,8 @@ window.translations = {
         "soft-5-p": "При загубена карта я блокирате и прехвърляте профила и баланса върху нова за секунди.",
         "soft-6-h": "Търсене и История",
         "soft-6-p": "Намерете всеки клиент моментално и вижте пълната история на плащанията и заверките.",
+        "soft-dl": "Изтегли за компютър",
+        "soft-dl-note": "Windows · 170 MB · включва драйвера за четеца",
 
         // myPOS Section
         "mypos-badge": "ПАРТНЬОРСКА ИНТЕГРАЦИЯ",
@@ -1390,6 +1392,8 @@ window.translations = {
         "soft-5-p": "If a card is lost, block it and transfer the profile and balance to a new one in seconds.",
         "soft-6-h": "Search & History",
         "soft-6-p": "Find any customer instantly and view the full history of payments and validations.",
+        "soft-dl": "Download for PC",
+        "soft-dl-note": "Windows · 170 MB · card reader driver included",
 
         "mypos-badge": "PARTNER INTEGRATION",
         "mypos-h2": "Professional <span class=\"gradient-text\">Terminal Solutions</span> from Our Partners",
