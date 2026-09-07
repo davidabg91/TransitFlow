@@ -2064,7 +2064,9 @@ const AdminPanel: React.FC = () => {
                         </div>
                         {isAdmin && (
                             <a 
-                                href="https://drive.google.com/drive/folders/1r666nS3BCGAV9WVNm69aiOTtdyyAp4IB?usp=sharing"
+                                // The installer itself, not a folder to hunt through: one file, with the
+                                // Microsoft runtime and the reader driver already inside it.
+                                href="https://drive.google.com/file/d/1u4rbjDTyvusWcmHx7peMwH635DcKf4Yw/view?usp=drive_link"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 style={{ 
