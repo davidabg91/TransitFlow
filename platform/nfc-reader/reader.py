@@ -484,18 +484,34 @@ class ReaderThread(QThread):
                     continue
                 self.last_uid, self.last_time = uid, now
 
+                # One connection at a time. The reader hands out a single
+                # link to the card, so a new one cannot be opened while the
+                # last is still held — asking anyway is refused, and the refusal
+                # looks exactly like a card that was taken off the antenna.
+                held = [connection]
+
                 def open_connection():
                     """
-                    A new connection to the card sitting on the reader.
+                    Let go of the current link and take a fresh one.
 
-                    Reviving a dead one does not work: once an attempt has
-                    halted the card the reader reports it as removed, even
-                    though it is lying on the antenna. A connection made afresh
-                    from the reader finds it again.
+                    Reviving a halted connection does not work: the reader
+                    reports the card as removed while it lies on the antenna.
+                    Releasing first and asking again finds it.
                     """
+                    try:
+                        if held[0] is not None:
+                            held[0].disconnect()
+                    except Exception:
+                        pass
+                    held[0] = None
+
+                    # The reader needs a moment between letting go and being
+                    # asked again, or it answers that nothing is there.
+                    time.sleep(0.05)
                     try:
                         fresh = reader.createConnection()
                         fresh.connect()
+                        held[0] = fresh
                         return fresh
                     except Exception:
                         return None
