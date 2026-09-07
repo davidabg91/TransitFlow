@@ -120,6 +120,12 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
     useEffect(() => { unregisteredRef.current = unregistered; }, [unregistered]);
     
     const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'moderator';
+    // A terminal is signed in, but it is not a member of staff. Everywhere below
+    // that asks "is somebody signed in?" was really asking "is a person from the
+    // company standing here?", and until terminals had accounts those were the
+    // same question. They are not any more: a bus would otherwise offer a
+    // passenger the buttons that renew their own card.
+    const isTerminal = currentUser?.role === 'device';
 
     // 20-second inactivity guard for moderator
     useEffect(() => {
@@ -847,8 +853,11 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
                     </div>
                 </div>
 
-                {/* MANAGEMENT SECTION - BELOW THE FOLD */}
-                {!unregistered && !offlineNoData && (
+                {/* MANAGEMENT SECTION - BELOW THE FOLD
+                    Never on a terminal. What is below the fold there is a card
+                    somebody else is holding, and the answer the screen gives
+                    about it must not be something the holder can change. */}
+                {!unregistered && !offlineNoData && !isTerminal && (
                     <div style={{ width: '100%', paddingBottom: '4rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }} onClick={(e) => e.stopPropagation()}>
                         
                         {/* ADMIN / MODERATOR QUICK ACTIONS - NOW ALWAYS VISIBLE FOR ADMINS */}

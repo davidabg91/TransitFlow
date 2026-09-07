@@ -281,6 +281,14 @@ const ClientProfile: React.FC = () => {
     const [scanTime] = useState(new Date().toLocaleTimeString('bg-BG'));
     const [showPhotoModal, setShowPhotoModal] = useState(false);
     const [isRegistering, setIsRegistering] = useState(false);
+
+    // A terminal is signed in, but it is not a member of staff. Everywhere below
+    // that asks "is somebody signed in?" was really asking "is a person from the
+    // company standing here?", and until terminals had accounts those were the
+    // same question. They are not any more: a bus would otherwise offer a
+    // passenger the buttons that renew their own card.
+    const isTerminal = currentUser?.role === 'device';
+    const actingStaff = !!currentUser && !isTerminal;
     const [showLostCard, setShowLostCard] = useState(false);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     
@@ -1152,7 +1160,7 @@ const ClientProfile: React.FC = () => {
                                 </p>
                                 <Link to="/" onClick={(e) => { if (!handleModeratorGuardedAction(() => navigate('/'))) e.preventDefault(); }} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 }}>Към Начало</Link>
                             </>
-                        ) : currentUser && stockChecked && !stockCard ? (
+                        ) : actingStaff && stockChecked && !stockCard ? (
                             // Id is a full length but is NOT in the printed-card list, so it has
                             // no real card number. Block activation to avoid a numberless profile.
                             <>
@@ -1171,17 +1179,17 @@ const ClientProfile: React.FC = () => {
                         ) : (
                         <>
                             <div style={{  width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem', border: '1px solid rgba(255,255,255,0.1)' }}>
-                                <Settings size={48} color={currentUser ? "var(--primary-color)" : "rgba(255,255,255,0.2)"} />
+                                <Settings size={48} color={actingStaff ? "var(--primary-color)" : "rgba(255,255,255,0.2)"} />
                             </div>
-                            <h2 style={{ fontSize: '2rem', fontWeight: 900, marginBottom: '1rem' }}>{currentUser ? 'НОВА КАРТА' : 'НЕВАЛИДЕН АБОНАМЕНТ'}</h2>
+                            <h2 style={{ fontSize: '2rem', fontWeight: 900, marginBottom: '1rem' }}>{actingStaff ? 'НОВА КАРТА' : 'НЕВАЛИДЕН АБОНАМЕНТ'}</h2>
                             <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '2.5rem', lineHeight: '1.6' }}>
-                                {currentUser ? 'Тази карта все още не е регистрирана в системата. Можете да я активирате сега.' : 'Тази NFC карта все още не е свързана с клиентски профил. Моля, свържете се с администратор.'}
+                                {actingStaff ? 'Тази карта все още не е регистрирана в системата. Можете да я активирате сега.' : 'Тази NFC карта все още не е свързана с клиентски профил. Моля, свържете се с администратор.'}
                             </p>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                {currentUser && (
+                                {actingStaff && (
                                     <button onClick={() => setIsRegistering(true)} style={{ padding: '1.2rem', background: 'var(--primary-color)', color: '#fff', borderRadius: '50px', border: 'none', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 10px 30px rgba(0, 173, 181, 0.3)' }}>АКТИВИРАЙ КАРТАТА СЕГА</button>
                                 )}
-                                {currentUser && (
+                                {actingStaff && (
                                     <button onClick={() => setShowLostCard(true)} style={{ padding: '0.95rem', background: 'rgba(255,82,82,0.08)', color: '#ff8a8a', borderRadius: '50px', border: '1px solid rgba(255,82,82,0.3)', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer' }}>Загубена карта</button>
                                 )}
                                 <Link to="/" onClick={(e) => { if (!handleModeratorGuardedAction(() => navigate('/'))) e.preventDefault(); }} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 }}>Към Начало</Link>
