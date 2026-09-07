@@ -177,17 +177,17 @@ const DeviceEnroll: React.FC = () => {
                     high as it can and moves towards the thing it means. */}
                 <ArrowUp size={64} strokeWidth={2.5} color="#20C0DA" style={{ animation: 'tfd-rise 1.8s ease-in-out infinite' }} />
 
-                <ContactlessMark />
-
                 <h1 style={{
-                    margin: '1.5rem 0 0', fontSize: 'clamp(1.5rem, 7vw, 2.1rem)',
+                    margin: '1.75rem 0 0', fontSize: 'clamp(1.5rem, 7vw, 2.1rem)',
                     fontWeight: 900, lineHeight: 1.2, letterSpacing: '-0.01em',
                 }}>
                     Допрете картата<br />отгоре
                 </h1>
 
+                <ContactlessMark />
+
                 <p style={{
-                    margin: '0.85rem 0 0', maxWidth: '22rem',
+                    margin: '1.1rem 0 0', maxWidth: '22rem',
                     fontSize: 'clamp(0.95rem, 4vw, 1.1rem)', lineHeight: 1.55,
                     color: 'rgba(255,255,255,0.62)',
                 }}>
@@ -343,7 +343,7 @@ const DeviceEnroll: React.FC = () => {
  */
 const ContactlessMark = () => (
     <svg width="118" height="118" viewBox="0 0 22 32" fill="none" aria-hidden="true"
-         style={{ marginTop: '1.5rem' }}>
+         style={{ marginTop: '1.25rem' }}>
         {[
             'M 5.68 13.03 A 4.0 4.0 0 0 1 5.68 18.97',
             'M 8.75 9.61 A 8.6 8.6 0 0 1 8.75 22.39',

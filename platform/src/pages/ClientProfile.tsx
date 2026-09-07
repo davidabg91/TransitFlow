@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle, XCircle, Ban, Clock, Settings, Camera, AlertTriangle, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
@@ -507,6 +507,7 @@ const ClientProfile: React.FC = () => {
     const hasPlayedSound = useRef(false);
 
     const navigate = useNavigate();
+    const location = useLocation();
 
     // Quick Renewal States
     const [showQuickRenew, setShowQuickRenew] = useState(false);
@@ -680,6 +681,62 @@ const ClientProfile: React.FC = () => {
             (window as unknown as { __triggerModeratorGuard?: unknown }).__triggerModeratorGuard = undefined;
         };
     }, [currentUser?.role, client, hasMadeChange, isWarningDismissed, playErrorSound]);
+
+    /**
+     * The card this profile is holding on to.
+     *
+     * A moderator scans a card, is distracted by something, and then simply
+     * takes the next passenger's card — which changes the page under them. The
+     * profile they were meant to renew is left exactly as it was, and nobody
+     * finds out until an inspector stops that passenger weeks later.
+     *
+     * A scanned card arrives as a change of address, the same as any other way
+     * of leaving, so all of them are caught in one place: the profile puts the
+     * address back, stays where it was, and asks. The card that was scanned is
+     * kept aside and opened if the answer is to carry on.
+     */
+    const heldRef = useRef<{ path: string } | null>(null);
+
+    useEffect(() => {
+        const guarded = currentUser?.role === 'moderator' && !!client
+            && !hasMadeChange && !isWarningDismissed;
+        if (guarded) {
+            // Armed once, on the address it was armed at. A later address is a
+            // departure, not a new post to guard.
+            if (!heldRef.current) heldRef.current = { path: location.pathname };
+        } else {
+            heldRef.current = null;
+        }
+    }, [currentUser?.role, client, hasMadeChange, isWarningDismissed, location.pathname]);
+
+    useEffect(() => {
+        const held = heldRef.current;
+        if (!held || held.path === location.pathname) return;
+
+        const attempted = location.pathname;
+        // Released before the address goes back, or putting it back would read
+        // as another departure and ask the same question again.
+        heldRef.current = null;
+        navigate(held.path, { replace: true });
+
+        playErrorSound();
+        setInactivityModalReason('action');
+        setPendingAction(() => () => navigate(attempted, { replace: true }));
+        setShowInactivityModal(true);
+    }, [location.pathname, navigate, playErrorSound]);
+
+    /**
+     * Every card starts with a clean slate.
+     *
+     * These two say whether this profile has been dealt with, and nothing was
+     * clearing them. So a moderator who renewed one card and then moved to the
+     * next carried the first one's answer over: the second card, and every card
+     * after it in that sitting, went unguarded.
+     */
+    useEffect(() => {
+        setHasMadeChange(false);
+        setIsWarningDismissed(false);
+    }, [id]);
 
     // Intercept navigation / button clicks before making a change
     const handleModeratorGuardedAction = (actionCallback?: () => void) => {
