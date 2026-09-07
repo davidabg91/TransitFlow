@@ -40,6 +40,12 @@ public class TransitFlowNfcPlugin extends Plugin {
     /** A card left lying on the reader repeats; one tap should be one scan. */
     private static final long REPEAT_GUARD_MS = 1500;
 
+    /** The user memory of an NTAG213, which is the smallest chip in use. */
+    private static final int MAX_MEMORY = 144;
+
+    /** What an NDEF message ends with. */
+    private static final byte NDEF_END = (byte) 0xFE;
+
     private final AtomicBoolean scanning = new AtomicBoolean(false);
     private final AtomicBoolean bound = new AtomicBoolean(false);
     private final AtomicInteger scanCount = new AtomicInteger(0);
@@ -183,21 +189,38 @@ public class TransitFlowNfcPlugin extends Plugin {
             if (beeper != null) beeper.startTone(ToneGenerator.TONE_PROP_BEEP, 100);
 
             // Pages 4 onwards hold the NDEF message with the card's address.
-            byte[] memory = new byte[48];
-            boolean complete = true;
-            for (int i = 0; i < 3; i++) {
+            //
+            // Three chunks — 48 bytes — was the whole of what this used to read,
+            // and it is not enough. An address that names the company runs to 65
+            // bytes, so the card number, which is at the end, was being cut off
+            // entirely: the card read cleanly and then the system said it had
+            // never heard of it. Only the older short addresses fitted, and they
+            // fitted with nothing to spare.
+            //
+            // Nine chunks is the whole user memory of an NTAG213, the smallest
+            // chip these cards come on. Smaller chips simply stop answering
+            // partway, and a card that ends early is not an error — the message
+            // is over, and whatever was read is what there is.
+            byte[] memory = new byte[MAX_MEMORY];
+            int have = 0;
+            for (int i = 0; i < MAX_MEMORY / 16; i++) {
+                byte[] chunk;
                 try {
-                    byte[] chunk = UltralightManagement.getInstance()
+                    chunk = UltralightManagement.getInstance()
                             .readBlock((byte) (4 + (i * 4)), 150);
-                    if (chunk == null) { complete = false; break; }
-                    System.arraycopy(chunk, 0, memory, i * 16, 16);
                 } catch (Exception e) {
-                    complete = false;
                     break;
                 }
+                if (chunk == null || chunk.length < 16) break;
+                System.arraycopy(chunk, 0, memory, i * 16, 16);
+                have += 16;
+
+                // The message ends with a terminator, and there is no reason to
+                // keep asking the card for pages nobody is going to read.
+                if (endsHere(chunk)) break;
             }
 
-            final String url = complete ? extractUrl(memory) : null;
+            final String url = have > 0 ? extractUrl(memory, have) : null;
             final String id = tagId;
             final int count = scanCount.incrementAndGet();
 
@@ -221,9 +244,14 @@ public class TransitFlowNfcPlugin extends Plugin {
      * at the first byte that is not printable, so walking outwards from the host
      * finds the address whatever wrote it.
      */
-    private String extractUrl(byte[] data) {
+    private boolean endsHere(byte[] chunk) {
+        for (byte b : chunk) if (b == NDEF_END) return true;
+        return false;
+    }
+
+    private String extractUrl(byte[] data, int length) {
         try {
-            String raw = new String(data, "UTF-8");
+            String raw = new String(data, 0, length, "UTF-8");
             int at = raw.indexOf(CARD_HOST);
             if (at < 0) return null;
 
