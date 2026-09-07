@@ -30,20 +30,31 @@ import time
 # Must be set before anything of Qt's is touched: the embedded browser reads
 # this once, while it is starting, and ignores it afterwards.
 #
-# Why it is here at all: the page would stop redrawing after moving from one
-# screen to another. Nothing had crashed — the window was still alive, and one
-# turn of the mouse wheel brought it back — but until then it sat showing the
-# screen before it. The blurred bar at the top of the page is the trigger: on
-# the graphics drivers that come with ordinary office machines, compositing that
-# through the GPU can leave the browser waiting for a frame that never arrives.
+# Two problems, both from the graphics card, and neither of them ours to fix on
+# the machines this runs on.
 #
-# Composited on the processor instead. For a page of text and a card photo the
-# difference in speed is not visible, and the difference in reliability is the
-# whole point on a till that has to work on whatever computer is under the desk.
+# The page would come apart while scrolling — bands of one moment drawn over
+# bands of another — because the drivers that come with ordinary office machines
+# deliver the finished frames incorrectly. Drawing through a software card
+# instead takes those drivers out of the picture entirely, and unlike simply
+# turning the card off, it leaves the fast path intact: the till still scrolls
+# like a computer rather than like a slideshow.
 #
-# Overridable, so a desk that turns out to need the heavier "--disable-gpu" can
-# be given it without a new build.
-os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu-compositing")
+# The second is that a card is scanned by somebody holding a card, not by
+# somebody touching the mouse. The browser inside decides on its own that a
+# window nobody is using does not need drawing, so the profile would open into a
+# page that was still showing the one before it, until a turn of the wheel woke
+# it. The three flags after the first tell it to stay awake.
+#
+# Overridable, so a desk whose card actually works can be given the real one
+# without a new build.
+os.environ.setdefault(
+    "QTWEBENGINE_CHROMIUM_FLAGS",
+    "--use-angle=swiftshader"
+    " --disable-renderer-backgrounding"
+    " --disable-backgrounding-occluded-windows"
+    " --disable-background-timer-throttling",
+)
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QUrl, QTimer, QRectF, QCoreApplication
 from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPen, QTextCursor
