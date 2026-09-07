@@ -215,12 +215,12 @@ service cloud.firestore {
         allow create, delete: if false;
       }
 
-      match /device_codes/{code} {
-        // A code is read by the enrolment function alone, which runs as the
-        // server. Nobody signed in needs to see it — a code that could be listed
-        // would be a code anybody in the company could use to add a terminal.
-        allow read, write: if false;
-      }
+      // Enrolment codes are not here. They live in one collection at the root,
+      // because the terminal typing a code has no company yet — that is what the
+      // code is for — and because two companies holding the same six digits
+      // would put a bus in the wrong fleet. The default deny at the bottom of
+      // this file is what keeps that collection to the server alone: a code
+      // anybody could read is a code anybody could use to add a terminal.
 
       match /settings/{docId} {
         allow read: if belongs(tenantId);

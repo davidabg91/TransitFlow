@@ -328,25 +328,55 @@ export const checkDeviceBatteries = fn.pubsub
  * a code somebody read off the admin panel. The code is short enough to type on
  * a terminal's keypad, dies after one use, and expires on its own so a slip of
  * paper left in a drawer does not stay valid.
+ *
+ * The codes live in one collection at the root of the database rather than under
+ * the company that issued them. A code has to be enough on its own: the terminal
+ * typing it has no company yet, which is the entire reason it is typing. Kept
+ * per company they could only be resolved by searching every company at once —
+ * and worse, two companies could be holding the same six digits on the same
+ * evening, and a bus would have quietly joined somebody else's fleet.
+ *
+ * Nothing outside these functions can read this collection; the rules deny it by
+ * default, and it is never reached from the app.
  */
 export const issueDeviceCode = fn.https.onCall(async (data, context) => {
     const caller = requireAdmin(context);
     const label = String(data?.label || "").trim().slice(0, 60);
-
-    // Digits only: this gets typed on a bus, often in the dark.
-    const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-    await tenantRef(caller.tenant).collection("device_codes").doc(code).set({
-        code,
-        tenant: caller.tenant,
-        label,
-        createdAt: nowIso(),
-        createdBy: context.auth?.token.email || "",
-        expiresAt,
-    });
+    // Digits only: this gets typed on a bus, often in the dark. Six of them is
+    // a million codes against a handful live at any moment, so a clash is rare
+    // — but rare is not never, and the cost of one is a terminal in the wrong
+    // company, so the write refuses to land on a code that is still good.
+    for (let attempt = 0; attempt < 8; attempt++) {
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        const ref = db().collection("device_codes").doc(code);
 
-    return { code, expiresAt, label };
+        const clash = await db().runTransaction(async (tx) => {
+            const snap = await tx.get(ref);
+            const held = snap.data();
+            const stillGood = snap.exists
+                && !held?.usedAt
+                && (!held?.expiresAt || Date.parse(String(held.expiresAt)) > Date.now());
+            if (stillGood) return true;
+
+            tx.set(ref, {
+                code,
+                tenant: caller.tenant,
+                label,
+                createdAt: nowIso(),
+                createdBy: context.auth?.token.email || "",
+                expiresAt,
+            });
+            return false;
+        });
+
+        if (!clash) return { code, expiresAt, label };
+    }
+
+    throw new functions.https.HttpsError(
+        "resource-exhausted", "Кодът не можа да се издаде. Опитайте отново."
+    );
 });
 
 
@@ -357,33 +387,47 @@ export const enrollDevice = fn.https.onCall(async (data, context) => {
     const code = String(data?.code || "").trim().toUpperCase();
     if (!code) throw new functions.https.HttpsError("invalid-argument", "Липсва код за зачисляване.");
 
-    const matches = await db().collectionGroup("device_codes").where("code", "==", code).limit(1).get();
-    if (matches.empty) {
-        throw new functions.https.HttpsError("not-found", "Невалиден код.");
-    }
-    const codeDoc = matches.docs[0];
-    const codeData = codeDoc.data();
-    const tenantId = String(codeData.tenant || "");
+    // The code is the document's name, so this is a read of one known document
+    // rather than a search. That is what makes a code usable by a device that
+    // does not yet know which company it belongs to.
+    const ref = db().collection("device_codes").doc(code);
+    const uid = context.auth.uid;
 
-    if (codeData.usedAt) {
-        throw new functions.https.HttpsError("failed-precondition", "Този код вече е използван.");
-    }
-    if (codeData.expiresAt && Date.parse(String(codeData.expiresAt)) < Date.now()) {
-        throw new functions.https.HttpsError("failed-precondition", "Кодът е изтекъл.");
-    }
-
-    await admin.auth().setCustomUserClaims(context.auth.uid, { tenant: tenantId, role: "device" });
-    await codeDoc.ref.update({
-        usedAt: nowIso(),
-        deviceUid: context.auth.uid,
-        deviceLabel: String(data?.label || "").slice(0, 100),
+    // Claimed in a transaction, because one code means one terminal. Two devices
+    // typing the same digits within the same second would otherwise both read an
+    // unused code and both be let in.
+    const codeData = await db().runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists) {
+            throw new functions.https.HttpsError("not-found", "Невалиден код.");
+        }
+        const held = snap.data() || {};
+        if (held.usedAt) {
+            throw new functions.https.HttpsError("failed-precondition", "Този код вече е използван.");
+        }
+        if (held.expiresAt && Date.parse(String(held.expiresAt)) < Date.now()) {
+            throw new functions.https.HttpsError("failed-precondition", "Кодът е изтекъл.");
+        }
+        tx.update(ref, {
+            usedAt: nowIso(),
+            deviceUid: uid,
+            deviceLabel: String(data?.label || "").slice(0, 100),
+        });
+        return held;
     });
+
+    const tenantId = String(codeData.tenant || "");
+    if (!tenantId) {
+        throw new functions.https.HttpsError("failed-precondition", "Кодът не сочи фирма.");
+    }
+
+    await admin.auth().setCustomUserClaims(uid, { tenant: tenantId, role: "device" });
 
     // The device's own record, which it keeps up to date from here on. Created
     // by the server so the panel lists a terminal from the moment it joins,
     // rather than only once it first reports in.
     const label = String(data?.label || "").slice(0, 100) || String(codeData.label || "") || "Терминал";
-    await tenantRef(tenantId).collection("devices").doc(context.auth.uid).set({
+    await tenantRef(tenantId).collection("devices").doc(uid).set({
         tenant: tenantId,
         label,
         model: String(data?.model || "").slice(0, 80),
