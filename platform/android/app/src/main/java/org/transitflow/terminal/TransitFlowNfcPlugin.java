@@ -37,8 +37,31 @@ public class TransitFlowNfcPlugin extends Plugin {
     /** The site whose links these cards carry. */
     private static final String CARD_HOST = "transitflow.org";
 
-    /** A card left lying on the reader repeats; one tap should be one scan. */
-    private static final long REPEAT_GUARD_MS = 1500;
+    /**
+     * One tap is one scan, and a tap ends when the card is taken away.
+     *
+     * This used to be a stopwatch alone: the same card was ignored for a second
+     * and a half and then allowed again. Which is no help to the person it was
+     * meant for — somebody who rests the card on the reader and leaves it there
+     * simply waits out the clock and is charged a second time. Making the clock
+     * longer only moves the line; it does not put it anywhere sensible.
+     *
+     * So the reader waits to see the card leave. The scanning loop looks several
+     * times a second; a run of looks that find nothing is a card that is gone,
+     * and only then may the same one be read again.
+     *
+     * The stopwatch stays underneath as a floor, in case a card flickers out of
+     * range for a moment without actually being lifted. Both have to be
+     * satisfied, so a repeat needs the card genuinely away and a couple of
+     * seconds passed. A different card is never delayed by any of this — that is
+     * the next passenger, and they are always let straight through.
+     */
+    private static final long REPEAT_GUARD_MS = 2500;
+
+    /** Empty looks in a row before the card counts as taken away. About a
+     *  quarter of a second, which is far quicker than a hand can move and far
+     *  longer than a momentary loss of contact. */
+    private static final int LOOKS_UNTIL_GONE = 12;
 
     /** The user memory of an NTAG213, which is the smallest chip in use. */
     private static final int MAX_MEMORY = 144;
@@ -54,6 +77,9 @@ public class TransitFlowNfcPlugin extends Plugin {
 
     private String lastId = "";
     private long lastTime = 0;
+    private int emptyLooks = 0;
+    /** Nothing has been read yet, so nothing is being held. */
+    private volatile boolean cardTakenAway = true;
 
     @Override
     public void load() {
@@ -135,6 +161,7 @@ public class TransitFlowNfcPlugin extends Plugin {
                     while (scanning.get() && bound.get()) {
                         try {
                             if (UltralightManagement.getInstance().detect(10)) {
+                                emptyLooks = 0;
                                 MainActivity.wakeFromScan();
                                 readCard();
 
@@ -144,7 +171,13 @@ public class TransitFlowNfcPlugin extends Plugin {
                                 UltralightManagement.getInstance().close(50);
                                 Thread.sleep(50);
                                 UltralightManagement.getInstance().open(300);
+
+                            } else if (++emptyLooks >= LOOKS_UNTIL_GONE) {
+                                // Whatever was there has been taken off. The
+                                // next time this card appears is a new tap.
+                                cardTakenAway = true;
                             }
+
                             Thread.sleep(10);
                         } catch (Exception e) {
                             Log.e(TAG, "Detect: " + e.getMessage());
@@ -182,9 +215,13 @@ public class TransitFlowNfcPlugin extends Plugin {
             String tagId = toHex(uid).toLowerCase();
 
             long now = System.currentTimeMillis();
-            if (tagId.equals(lastId) && now - lastTime < REPEAT_GUARD_MS) return;
+            // The same card again is only a second tap once it has been taken
+            // off the reader and enough time has passed. Anything else is still
+            // the tap that is already being held.
+            if (tagId.equals(lastId) && (!cardTakenAway || now - lastTime < REPEAT_GUARD_MS)) return;
             lastId = tagId;
             lastTime = now;
+            cardTakenAway = false;
 
             if (beeper != null) beeper.startTone(ToneGenerator.TONE_PROP_BEEP, 100);
 
