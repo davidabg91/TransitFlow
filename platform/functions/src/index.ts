@@ -216,6 +216,36 @@ export const deleteStaffUser = fn.https.onCall(async (data, context) => {
  * token as a `device` role. From then on its scans carry a company and the
  * rules can check them, without a driver ever typing a password.
  */
+/**
+ * A one-time code that lets a terminal join a company.
+ *
+ * A terminal cannot be given a password — it is a device on a bus, not a person
+ * — so it signs in anonymously and then proves which company it belongs to with
+ * a code somebody read off the admin panel. The code is short enough to type on
+ * a terminal's keypad, dies after one use, and expires on its own so a slip of
+ * paper left in a drawer does not stay valid.
+ */
+export const issueDeviceCode = fn.https.onCall(async (data, context) => {
+    const caller = requireAdmin(context);
+    const label = String(data?.label || "").trim().slice(0, 60);
+
+    // Digits only: this gets typed on a bus, often in the dark.
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    await tenantRef(caller.tenant).collection("device_codes").doc(code).set({
+        code,
+        tenant: caller.tenant,
+        label,
+        createdAt: nowIso(),
+        createdBy: context.auth?.token.email || "",
+        expiresAt,
+    });
+
+    return { code, expiresAt, label };
+});
+
+
 export const enrollDevice = fn.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "Устройството не е инициализирано.");
@@ -245,7 +275,49 @@ export const enrollDevice = fn.https.onCall(async (data, context) => {
         deviceLabel: String(data?.label || "").slice(0, 100),
     });
 
-    return { tenant: tenantId };
+    // The device's own record, which it keeps up to date from here on. Created
+    // by the server so the panel lists a terminal from the moment it joins,
+    // rather than only once it first reports in.
+    const label = String(data?.label || "").slice(0, 100) || String(codeData.label || "") || "Терминал";
+    await tenantRef(tenantId).collection("devices").doc(context.auth.uid).set({
+        tenant: tenantId,
+        label,
+        model: String(data?.model || "").slice(0, 80),
+        platform: String(data?.platform || "").slice(0, 40),
+        appVersion: String(data?.appVersion || "").slice(0, 40),
+        enrolledAt: nowIso(),
+        lastSeenAt: nowIso(),
+    }, { merge: true });
+
+    return { tenant: tenantId, label };
+});
+
+
+/**
+ * Removes a terminal.
+ *
+ * Deleting the record alone would not stop it: its token still names the
+ * company. The claims are cleared and its sessions revoked, so the device stops
+ * being able to read anything the moment it next asks.
+ */
+export const removeDevice = fn.https.onCall(async (data, context) => {
+    const caller = requireAdmin(context);
+    const deviceId = String(data?.deviceId || "").trim();
+    if (!deviceId) throw new functions.https.HttpsError("invalid-argument", "Липсва устройство.");
+
+    const ref = tenantRef(caller.tenant).collection("devices").doc(deviceId);
+    const snap = await ref.get();
+    if (!snap.exists) throw new functions.https.HttpsError("not-found", "Няма такова устройство.");
+
+    try {
+        await admin.auth().setCustomUserClaims(deviceId, {});
+        await admin.auth().revokeRefreshTokens(deviceId);
+    } catch (e) {
+        // The account may already be gone; the record still goes.
+        console.warn("removeDevice: could not clear claims", e);
+    }
+    await ref.delete();
+    return { ok: true };
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

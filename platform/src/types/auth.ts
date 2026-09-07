@@ -1,4 +1,11 @@
-export type UserRole = 'admin' | 'moderator' | 'inspector';
+/**
+ * Who is signed in.
+ *
+ * `device` is not a person: it is a terminal on a bus, which signs in
+ * anonymously and proves its company with a one-time code. It reads cards and
+ * reports its own state, and can do nothing else.
+ */
+export type UserRole = 'admin' | 'moderator' | 'inspector' | 'device';
 
 export interface AppUser {
     id: string;

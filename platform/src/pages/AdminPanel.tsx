@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
-    Hash, Users, PlusCircle, ExternalLink, 
+    Hash, Users, PlusCircle, ExternalLink, Smartphone, BatteryFull, BatteryLow, Wifi, WifiOff, Copy, 
     Trash2, XCircle, Clock, DollarSign, 
     RefreshCw, List, 
     ShieldCheck, Shield, TrendingUp,
@@ -46,6 +46,9 @@ import { requisitesLine, useCompanyProfile } from '../tenant/company';
 import { useRoutePricing } from '../tenant/settings';
 import { coversDate, coversMonth, formatSpanBG, spanEndDay, spanSortKey } from '../tenant/settings';
 import { useRollups, monthOf, takingsOn, issuedOn } from '../tenant/rollups';
+// `isOnline` here would collide with the panel's own — that one is about the
+// browser's connection, this one about a terminal's silence.
+import { useDevices, isOnline as deviceAwake, lastSeenText, type Device } from '../tenant/devices';
 import { getCountFromServer } from 'firebase/firestore';
 import { localToday } from '../components/PeriodPicker';
 import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanProblem, spanStartDay } from '../components/PeriodPicker';
@@ -319,12 +322,12 @@ interface Rental {
 }
 
 interface TabButtonProps {
-    id: 'clients' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid';
+    id: 'clients' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid' | 'devices';
     icon: React.ElementType;
     badgeColor?: string;
     label: string;
-    activeTab: 'clients' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid';
-    setActiveTab: (id: 'clients' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid') => void;
+    activeTab: 'clients' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid' | 'devices';
+    setActiveTab: (id: 'clients' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid' | 'devices') => void;
     activeColor?: string;
     badge?: number;
     isMobile?: boolean;
@@ -379,6 +382,12 @@ const AdminPanel: React.FC = () => {
     // that used to be worked out by adding up every card reads from these — one
     // small document per month rather than the whole collection.
     const { months: rollupMonths } = useRollups();
+    // The company's terminals, live. Small collection, and it changes as buses
+    // move, so it is watched rather than fetched.
+    const { devices, error: devicesError } = useDevices();
+    const [deviceCode, setDeviceCode] = useState<{ code: string; label: string } | null>(null);
+    const [deviceLabel, setDeviceLabel] = useState('');
+    const [deviceBusy, setDeviceBusy] = useState(false);
     // The общини and schools this company works in, from its own settings.
     const places = usePlaces();
     // The rosters it agreed with its община, against which service cards are checked.
@@ -393,13 +402,13 @@ const AdminPanel: React.FC = () => {
     // direction, renewing); only destructive ones stay admin-only.
     const isStaff = isAdmin || currentUser?.role === 'moderator';
     // Openable straight from a shortcut, e.g. /#/admin?tab=clients.
-    const [activeTab, setActiveTab] = useState<'clients' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid'>(
+    const [activeTab, setActiveTab] = useState<'clients' | 'nfc' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid' | 'devices'>(
         () => {
             const wanted = new URLSearchParams(window.location.hash.split('?')[1] || '').get('tab');
             // 'register' is deliberately absent: a card is activated by scanning it,
             // not by typing a profile into a form. An old ?tab=register link lands on
             // the client list rather than nowhere.
-            const allowed = ['clients', 'nfc', 'finances', 'signals', 'rentals', 'notifications', 'unpaid'] as const;
+            const allowed = ['clients', 'nfc', 'finances', 'signals', 'rentals', 'notifications', 'unpaid', 'devices'] as const;
             return (allowed as readonly string[]).includes(wanted || '')
                 ? (wanted as typeof allowed[number])
                 : 'clients';
@@ -882,6 +891,15 @@ const AdminPanel: React.FC = () => {
      * Числата на таблото вече идват от месечните обобщения, така че това е
      * последното, което още иска колекцията, и то само на две места.
      */
+    // Re-rendered on a timer, because "online" is a statement about how long
+    // ago something happened and goes stale on its own.
+    const [, setDeviceClock] = useState(0);
+    useEffect(() => {
+        if (activeTab !== 'devices') return;
+        const t = setInterval(() => setDeviceClock(n => n + 1), 15000);
+        return () => clearInterval(t);
+    }, [activeTab]);
+
     const needsAllClients = activeTab === 'clients' || activeTab === 'finances';
 
     useEffect(() => {
@@ -1592,6 +1610,38 @@ const AdminPanel: React.FC = () => {
         return { rows, bad };
     };
 
+    const issueDeviceCode = async () => {
+        setDeviceBusy(true);
+        setDeviceCode(null);
+        try {
+            const fn = httpsCallable(getFunctions(app, FUNCTIONS_REGION), 'issueDeviceCode');
+            const res = await fn({ label: deviceLabel.trim() });
+            const out = res.data as { code: string; label: string };
+            setDeviceCode(out);
+            setDeviceLabel('');
+            logGlobalActivity('Код за устройство', out.label || 'Терминал',
+                'Издаден код за зачисляване на ново устройство.');
+        } catch (e) {
+            setMessage({ text: (e as { message?: string }).message || 'Кодът не беше издаден.', type: 'error' });
+        } finally {
+            setDeviceBusy(false);
+        }
+    };
+
+    const removeDevice = async (device: Device) => {
+        if (!window.confirm(
+            `Да се премахне ли „${device.label}"?\n\n` +
+            'Устройството губи достъп веднага и трябва да се зачисли наново с нов код.'
+        )) return;
+        try {
+            const fn = httpsCallable(getFunctions(app, FUNCTIONS_REGION), 'removeDevice');
+            await fn({ deviceId: device.id });
+            logGlobalActivity('Премахнато устройство', device.label, 'Достъпът е отнет.');
+        } catch (e) {
+            setMessage({ text: (e as { message?: string }).message || 'Премахването не успя.', type: 'error' });
+        }
+    };
+
     const applyCardNumbers = async () => {
         const { rows, bad } = parseNumberRows(numbersInput);
         if (rows.length === 0) {
@@ -2119,6 +2169,7 @@ const AdminPanel: React.FC = () => {
                         <>
                             <TabButton id="notifications" icon={Bell} label="ИЗВЕСТИЯ" activeColor="#ff4081" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} locked={!modules.notifications} />
                             <TabButton id="nfc" icon={ExternalLink} label="NFC КОДОВЕ" activeColor="var(--accent-color)" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
+                            <TabButton id="devices" icon={Smartphone} label="УСТРОЙСТВА" activeColor="#7c4dff" activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
                         </>
                     )}
                 </div>
@@ -4551,6 +4602,167 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                     color: numbersMsg.ok ? 'var(--success-color)' : '#ff5252',
                                 }}>
                                     {numbersMsg.text}
+                                </div>
+                            )}
+                        </Card>
+                    </div>
+                )}
+
+                {activeTab === 'devices' && isAdmin && (
+                    <div style={{ animation: 'fadeIn 0.4s ease' }}>
+                        <Card style={{ padding: isMobile ? '1.25rem' : '2rem' }}>
+                            <h2 style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.7rem', color: '#7c4dff' }}>
+                                <Smartphone size={22} /> Устройства ({devices.length})
+                            </h2>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.65, marginTop: 0 }}>
+                                Терминалите в автобусите. Всеки се обажда веднъж в минута — заряд и
+                                че е буден. Устройство, което мълчи повече от пет минути, се води
+                                <b> офлайн</b>: изгасено, без обхват или изтощено, то не може да го
+                                съобщи само.
+                            </p>
+
+                            {devicesError && (
+                                <div style={{ padding: '0.85rem 1.1rem', borderRadius: '11px', marginBottom: '1rem',
+                                    background: 'rgba(255,82,82,0.12)', border: '1px solid rgba(255,82,82,0.4)',
+                                    color: '#ff5252', fontSize: '0.86rem', fontWeight: 600 }}>
+                                    Списъкът не се зареди: {devicesError}
+                                </div>
+                            )}
+
+                            {/* Adding one */}
+                            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', margin: '1.25rem 0' }}>
+                                <input
+                                    value={deviceLabel}
+                                    onChange={e => setDeviceLabel(e.target.value)}
+                                    placeholder="Име на устройството (напр. Автобус 4)"
+                                    style={{ flex: '1 1 260px', padding: '0.75rem 1rem', background: 'rgba(0,0,0,0.25)',
+                                        border: '1px solid var(--surface-border)', borderRadius: '11px', color: '#fff',
+                                        outline: 'none', boxSizing: 'border-box' }}
+                                />
+                                <button
+                                    onClick={issueDeviceCode}
+                                    disabled={deviceBusy}
+                                    style={{ background: 'rgba(124,77,255,0.14)', color: '#b39dff',
+                                        border: '1px solid rgba(124,77,255,0.4)', borderRadius: '11px',
+                                        padding: '0.75rem 1.4rem', fontWeight: 800,
+                                        cursor: deviceBusy ? 'default' : 'pointer', opacity: deviceBusy ? 0.6 : 1,
+                                        whiteSpace: 'nowrap' }}
+                                >
+                                    {deviceBusy ? 'Издаване…' : 'Издай код за ново устройство'}
+                                </button>
+                            </div>
+
+                            {deviceCode && (
+                                <div style={{ padding: '1.1rem 1.25rem', borderRadius: '14px', marginBottom: '1.25rem',
+                                    background: 'rgba(124,77,255,0.1)', border: '1px solid rgba(124,77,255,0.35)' }}>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
+                                        Въведете този код в приложението на устройството{deviceCode.label ? ` — ${deviceCode.label}` : ''}:
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', flexWrap: 'wrap' }}>
+                                        <span style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '0.28em',
+                                            fontVariantNumeric: 'tabular-nums', color: '#fff' }}>
+                                            {deviceCode.code}
+                                        </span>
+                                        <button
+                                            onClick={() => { navigator.clipboard.writeText(deviceCode.code); setMessage({ text: 'Кодът е копиран.', type: 'success' }); }}
+                                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                                                background: 'rgba(255,255,255,0.06)', color: '#fff',
+                                                border: '1px solid var(--surface-border)', borderRadius: '9px',
+                                                padding: '0.5rem 0.9rem', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}
+                                        >
+                                            <Copy size={14} /> Копирай
+                                        </button>
+                                    </div>
+                                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.6rem', lineHeight: 1.5 }}>
+                                        Важи 24 часа и само за едно устройство. След това не работи повече.
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* The fleet */}
+                            {devices.length === 0 ? (
+                                <div style={{ padding: '2.5rem', textAlign: 'center', borderRadius: '16px',
+                                    background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--surface-border)',
+                                    color: 'var(--text-secondary)' }}>
+                                    Няма зачислени устройства. Издайте код и го въведете в приложението
+                                    на терминала.
+                                </div>
+                            ) : (
+                                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                                    {devices.map(device => {
+                                        const awake = deviceAwake(device);
+                                        const low = device.battery !== null && device.battery <= 20;
+                                        return (
+                                            <div key={device.id} style={{
+                                                padding: '1.1rem 1.25rem', borderRadius: '16px',
+                                                background: 'rgba(255,255,255,0.03)',
+                                                border: `1px solid ${awake ? 'rgba(0,200,83,0.35)' : 'var(--surface-border)'}`,
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
+                                                    <div style={{ minWidth: 0 }}>
+                                                        <div style={{ fontWeight: 800, fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                            {device.label}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                                                            {device.model || 'неизвестен модел'}
+                                                            {device.appVersion ? ` · ${device.appVersion}` : ''}
+                                                        </div>
+                                                    </div>
+                                                    <span style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                                        padding: '4px 10px', borderRadius: '50px', whiteSpace: 'nowrap',
+                                                        fontSize: '0.7rem', fontWeight: 800,
+                                                        background: awake ? 'rgba(0,200,83,0.14)' : 'rgba(255,255,255,0.05)',
+                                                        color: awake ? '#00c853' : 'var(--text-secondary)',
+                                                        border: `1px solid ${awake ? 'rgba(0,200,83,0.35)' : 'var(--surface-border)'}`,
+                                                    }}>
+                                                        {awake ? <Wifi size={11} /> : <WifiOff size={11} />}
+                                                        {awake ? 'ОНЛАЙН' : 'ОФЛАЙН'}
+                                                    </span>
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '1rem' }}>
+                                                    {device.battery === null ? (
+                                                        <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                                                            Зарядът не е съобщен
+                                                        </span>
+                                                    ) : (
+                                                        <>
+                                                            {low && !device.charging
+                                                                ? <BatteryLow size={17} color="#ff5252" />
+                                                                : <BatteryFull size={17} color={device.charging ? '#00c853' : 'var(--text-secondary)'} />}
+                                                            <div style={{ flex: 1, height: '7px', borderRadius: '50px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                                                                <div style={{
+                                                                    width: `${Math.max(2, device.battery)}%`, height: '100%',
+                                                                    background: device.charging ? '#00c853' : low ? '#ff5252' : '#7c4dff',
+                                                                }} />
+                                                            </div>
+                                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, fontVariantNumeric: 'tabular-nums',
+                                                                color: low && !device.charging ? '#ff5252' : '#fff', minWidth: '3rem', textAlign: 'right' }}>
+                                                                {device.battery}%{device.charging ? ' ⚡' : ''}
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                    gap: '0.75rem', marginTop: '0.9rem', paddingTop: '0.8rem',
+                                                    borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                                        Обади се {lastSeenText(device)}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => removeDevice(device)}
+                                                        title="Премахни устройството"
+                                                        style={{ background: 'none', border: 'none', color: '#ff5252',
+                                                            cursor: 'pointer', display: 'flex', padding: '2px' }}
+                                                    >
+                                                        <Trash2 size={15} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </Card>

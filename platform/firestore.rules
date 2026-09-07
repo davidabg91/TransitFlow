@@ -191,6 +191,27 @@ service cloud.firestore {
         allow write: if canAdmin(tenantId);
       }
 
+      match /devices/{deviceId} {
+        // Staff see the fleet; only the terminal itself keeps its own record,
+        // and only the parts of it that are its to know — where it is, how much
+        // charge it has, when it last spoke. Its label, and whether it exists at
+        // all, are the company's to decide, so they are written by the server.
+        allow read: if isStaff(tenantId);
+        allow update: if canDevice(tenantId)
+          && request.auth.uid == deviceId
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['lastSeenAt', 'battery', 'charging', 'model',
+                         'platform', 'appVersion', 'online']);
+        allow create, delete: if false;
+      }
+
+      match /device_codes/{code} {
+        // A code is read by the enrolment function alone, which runs as the
+        // server. Nobody signed in needs to see it — a code that could be listed
+        // would be a code anybody in the company could use to add a terminal.
+        allow read, write: if false;
+      }
+
       match /settings/{docId} {
         allow read: if belongs(tenantId);
         allow write: if canAdmin(tenantId);

@@ -69,9 +69,13 @@ const ROLE_LABELS: Record<UserRole, string> = {
     admin: 'Администратор',
     moderator: 'Модератор',
     inspector: 'Проверяващ',
+    // Never shown here — terminals live in УСТРОЙСТВА — but the map has to
+    // cover every role or it stops compiling when one is added.
+    device: 'Терминал',
 };
 
 const ROLE_COLORS: Record<UserRole, string> = {
+    device: '#7c4dff',
     admin: '#ff5252',
     moderator: '#00ADB5',
     inspector: '#ffab00',

@@ -28,6 +28,7 @@ function ClientProfileWrapper() {
 }
 
 import TransitView from './components/TransitView';
+import { useDeviceHeartbeat } from './tenant/devices';
 
 function DeepLinkHandler() {
   const navigate = useNavigate();
@@ -143,9 +144,22 @@ function DeepLinkHandler() {
 
 
 
+/**
+ * A terminal keeps its own record current while the app is open, so the company
+ * can see which buses are awake and how much charge is left.
+ *
+ * A component rather than a call in App, because the hook asks who is signed in
+ * and App is what renders the provider that knows — asking from outside it
+ * throws, and takes the whole app with it. Renders nothing.
+ */
+const DeviceHeartbeat = ({ version }: { version: string }) => {
+    useDeviceHeartbeat(version);
+    return null;
+};
+
 function App() {
   // 🛡️ NUCLEAR VERSIONING: The true bundle version
-  const INTERNAL_APP_VERSION = "2026.08.25.15.00";
+  const INTERNAL_APP_VERSION = "2026.09.07.10.00";
 
   useEffect(() => {
     // 🛡️ FORCE UPDATE LOGIC: Reusable check function
@@ -230,6 +244,7 @@ function App() {
   return (
     <ErrorBoundary>
     <AuthProvider>
+      <DeviceHeartbeat version={INTERNAL_APP_VERSION} />
       <HashRouter>
         <DeepLinkHandler />
         <Suspense fallback={<PageLoader />}>
