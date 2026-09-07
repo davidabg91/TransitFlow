@@ -12,7 +12,7 @@
 ; предлага. Виж README.md за откъде се вземат.
 
 #define AppName "TransitFlow NFC"
-#define AppVersion "1.0.0"
+#define AppVersion "1.1.0"
 #define AppPublisher "TransitFlow"
 #define AppURL "https://transitflow.org"
 #define ExeName "TransitFlow-NFC.exe"
