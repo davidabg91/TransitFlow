@@ -162,6 +162,79 @@ def load_dependencies():
         smartcard_available = False
 
 
+# Keys a card written for NDEF answers to. The first is the one the NFC Forum
+# set aside for it; the others are what a card still carries if nobody changed
+# them.
+NDEF_KEYS = (
+    (0xD3, 0xF7, 0xD3, 0xF7, 0xD3, 0xF7),
+    (0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF),
+    (0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5),
+)
+
+
+def read_mifare_classic(connection):
+    """
+    The memory of a MIFARE Classic card.
+
+    This kind of card answers nothing until the reader proves it knows a key,
+    and the key belongs to a sector rather than to the card. So: load a key,
+    authenticate a sector, read the three data blocks in it, move to the next.
+    Every fourth block holds the sector's keys rather than data and is skipped —
+    reading it would return zeros and corrupt the message.
+
+    Sector 0 is the card's own directory and holds no message, so it is left
+    alone; the data starts at block 4.
+    """
+    def load_key(key):
+        try:
+            _, s1, s2 = connection.transmit([0xFF, 0x82, 0x00, 0x00, 0x06] + list(key))
+            return s1 == 0x90 and s2 == 0x00
+        except Exception:
+            return False
+
+    def authenticate(block):
+        for key_type in (0x60, 0x61):  # key A, then key B
+            try:
+                _, s1, s2 = connection.transmit(
+                    [0xFF, 0x86, 0x00, 0x00, 0x05, 0x01, 0x00, block, key_type, 0x00]
+                )
+                if s1 == 0x90 and s2 == 0x00:
+                    return True
+            except Exception:
+                pass
+        return False
+
+    def read_block(block):
+        try:
+            data, s1, s2 = connection.transmit([0xFF, 0xB0, 0x00, block, 0x10])
+            return bytes(data) if (s1 == 0x90 and s2 == 0x00) else None
+        except Exception:
+            return None
+
+    for key in NDEF_KEYS:
+        if not load_key(key):
+            continue
+
+        raw = bytearray()
+        # Sectors 1 upwards: four blocks each, the last of them the sector's own
+        # keys. A 1K card has sixteen sectors; a 4K card's later sectors are
+        # larger, but a card's message has never needed to reach them.
+        for sector in range(1, 16):
+            first = sector * 4
+            if not authenticate(first):
+                break
+            for block in (first, first + 1, first + 2):
+                chunk = read_block(block)
+                if chunk is None:
+                    break
+                raw.extend(chunk)
+
+        if raw:
+            return bytes(raw), ("MIFARE Classic", "".join(f"{b:02X}" for b in key))
+
+    return b"", None
+
+
 def read_card_memory(connection):
     """
     The user memory of the card, page by page from block 4 — where an NTAG's
@@ -192,6 +265,14 @@ def read_card_memory(connection):
                 break
         if raw:
             return bytes(raw), last_status
+
+    # Nothing came back plainly, so this is a card that wants authenticating.
+    # Its serial is four bytes rather than seven, and it answers a plain read
+    # with 63 00 — which is what a MIFARE Classic does.
+    classic, how = read_mifare_classic(connection)
+    if classic:
+        return classic, how
+
     return b"", last_status
 
 
@@ -330,9 +411,12 @@ class ReaderThread(QThread):
                 url = extract_ndef_url(memory)
                 if not url:
                     if not memory:
-                        reason = ("Картата не дава достъп до паметта си. "
-                                  "Вероятно не е NTAG или иска ключ.")
-                        detail = f"Отговор на четеца: {status}"
+                        keys = ", ".join(
+                            "".join(f"{b:02X}" for b in k) for k in NDEF_KEYS
+                        )
+                        reason = ("Картата не дава достъп до паметта си "
+                                  "с познатите ключове.")
+                        detail = f"Опитани ключове: {keys}\nОтговор на четеца: {status}"
                     else:
                         reason = "В картата няма записан адрес — празна е."
                         detail = describe_memory(memory)
@@ -351,7 +435,10 @@ class ReaderThread(QThread):
                 # The two travel separately: the address is opened, and the
                 # serial is handed to the page. It is written nowhere on the
                 # card and appears in no address bar.
-                self.history.emit(f"Карта прочетена\n{url}\nЧип: {uid}", True)
+                # Which kind of card it was, since a company may hold more than
+                # one and the difference matters when one of them stops working.
+                kind = status[0] if isinstance(status, tuple) and isinstance(status[0], str) else "NTAG"
+                self.history.emit(f"Карта прочетена ({kind})\n{url}\nЧип: {uid}", True)
                 self.scan_status.emit("✅", "Прочетена", GOOD, f"Чип: {uid}")
                 self.card_scanned.emit(url, uid)
 
