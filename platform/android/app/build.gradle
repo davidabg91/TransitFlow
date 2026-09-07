@@ -1,4 +1,43 @@
+import groovy.json.JsonSlurper
+
 apply plugin: 'com.android.application'
+
+/**
+ * The terminal's version, taken from the one the web app already publishes.
+ *
+ * There is one version of TransitFlow, not two, and the number the panel shows
+ * for a bus must be the number that was installed on it. Deriving it here means
+ * the release everybody talks about and the release Android sees cannot drift
+ * apart, and nobody has to remember to bump a second file.
+ *
+ * The code is minutes since the start of 2020. Android will only treat an upload
+ * as an update to what is already installed if this number has gone up, so it
+ * has to rise on its own with every release — a constant, which is what stood
+ * here, would have had every future upload rejected as not being an update.
+ */
+ext.tfVersionName = {
+    def f = file("../../public/version.json")
+    if (!f.exists()) {
+        throw new GradleException("public/version.json is missing — the terminal has no version to carry.")
+    }
+    def v = new JsonSlurper().parse(f).version
+    if (!(v ==~ /\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}/)) {
+        throw new GradleException("version.json holds '${v}', which is not YYYY.MM.DD.HH.mm — refusing to build a terminal that cannot be updated.")
+    }
+    return v
+}()
+
+ext.tfVersionCode = {
+    def p = ext.tfVersionName.tokenize('.')
+    def cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+    cal.clear()
+    cal.set(p[0] as int, (p[1] as int) - 1, p[2] as int, p[3] as int, p[4] as int)
+    // Minutes since 2020-01-01, which keeps the number small enough for the
+    // 32-bit field it has to fit in and rising for the next few thousand years.
+    // An Integer, not a Long: the field is an int, and handing it a Long fails
+    // with nothing more helpful than "Value is null".
+    return (int) (cal.timeInMillis / 60000L - 26297280L)
+}()
 
 android {
     namespace = "org.transitflow.terminal"
@@ -7,8 +46,8 @@ android {
         applicationId "org.transitflow.terminal"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0.0"
+        versionCode project.ext.tfVersionCode
+        versionName project.ext.tfVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -53,4 +92,12 @@ try {
     }
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
+
+// Prints what will be stamped on the APK, so a release can be checked before it
+// is built: ./gradlew -q :app:printVersion
+tasks.register('printVersion') {
+    doLast {
+        println "versionName ${android.defaultConfig.versionName} / versionCode ${android.defaultConfig.versionCode}"
+    }
 }
