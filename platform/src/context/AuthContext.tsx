@@ -51,6 +51,23 @@ interface AuthContextType {
     changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
+/**
+ * What a terminal looks like to the rest of the app.
+ *
+ * There is no account behind it to describe — it signed in anonymously and was
+ * handed a company by a one-time code. This is enough for the app to know what
+ * it is and stop there.
+ */
+const deviceUser = (uid: string): AppUser => ({
+    id: uid,
+    username: 'terminal',
+    displayName: 'Терминал',
+    passwordHash: '',
+    role: 'device' as UserRole,
+    createdAt: '',
+    lastSeen: '',
+});
+
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -106,14 +123,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             createdAt: '',
                             lastSeen: '',
                         } : null);
-                        if (!platformAdmin) {
+                        if (!platformAdmin && !fbUser.isAnonymous) {
                             console.warn(`${fbUser.email || fbUser.uid} has no company assigned. Access denied.`);
                         }
+                        // An anonymous account belongs to nobody on purpose: it is
+                        // a terminal waiting for its code. Saying "access denied"
+                        // about it would send somebody hunting for a fault that is
+                        // not there.
                         return;
                     }
 
                     setActiveTenant(claimedTenant);
                     setTenantId(claimedTenant);
+
+                    if (claimedRole === 'device') {
+                        // A terminal is a device on a bus, not a member of staff.
+                        // It has no profile in the staff list and never will, so
+                        // the lookup below would find nothing and lock it out.
+                        // Everything it is allowed to do is already on the token.
+                        setCurrentUser(deviceUser(fbUser.uid));
+                        return;
+                    }
 
                     // Get user role from Firestore
                     const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
@@ -159,7 +189,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // The staff list can only be read once the company is known, so it waits for
     // the claim rather than running alongside the auth listener.
     useEffect(() => {
-        if (!tenantId) {
+        if (!tenantId || currentUser?.role === 'device') {
+            // A terminal has no business knowing who works there, and the rules
+            // agree — asking would only produce a denial in the console.
             setUsers([]);
             return;
         }
@@ -182,7 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }, (err) => console.error('Staff list unavailable:', err));
 
         return () => unsubscribeUsers();
-    }, [tenantId]);
+    }, [tenantId, currentUser?.role]);
 
     /**
      * Custom claims are set server-side, so an existing token keeps the old ones
@@ -198,6 +230,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsPlatformAdmin(token.claims.platformAdmin === true);
         setActiveTenant(claimedTenant);
         setTenantId(claimedTenant);
+        // A terminal calls this the moment it is enrolled. Its claim is new, and
+        // nothing else will set it up: the auth listener already ran, back when
+        // this account was anonymous and belonged to nobody.
+        if (token.claims.role === 'device') setCurrentUser(deviceUser(fbUser.uid));
     };
 
     const login = async (email: string, password: string) => {

@@ -100,7 +100,7 @@ export const useDevices = () => {
 // What a terminal reports about itself
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface Reading {
+export interface Reading {
     battery: number | null;
     charging: boolean;
     model: string;
@@ -108,32 +108,29 @@ interface Reading {
 }
 
 /**
- * The terminal's own state, from Capacitor when the app is running natively.
+ * The terminal's own state.
  *
- * Loaded on demand rather than imported: the browser build has no such plugin,
- * and a missing plugin must not stop the page from loading for the desk staff
- * who never see a terminal.
+ * The plugin is loaded on demand rather than imported at the top: this file is
+ * pulled in by the admin panel too, where nobody has a battery worth reading.
+ *
+ * It is imported, though, and not read off window.Capacitor.Plugins — a plugin
+ * puts itself there when its own code runs, and nothing else does it. Reaching
+ * for the global instead would have found nothing on a real terminal, and every
+ * device would have reported no battery at all.
  */
-const readState = async (): Promise<Reading> => {
+export const readDeviceState = async (): Promise<Reading> => {
     const reading: Reading = { battery: null, charging: false, model: '', platform: 'web' };
     try {
-        const capacitor = (window as unknown as {
-            Capacitor?: { isNativePlatform?: () => boolean; Plugins?: Record<string, unknown> };
-        }).Capacitor;
-        if (!capacitor?.isNativePlatform?.()) return reading;
+        const { Device } = await import('@capacitor/device');
 
-        const device = capacitor.Plugins?.Device as {
-            getInfo?: () => Promise<{ model?: string; platform?: string }>;
-            getBatteryInfo?: () => Promise<{ batteryLevel?: number; isCharging?: boolean }>;
-        } | undefined;
-        if (!device) return reading;
-
-        const info = await device.getInfo?.();
+        const info = await Device.getInfo();
         reading.model = String(info?.model || '');
-        reading.platform = String(info?.platform || 'native');
+        reading.platform = String(info?.platform || 'web');
 
-        const battery = await device.getBatteryInfo?.();
-        // Capacitor reports 0–1; a percentage is what a person reads.
+        // Capacitor reports 0–1; a percentage is what a person reads. On a
+        // browser this often throws — the battery API is gone from most of
+        // them — and a terminal without a reading is better than no terminal.
+        const battery = await Device.getBatteryInfo();
         if (typeof battery?.batteryLevel === 'number') {
             reading.battery = Math.round(battery.batteryLevel * 100);
         }
@@ -163,7 +160,7 @@ export const useDeviceHeartbeat = (appVersion: string) => {
         const report = async () => {
             if (stopped) return;
             try {
-                const state = await readState();
+                const state = await readDeviceState();
                 await updateDoc(doc(db, 'devices', currentUser.id), {
                     lastSeenAt: new Date().toISOString(),
                     battery: state.battery,

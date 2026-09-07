@@ -20,6 +20,7 @@ const Home = lazy(() => import('./pages/Home'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Signal = lazy(() => import('./pages/Signal'));
 const BusRental = lazy(() => import('./pages/BusRental'));
+const DeviceEnroll = lazy(() => import('./pages/DeviceEnroll'));
 
 const PageLoader = () => <LoadingScreen />;
 
@@ -159,7 +160,7 @@ const DeviceHeartbeat = ({ version }: { version: string }) => {
 
 function App() {
   // 🛡️ NUCLEAR VERSIONING: The true bundle version
-  const INTERNAL_APP_VERSION = "2026.09.07.10.00";
+  const INTERNAL_APP_VERSION = "2026.09.07.11.00";
 
   useEffect(() => {
     // 🛡️ FORCE UPDATE LOGIC: Reusable check function
@@ -172,6 +173,9 @@ function App() {
         const data = await response.json();
         const serverVersion = data.version;
         
+        // The terminal screen reports this when it enrolls, before the
+        // heartbeat exists to say it.
+        (window as unknown as { __TF_VERSION__?: string }).__TF_VERSION__ = INTERNAL_APP_VERSION;
         console.log(`[Version Check] Internal: ${INTERNAL_APP_VERSION} | Server: ${serverVersion}`);
 
         if (serverVersion && INTERNAL_APP_VERSION !== serverVersion) {
@@ -251,6 +255,11 @@ function App() {
           <Routes>
             {/* Public — no login needed */}
             <Route path="/login" element={<LoginPage />} />
+            {/* A terminal's own screen: outside the app shell, because a device
+                on a bus has no navigation to offer and nobody to use it. Public,
+                because a terminal arrives here with no company yet — proving
+                which one it belongs to is the whole point of the screen. */}
+            <Route path="/device" element={<DeviceEnroll />} />
             {/* The company is part of the card's address, because that address is
                 written into the chip and can never be changed afterwards. The
                 bare form stays for links issued before this, and resolves from
