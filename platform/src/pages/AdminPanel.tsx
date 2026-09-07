@@ -2136,7 +2136,7 @@ const AdminPanel: React.FC = () => {
                             <a 
                                 // The installer itself, not a folder to hunt through: one file, with the
                                 // Microsoft runtime and the reader driver already inside it.
-                                href="https://drive.google.com/file/d/1u4rbjDTyvusWcmHx7peMwH635DcKf4Yw/view?usp=drive_link"
+                                href="https://drive.google.com/file/d/1u4rbjDTyvusWcmHx7peMwH635DcKf4Yw/view?usp=sharing"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 style={{ 
