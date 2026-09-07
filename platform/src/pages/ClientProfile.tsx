@@ -644,9 +644,29 @@ const ClientProfile: React.FC = () => {
         initAudio();
     }, [id, initAudio]);
 
-    // 20-second inactivity guard for moderator
+    /**
+     * Whether this profile is somebody's to finish.
+     *
+     * It was moderators alone, which is right for them — renewing cards is what
+     * they are at the desk to do — but it left the case that prompted this
+     * unguarded: an administrator standing at the same desk, with the same card
+     * in their hand, is at exactly the same risk of being distracted.
+     *
+     * Not every administrator, though. One reading a profile from the client
+     * list is looking something up, and warning them each time they close it
+     * would teach them to dismiss the warning without reading it — which is how
+     * a warning stops working. So the card itself decides: a chip serial only
+     * exists here when a card was physically presented, so that is what tells a
+     * counter apart from an office.
+     */
+    const mustFinish = !!client && !hasMadeChange && !isWarningDismissed && (
+        currentUser?.role === 'moderator'
+        || (currentUser?.role === 'admin' && !!urlUid)
+    );
+
+    // 20-second inactivity guard for whoever must finish this card
     useEffect(() => {
-        if (currentUser?.role !== 'moderator' || !client || loading || hasMadeChange || isWarningDismissed) return;
+        if (!mustFinish || loading) return;
 
         const timer = setTimeout(() => {
             if (!hasMadeChange && !isWarningDismissed) {
@@ -657,11 +677,11 @@ const ClientProfile: React.FC = () => {
         }, 20000);
 
         return () => clearTimeout(timer);
-    }, [currentUser?.role, client, loading, hasMadeChange, isWarningDismissed, playErrorSound]);
+    }, [mustFinish, loading, playErrorSound]);
 
     // Global navigation interceptor for navbar, logo, and external link clicks
     useEffect(() => {
-        if (currentUser?.role === 'moderator' && client && !hasMadeChange && !isWarningDismissed) {
+        if (mustFinish) {
             (window as unknown as { __moderatorGuardActive?: boolean }).__moderatorGuardActive = true;
             (window as unknown as { __triggerModeratorGuard?: (onConfirmProceed?: () => void) => void }).__triggerModeratorGuard = (onConfirmProceed) => {
                 playErrorSound();
@@ -680,7 +700,7 @@ const ClientProfile: React.FC = () => {
             (window as unknown as { __moderatorGuardActive?: boolean }).__moderatorGuardActive = false;
             (window as unknown as { __triggerModeratorGuard?: unknown }).__triggerModeratorGuard = undefined;
         };
-    }, [currentUser?.role, client, hasMadeChange, isWarningDismissed, playErrorSound]);
+    }, [mustFinish, playErrorSound]);
 
     /**
      * The card this profile is holding on to.
@@ -698,16 +718,14 @@ const ClientProfile: React.FC = () => {
     const heldRef = useRef<{ path: string } | null>(null);
 
     useEffect(() => {
-        const guarded = currentUser?.role === 'moderator' && !!client
-            && !hasMadeChange && !isWarningDismissed;
-        if (guarded) {
+        if (mustFinish) {
             // Armed once, on the address it was armed at. A later address is a
             // departure, not a new post to guard.
             if (!heldRef.current) heldRef.current = { path: location.pathname };
         } else {
             heldRef.current = null;
         }
-    }, [currentUser?.role, client, hasMadeChange, isWarningDismissed, location.pathname]);
+    }, [mustFinish, location.pathname]);
 
     useEffect(() => {
         const held = heldRef.current;
@@ -740,7 +758,7 @@ const ClientProfile: React.FC = () => {
 
     // Intercept navigation / button clicks before making a change
     const handleModeratorGuardedAction = (actionCallback?: () => void) => {
-        if (currentUser?.role === 'moderator' && !hasMadeChange && !isWarningDismissed) {
+        if (mustFinish) {
             playErrorSound();
             setInactivityModalReason('action');
             setPendingAction(() => actionCallback || null);
