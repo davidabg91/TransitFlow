@@ -187,7 +187,7 @@ KEY_SLOTS = (
 )
 
 
-def read_mifare_classic(open_connection, log=None):
+def read_mifare_classic(connection, renew=None, log=None):
     """
     The memory of a MIFARE Classic card.
 
@@ -199,9 +199,11 @@ def read_mifare_classic(open_connection, log=None):
     Sector 0 is the card's directory and holds no message.
 
     A wrong key does not merely fail: the card halts, and often the whole session
-    dies with it — a reset is refused and the reader reports the card as removed
-    even though it is lying on the antenna. So each attempt opens its own
-    connection from the reader rather than trying to revive the last one.
+    dies with it — the reader then reports the card as removed even though it is
+    lying on the antenna. So a fresh connection is taken after an attempt that
+    may have halted it. Only after: the connection handed in is live and working,
+    and letting go of a good one to ask for another is how two taps out of three
+    were being wasted.
 
     Returns the bytes, how they were read, and a line per attempt, so a failure
     can be read rather than guessed at.
@@ -213,14 +215,20 @@ def read_mifare_classic(open_connection, log=None):
         if log:
             log(line)
 
+    # The live connection is used as it is; a replacement is only fetched once
+    # an attempt has left the card unable to answer.
+    active = connection
+
     for key in NDEF_KEYS:
         key_name = "".join(f"{b:02X}" for b in key)
 
         for p1, slot in KEY_SLOTS:
-            connection = open_connection()
-            if connection is None:
-                note(f"{key_name} [{p1:02X}/{slot}]: картата не се отвори наново")
-                continue
+            if active is None:
+                active = renew() if renew else None
+                if active is None:
+                    note(f"{key_name} [{p1:02X}/{slot}]: картата не се отвори наново")
+                    continue
+            connection = active
 
             # Load the key. This is the reader's own command, not the card's,
             # and is where an unfamiliar reader refuses first.
@@ -230,24 +238,28 @@ def read_mifare_classic(open_connection, log=None):
                 )
             except Exception as e:
                 note(f"{key_name} [{p1:02X}/{slot}]: зареждането хвърли — {e}")
+                active = None
                 continue
 
             if (s1, s2) != (0x90, 0x00):
                 note(f"{key_name} [{p1:02X}/{slot}]: зареждането отказано — "
                      f"{s1:02X} {s2:02X}")
+                active = None
                 continue
 
             for key_type, label in ((0x60, "A"), (0x61, "B")):
                 if key_type == 0x61:
-                    # The A attempt may have halted the card.
-                    connection = open_connection()
-                    if connection is None:
-                        note(f"{key_name} ключ B: картата не се отвори наново")
-                        continue
-                    try:
-                        connection.transmit([0xFF, 0x82, p1, slot, 0x06] + list(key))
-                    except Exception:
-                        pass
+                    # The key A attempt above may have halted the card.
+                    if active is None:
+                        active = renew() if renew else None
+                        if active is None:
+                            note(f"{key_name} ключ B: картата не се отвори наново")
+                            continue
+                        connection = active
+                        try:
+                            connection.transmit([0xFF, 0x82, p1, slot, 0x06] + list(key))
+                        except Exception:
+                            pass
 
                 try:
                     _, a1, a2 = connection.transmit(
@@ -256,11 +268,13 @@ def read_mifare_classic(open_connection, log=None):
                 except Exception as e:
                     note(f"{key_name} ключ {label} [{p1:02X}/{slot}]: "
                          f"удостоверяването хвърли — {e}")
+                    active = None
                     continue
 
                 if (a1, a2) != (0x90, 0x00):
                     note(f"{key_name} ключ {label} [{p1:02X}/{slot}]: "
                          f"отказан — {a1:02X} {a2:02X}")
+                    active = None
                     continue
 
                 # Authenticated. Read what the card holds.
@@ -300,6 +314,7 @@ def read_mifare_classic(open_connection, log=None):
                                         f"{key_name} ключ {label}"), tried
                 note(f"{key_name} ключ {label} [{p1:02X}/{slot}]: "
                      f"нищо не се прочете (спря на сектор {stopped_at})")
+                active = None
 
     return b"", ("keys", tried), tried
 
@@ -349,7 +364,7 @@ def read_card_memory(connection, open_connection=None):
     # Nothing came back plainly, so this card wants authenticating first.
     if open_connection is None:
         return b"", last_status
-    classic, how, _ = read_mifare_classic(open_connection)
+    classic, how, _ = read_mifare_classic(connection, open_connection)
     return (classic, how) if classic else (b"", how)
 
 
@@ -506,15 +521,19 @@ class ReaderThread(QThread):
                     held[0] = None
 
                     # The reader needs a moment between letting go and being
-                    # asked again, or it answers that nothing is there.
-                    time.sleep(0.05)
-                    try:
-                        fresh = reader.createConnection()
-                        fresh.connect()
-                        held[0] = fresh
-                        return fresh
-                    except Exception:
-                        return None
+                    # asked again, and how long varies — so it is asked a few
+                    # times, waiting a little longer each time, rather than once
+                    # and giving up.
+                    for wait in (0.08, 0.15, 0.3):
+                        time.sleep(wait)
+                        try:
+                            fresh = reader.createConnection()
+                            fresh.connect()
+                            held[0] = fresh
+                            return fresh
+                        except Exception:
+                            continue
+                    return None
 
                 atr = card_atr(connection)
                 memory, status = read_card_memory(connection, open_connection)
@@ -550,7 +569,12 @@ class ReaderThread(QThread):
                 # card and appears in no address bar.
                 # Which kind of card it was, since a company may hold more than
                 # one and the difference matters when one of them stops working.
-                kind = status[0] if isinstance(status, tuple) and isinstance(status[0], str) else "NTAG"
+                if isinstance(status, tuple) and isinstance(status[0], str):
+                    # Which key opened it, so a company whose cards stop working
+                    # can see whether the keys were changed.
+                    kind = f"{status[0]}, {status[1]}" if len(status) > 1 else status[0]
+                else:
+                    kind = "NTAG"
                 self.history.emit(f"Карта прочетена ({kind})\n{url}\nЧип: {uid}", True)
                 self.scan_status.emit("✅", "Прочетена", GOOD, f"Чип: {uid}")
                 self.card_scanned.emit(url, uid)
