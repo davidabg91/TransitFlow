@@ -35,6 +35,9 @@ from PyQt6.QtWidgets import (
 )
 
 APP_NAME = "TransitFlow NFC"
+# The site these cards point at. Used only as a last resort, to recognise an
+# address whose scheme was stored as a prefix byte and so is not in the text.
+CARD_HOST = "transitflow.org"
 DEFAULT_HOME = "https://app.transitflow.org/"
 
 # The brand, so the desk looks like the system it belongs to.
@@ -168,20 +171,28 @@ def read_card_memory(connection):
     Returns the bytes and the status the card answered with, so a card that
     refuses the very first page can be told apart from one that is simply empty.
     """
-    raw = bytearray()
-    last_status = None
-    for block in range(4, 36):
-        try:
-            data, s1, s2 = connection.transmit([0xFF, 0xB0, 0x00, block, 0x04])
-            last_status = (s1, s2)
-            if s1 == 0x90 and s2 == 0x00:
-                raw.extend(data)
-            else:
+    # Asked for sixteen bytes at a time, stepping four pages. The chip's own
+    # READ returns four pages whatever is asked of it, and readers differ over
+    # whether they hand back all of it or trim it to what was requested. Asking
+    # for what it sends avoids both the trimming and the overlap that comes from
+    # stepping one page while receiving four.
+    for size, step in ((0x10, 4), (0x04, 1)):
+        raw = bytearray()
+        last_status = None
+        for block in range(4, 36, step):
+            try:
+                data, s1, s2 = connection.transmit([0xFF, 0xB0, 0x00, block, size])
+                last_status = (s1, s2)
+                if s1 == 0x90 and s2 == 0x00 and data:
+                    raw.extend(data)
+                else:
+                    break
+            except Exception as e:
+                last_status = str(e)
                 break
-        except Exception as e:
-            last_status = str(e)
-            break
-    return bytes(raw), last_status
+        if raw:
+            return bytes(raw), last_status
+    return b"", last_status
 
 
 def describe_memory(raw):
@@ -225,12 +236,27 @@ def extract_ndef_url(raw):
         pass
 
     # A card written by something that laid the message out differently still
-    # has the address in it as plain text.
+    # carries the address as text — but not always the scheme. A URI record
+    # keeps "https://" as a single prefix byte, so what sits in memory begins at
+    # the host. Looking only for "https://" finds nothing on a perfectly good
+    # card, which is why the host is looked for as well.
     try:
         text = raw.decode("ascii", errors="ignore")
+
         found = re.search(r"https?://\S+", text)
         if found:
             return re.sub(r"[^\x20-\x7E].*$", "", found.group(0)).strip()
+
+        at = text.find(CARD_HOST)
+        if at >= 0:
+            start, end = at, at
+            while start > 0 and 33 <= ord(text[start - 1]) <= 126:
+                start -= 1
+            while end < len(text) and 33 <= ord(text[end]) <= 126:
+                end += 1
+            body = text[start:end].strip()
+            if body:
+                return body if body.startswith("http") else "https://" + body
     except Exception:
         pass
 
