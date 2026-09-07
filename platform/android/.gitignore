@@ -112,3 +112,15 @@ local.properties
 # The site, copied in by `npx cap sync`. It is built from src, not edited here.
 app/src/main/assets/public/
 app/src/main/assets/capacitor.config.json
+
+# Build outputs from "Generate Signed APK" — artefacts, not source.
+/app/release/
+/app/debug/
+*.apk
+*.aab
+
+# Signing material never belongs in the repo.
+*.jks
+*.keystore
+*.p12
+keystore.properties
