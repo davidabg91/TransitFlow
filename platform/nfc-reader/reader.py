@@ -175,97 +175,133 @@ NDEF_KEYS = (
 )
 
 
-def read_mifare_classic(connection, reconnect=None):
+# Where a reader is asked to keep a key while it authenticates. Readers differ:
+# some take volatile memory, some only non-volatile, and the slot number is not
+# universal either. Cheap to try them all, and the alternative is knowing every
+# reader on the market.
+KEY_SLOTS = (
+    (0x00, 0x00),  # volatile, slot 0 — the usual answer
+    (0x00, 0x01),  # volatile, slot 1
+    (0x20, 0x00),  # non-volatile, slot 0
+    (0x20, 0x01),  # non-volatile, slot 1
+)
+
+
+def read_mifare_classic(open_connection, log=None):
     """
     The memory of a MIFARE Classic card.
 
     This kind of card answers nothing until the reader proves it knows a key,
-    and the key belongs to a sector rather than to the card. So: load a key,
-    authenticate a sector, read the three data blocks in it, move to the next.
-    Every fourth block holds the sector's keys rather than data and is skipped —
-    reading it would return zeros in the middle of the message.
+    and the key belongs to a sector rather than to the card. So: load a key into
+    the reader, authenticate a sector, read the three data blocks in it, move to
+    the next. Every fourth block holds the sector's own keys rather than data
+    and is skipped, or sixteen bytes of keys land in the middle of the message.
+    Sector 0 is the card's directory and holds no message.
 
-    Sector 0 is the card's own directory and holds no message; the data starts
-    at block 4.
+    A wrong key does not merely fail: the card halts, and often the whole session
+    dies with it — a reset is refused and the reader reports the card as removed
+    even though it is lying on the antenna. So each attempt opens its own
+    connection from the reader rather than trying to revive the last one.
 
-    A wrong key does not merely fail: the card halts, and everything sent after
-    it answers 63 00 until the reader connects again. So every attempt starts
-    with a fresh connection — otherwise only the first is ever really tried and
-    the rest are refused by a card that stopped listening, which reads exactly
-    like a handful of wrong keys.
-
-    Returns the bytes, and what each attempt did, so a failure can be read
-    rather than guessed at.
+    Returns the bytes, how they were read, and a line per attempt, so a failure
+    can be read rather than guessed at.
     """
-    def load_key(key):
-        try:
-            _, s1, s2 = connection.transmit([0xFF, 0x82, 0x00, 0x00, 0x06] + list(key))
-            return s1 == 0x90 and s2 == 0x00
-        except Exception:
-            return False
-
-    def authenticate(block, key_type):
-        try:
-            _, s1, s2 = connection.transmit(
-                [0xFF, 0x86, 0x00, 0x00, 0x05, 0x01, 0x00, block, key_type, 0x00]
-            )
-            return s1 == 0x90 and s2 == 0x00
-        except Exception:
-            return False
-
-    def read_block(block):
-        try:
-            data, s1, s2 = connection.transmit([0xFF, 0xB0, 0x00, block, 0x10])
-            return bytes(data) if (s1 == 0x90 and s2 == 0x00) else None
-        except Exception:
-            return None
-
     tried = []
-    fresh_connection = True
+
+    def note(line):
+        tried.append(line)
+        if log:
+            log(line)
+
     for key in NDEF_KEYS:
-        name = "".join(f"{b:02X}" for b in key)
-        for key_type, label in ((0x60, "A"), (0x61, "B")):
-            # The card is freshly connected on the way in, so the first attempt
-            # needs no reset — only the ones after an attempt that may have
-            # halted it.
-            if fresh_connection:
-                fresh_connection = False
-            elif reconnect:
-                problem = reconnect()
-                if problem:
-                    tried.append(f"{name} ключ {label}: {problem}")
-                    continue
-            if not load_key(key):
-                tried.append(f"{name} ключ {label}: не се зареди в четеца")
+        key_name = "".join(f"{b:02X}" for b in key)
+
+        for p1, slot in KEY_SLOTS:
+            connection = open_connection()
+            if connection is None:
+                note(f"{key_name} [{p1:02X}/{slot}]: картата не се отвори наново")
                 continue
 
-            raw = bytearray()
-            stopped_at = None
-            # Sectors 1 upwards: four blocks each, the last of them the sector's
-            # own keys. Sixteen sectors on a 1K card; a message has never needed
-            # to reach beyond them even on a 4K.
-            for sector in range(1, 16):
-                # Not `first`: that name already means "the first attempt", and
-                # a block number is truthy, which quietly turned every second
-                # attempt into a first one and skipped its reset.
-                sector_start = sector * 4
-                if not authenticate(sector_start, key_type):
-                    stopped_at = sector
-                    break
-                for block in (sector_start, sector_start + 1, sector_start + 2):
-                    chunk = read_block(block)
-                    if chunk is None:
-                        stopped_at = sector
+            # Load the key. This is the reader's own command, not the card's,
+            # and is where an unfamiliar reader refuses first.
+            try:
+                _, s1, s2 = connection.transmit(
+                    [0xFF, 0x82, p1, slot, 0x06] + list(key)
+                )
+            except Exception as e:
+                note(f"{key_name} [{p1:02X}/{slot}]: зареждането хвърли — {e}")
+                continue
+
+            if (s1, s2) != (0x90, 0x00):
+                note(f"{key_name} [{p1:02X}/{slot}]: зареждането отказано — "
+                     f"{s1:02X} {s2:02X}")
+                continue
+
+            for key_type, label in ((0x60, "A"), (0x61, "B")):
+                if key_type == 0x61:
+                    # The A attempt may have halted the card.
+                    connection = open_connection()
+                    if connection is None:
+                        note(f"{key_name} ключ B: картата не се отвори наново")
+                        continue
+                    try:
+                        connection.transmit([0xFF, 0x82, p1, slot, 0x06] + list(key))
+                    except Exception:
+                        pass
+
+                try:
+                    _, a1, a2 = connection.transmit(
+                        [0xFF, 0x86, 0x00, 0x00, 0x05, 0x01, 0x00, 0x04, key_type, slot]
+                    )
+                except Exception as e:
+                    note(f"{key_name} ключ {label} [{p1:02X}/{slot}]: "
+                         f"удостоверяването хвърли — {e}")
+                    continue
+
+                if (a1, a2) != (0x90, 0x00):
+                    note(f"{key_name} ключ {label} [{p1:02X}/{slot}]: "
+                         f"отказан — {a1:02X} {a2:02X}")
+                    continue
+
+                # Authenticated. Read what the card holds.
+                raw = bytearray()
+                stopped_at = None
+                for sector in range(1, 16):
+                    sector_start = sector * 4
+                    if sector > 1:
+                        try:
+                            _, b1, b2 = connection.transmit(
+                                [0xFF, 0x86, 0x00, 0x00, 0x05, 0x01, 0x00,
+                                 sector_start, key_type, slot]
+                            )
+                            if (b1, b2) != (0x90, 0x00):
+                                stopped_at = sector
+                                break
+                        except Exception:
+                            stopped_at = sector
+                            break
+                    for block in (sector_start, sector_start + 1, sector_start + 2):
+                        try:
+                            data, r1, r2 = connection.transmit(
+                                [0xFF, 0xB0, 0x00, block, 0x10]
+                            )
+                        except Exception:
+                            stopped_at = sector
+                            break
+                        if (r1, r2) != (0x90, 0x00):
+                            stopped_at = sector
+                            break
+                        raw.extend(data)
+                    if stopped_at is not None:
                         break
-                    raw.extend(chunk)
-                if stopped_at is not None:
-                    break
 
-            if raw:
-                return bytes(raw), ("MIFARE Classic", f"{name} ключ {label}")
-            tried.append(f"{name} ключ {label}: отказан на сектор {stopped_at}")
+                if raw:
+                    return bytes(raw), ("MIFARE Classic",
+                                        f"{key_name} ключ {label}"), tried
+                note(f"{key_name} ключ {label} [{p1:02X}/{slot}]: "
+                     f"нищо не се прочете (спря на сектор {stopped_at})")
 
-    return b"", ("keys", tried)
+    return b"", ("keys", tried), tried
 
 
 def card_atr(connection):
@@ -276,7 +312,7 @@ def card_atr(connection):
         return "неизвестен"
 
 
-def read_card_memory(connection, reconnect=None):
+def read_card_memory(connection, open_connection=None):
     """
     The user memory of the card, page by page from block 4 — where an NTAG's
     own data starts. Stops at the first page the card refuses, which is how the
@@ -310,11 +346,11 @@ def read_card_memory(connection, reconnect=None):
     # Nothing came back plainly, so this is a card that wants authenticating.
     # Its serial is four bytes rather than seven, and it answers a plain read
     # with 63 00 — which is what a MIFARE Classic does.
-    classic, how = read_mifare_classic(connection, reconnect)
-    if classic:
-        return classic, how
-
-    return b"", how if how else last_status
+    # Nothing came back plainly, so this card wants authenticating first.
+    if open_connection is None:
+        return b"", last_status
+    classic, how, _ = read_mifare_classic(open_connection)
+    return (classic, how) if classic else (b"", how)
 
 
 def describe_memory(raw):
@@ -448,35 +484,24 @@ class ReaderThread(QThread):
                     continue
                 self.last_uid, self.last_time = uid, now
 
-                def reconnect():
+                def open_connection():
                     """
-                    Bring a halted card back.
+                    A new connection to the card sitting on the reader.
 
-                    A reset is what is wanted — the card is still on the reader
-                    and simply stopped answering — so ask for exactly that. A
-                    disconnect followed by a connect asks the reader to let the
-                    card go and take it again, which it often refuses while the
-                    card is sitting there.
-
-                    Returns nothing when it worked, or why it did not.
+                    Reviving a dead one does not work: once an attempt has
+                    halted the card the reader reports it as removed, even
+                    though it is lying on the antenna. A connection made afresh
+                    from the reader finds it again.
                     """
                     try:
-                        connection.reconnect(disposition=SCARD_RESET_CARD)
+                        fresh = reader.createConnection()
+                        fresh.connect()
+                        return fresh
+                    except Exception:
                         return None
-                    except Exception as reset_error:
-                        try:
-                            connection.disconnect()
-                        except Exception:
-                            pass
-                        try:
-                            connection.connect()
-                            return None
-                        except Exception as connect_error:
-                            return f"нулирането не стана ({reset_error}); "\
-                                   f"повторното свързване също ({connect_error})"
 
                 atr = card_atr(connection)
-                memory, status = read_card_memory(connection, reconnect)
+                memory, status = read_card_memory(connection, open_connection)
                 url = extract_ndef_url(memory)
                 if not url:
                     if not memory:
@@ -486,7 +511,9 @@ class ReaderThread(QThread):
                             attempts = "\n".join(f"  {line}" for line in status[1])
                         else:
                             attempts = f"  отговор на четеца: {status}"
-                        detail = f"ATR: {atr}\n{attempts}"
+                        # Which reader it is decides which commands it accepts,
+                        # so it names itself when one of them is refused.
+                        detail = f"Четец: {reader}\nATR: {atr}\n{attempts}"
                     else:
                         reason = "В картата няма записан адрес — празна е."
                         detail = describe_memory(memory)
