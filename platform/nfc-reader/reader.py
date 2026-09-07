@@ -771,6 +771,13 @@ class MainWindow(QMainWindow):
         self.browser = QWebEngineView()
         page = BrowserPage(self.log, self.browser)
         self.browser.setPage(page)
+
+        # The site drops its blurred backgrounds when it is being drawn without a
+        # graphics card, and it has to be told. It was guessing from the name Qt
+        # gives itself, which is a guess that quietly stops being true when Qt
+        # renames something. Saying it outright costs one line and cannot drift.
+        profile = page.profile()
+        profile.setHttpUserAgent(profile.httpUserAgent() + " TransitFlowReader")
         page.featurePermissionRequested.connect(self.grant_camera)
         page.printRequested.connect(self.print_to_pdf)
         self.browser.setUrl(QUrl(self.settings["home"]))

@@ -17,8 +17,9 @@
 const detect = (): boolean => {
     try {
         const ua = navigator.userAgent || '';
-        // The desk reader is a Qt application with a browser inside it.
-        if (ua.includes('QtWebEngine')) return true;
+        // The desk reader says so itself. The Qt name is kept as well, for
+        // readers already in the field that were built before it did.
+        if (ua.includes('TransitFlowReader') || ua.includes('QtWebEngine')) return true;
         // The terminal, which the native bridge gives away before any of our
         // own code has run.
         return !!(window as unknown as { androidBridge?: unknown }).androidBridge;

@@ -1,2 +1,6 @@
 .agents/
 .claude/
+
+# PyInstaller output. Rebuilt from source; hundreds of megabytes of it.
+platform/nfc-reader/dist*/
+platform/nfc-reader/build*/
