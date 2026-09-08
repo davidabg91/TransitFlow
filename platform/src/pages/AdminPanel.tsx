@@ -1697,16 +1697,70 @@ const AdminPanel: React.FC = () => {
         }
     };
 
-    const copyLinksToClipboard = () => {
-        // Number and link per row, so the batch can be pasted straight into
-        // the sheet the card manufacturer works from.
-        const rows = generatedCards.length === generatedLinks.length
+    /**
+     * The list, in the shape the machine that reads it needs.
+     *
+     * Two machines do, and they want different things. The card printer works
+     * from a sheet with the number and the address side by side. The phone that
+     * writes the chips takes addresses and steps through them one card at a
+     * time — a number in front of each would be written onto the chip together
+     * with the address, and the card would come out unreadable.
+     */
+    const copyLinksToClipboard = (withNumbers: boolean) => {
+        const rows = withNumbers && generatedCards.length === generatedLinks.length
             ? generatedCards.map((c, i) => c.cardNumber + '\t' + generatedLinks[i])
             : generatedLinks;
-        const text = rows.join('\n');
-        navigator.clipboard.writeText(text);
-        setMessage({ text: 'Линковете са копирани в клипборда!', type: 'success' });
-        logGlobalActivity('Копиране на NFC линкове', 'Система', `Копирани ${generatedLinks.length} NFC линка в клипборда.`);
+        navigator.clipboard.writeText(rows.join('\n'));
+        setMessage({
+            text: withNumbers
+                ? `Копирани ${rows.length} реда — номер и линк.`
+                : `Копирани ${rows.length} линка, без номерата.`,
+            type: 'success',
+        });
+        logGlobalActivity('Копиране на NFC линкове', 'Система',
+            `Копирани ${generatedLinks.length} NFC линка${withNumbers ? ' с номерата' : ' без номерата'}.`);
+    };
+
+    /**
+     * Throws away every generated card and starts the numbering from one.
+     *
+     * Asked twice on purpose: the first call only counts, so the number is on
+     * screen before anything goes. There is no undo — the codes are random and
+     * cannot be produced again.
+     */
+    const resetCardStock = async () => {
+        if (nfcBusy) return;
+        setNfcBusy(true);
+        try {
+            const fn = httpsCallable(getFunctions(app, FUNCTIONS_REGION), 'resetCardStock');
+            const look = (await fn({})).data as { total: number; inUse: number };
+
+            if (look.total === 0) {
+                setMessage({ text: 'Няма генерирани линкове за изтриване.', type: 'success' });
+                return;
+            }
+
+            const warning = look.inUse > 0
+                ? `\n\nВНИМАНИЕ: ${look.inUse} от тях вече са свързани с клиенти. `
+                  + 'След изтриването тези карти ще излизат като непознати.'
+                : '';
+
+            if (!window.confirm(
+                `Ще бъдат изтрити ${look.total} генерирани линка и номерацията ще започне от 1.`
+                + warning
+                + '\n\nДействието е необратимо. Да продължа ли?'
+            )) return;
+
+            const done = (await fn({ confirm: true })).data as { deleted: number };
+            setGeneratedLinks([]);
+            setGeneratedCards([]);
+            setMessage({ text: `Изтрити ${done.deleted} линка. Следващата партида започва от 00000001.`, type: 'success' });
+            logGlobalActivity('Нулиране на NFC партидите', 'Система', `Изтрити ${done.deleted} генерирани линка.`);
+        } catch (e) {
+            setMessage({ text: (e as { message?: string }).message || 'Нулирането не успя.', type: 'error' });
+        } finally {
+            setNfcBusy(false);
+        }
     };
 
     // Одобряване на служебна карта, издадена на човек извън официалните списъци.
@@ -4509,6 +4563,23 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                 >
                                     {nfcBusy ? 'Издаване…' : 'Генерирай'}
                                 </button>
+
+                                {/* Set apart from the button beside it, and quiet
+                                    until it is wanted: this one cannot be undone. */}
+                                <button
+                                    onClick={resetCardStock}
+                                    disabled={nfcBusy}
+                                    title="Изтрива всички издадени досега линкове и връща номерацията на 1"
+                                    style={{
+                                        marginLeft: 'auto', padding: '0.8rem 1.2rem', borderRadius: '12px',
+                                        background: 'none', color: '#ff8a8a',
+                                        border: '1px solid rgba(255,82,82,0.35)',
+                                        fontWeight: 600, fontSize: '0.82rem',
+                                        cursor: nfcBusy ? 'wait' : 'pointer', opacity: nfcBusy ? 0.6 : 1,
+                                    }}
+                                >
+                                    Нулирай партидите
+                                </button>
                             </div>
 
                             {generatedLinks.length > 0 && (
@@ -4528,12 +4599,22 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                         <h3 style={{ fontSize: '1rem' }}>Генерирани линкове ({generatedLinks.length})</h3>
-                                        <button 
-                                            onClick={copyLinksToClipboard}
-                                            style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid var(--surface-border)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
-                                        >
-                                            Копирай Списъка
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                            <button
+                                                onClick={() => copyLinksToClipboard(false)}
+                                                title="Само адресите, по един на ред — за програмата, която записва картите"
+                                                style={{ background: 'rgba(0,229,255,0.12)', color: 'var(--primary-color)', border: '1px solid rgba(0,229,255,0.35)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}
+                                            >
+                                                Само линковете
+                                            </button>
+                                            <button
+                                                onClick={() => copyLinksToClipboard(true)}
+                                                title="Номер и адрес на всеки ред — за фирмата, която печата картите"
+                                                style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid var(--surface-border)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                                            >
+                                                С номерата
+                                            </button>
+                                        </div>
                                     </div>
                                     <div style={{ 
                                         maxHeight: '400px', 

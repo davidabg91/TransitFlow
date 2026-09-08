@@ -1413,6 +1413,56 @@ export const setTenantActive = fn.https.onCall(async (data, context) => {
  * Card numbers are allocated in a transaction, so two admins generating batches
  * at the same time cannot be handed the same number.
  */
+/**
+ * Throws away a company's generated cards and starts the numbering again.
+ *
+ * Used while a company is being set up, when a batch has been generated,
+ * looked at, and decided against. It is deliberately in two steps: called
+ * without confirmation it only counts what it would remove, so the number can
+ * be seen before anything is gone.
+ *
+ * The counter is reset alongside the documents. Without that the next batch
+ * would carry on from where the deleted one stopped, and the first card of a
+ * fresh company would not be number one.
+ *
+ * A card already handed to a passenger is counted separately and reported. It
+ * is still removed when confirmed — that is what a reset means — but nobody
+ * should be able to do it without having been told.
+ */
+export const resetCardStock = fn.https.onCall(async (data, context) => {
+    const caller = requireAdmin(context);
+    const company = tenantRef(caller.tenant);
+
+    const snap = await company.collection("card_stock").get();
+    const total = snap.size;
+    const inUse = snap.docs.filter((d) => String(d.data()?.status || "free") !== "free").length;
+
+    if (data?.confirm !== true) {
+        return { total, inUse, free: total - inUse, deleted: 0 };
+    }
+
+    let deleted = 0;
+    let writer = db().batch();
+    let pending = 0;
+    for (const doc of snap.docs) {
+        writer.delete(doc.ref);
+        pending++;
+        deleted++;
+        if (pending === 400) {
+            await writer.commit();
+            writer = db().batch();
+            pending = 0;
+        }
+    }
+    if (pending > 0) await writer.commit();
+
+    await company.collection("counters").doc("cards")
+        .set({ issued: 0, updatedAt: nowIso() }, { merge: true });
+
+    return { total, inUse, free: total - inUse, deleted };
+});
+
+
 export const generateCardBatch = fn.https.onCall(async (data, context) => {
     const caller = requireAdmin(context);
     const quantity = Math.floor(Number(data?.quantity) || 0);
