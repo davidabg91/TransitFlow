@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { NFCService } from './services/NFCService';
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
+import { useAuth } from './context/AuthContext';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -34,16 +35,20 @@ import { useDeviceHeartbeat } from './tenant/devices';
 
 function DeepLinkHandler() {
   const navigate = useNavigate();
+  // Which company this browser belongs to. On a terminal that is the company it
+  // was enrolled to, and it is the only one whose cards mean anything here.
+  const { tenantId } = useAuth();
   const [isOffline, setIsOffline] = useState(!window.navigator.onLine);
   const [transitId, setTransitId] = useState<string | null>(null);
   const [transitPhysicalUid, setTransitPhysicalUid] = useState<string | undefined>(undefined);
   const [transitNfcCounter, setTransitNfcCounter] = useState<number | undefined>(undefined);
+  const [transitForeign, setTransitForeign] = useState(false);
   // Bumped on every scan so TransitView remounts even when the SAME card is
   // scanned twice in a row — required for anti-passback to fire on a re-scan.
   const [scanNonce, setScanNonce] = useState(0);
   const lastTriggerRef = useRef<{ id: string; t: number }>({ id: '', t: 0 });
 
-  const triggerScan = useCallback((finalId: string, physicalUid?: string, nfcCounter?: number) => {
+  const triggerScan = useCallback((finalId: string, physicalUid?: string, nfcCounter?: number, cardCompany?: string) => {
     if (!finalId) return;
     const now = Date.now();
     // Ignore duplicate events from the same physical tap (some readers fire twice).
@@ -52,8 +57,13 @@ function DeepLinkHandler() {
     setTransitId(finalId);
     setTransitPhysicalUid(physicalUid);
     setTransitNfcCounter(nfcCounter);
+    // A card names the company that issued it. A terminal belongs to exactly
+    // one, and looking a stranger's number up in its own records would find
+    // nothing and say the card was never registered — which is untrue, and
+    // sends the passenger to argue with the wrong office.
+    setTransitForeign(!!cardCompany && !!tenantId && cardCompany !== tenantId);
     setScanNonce(n => n + 1);
-  }, []);
+  }, [tenantId]);
 
   useEffect(() => {
     window.onNfcRawEvent = (tagId: string, url: string) => {
@@ -90,14 +100,19 @@ function DeepLinkHandler() {
       console.log('🛡️ IRON GUARD SIGNAL RECEIVED:', { id, url, nfcCounter });
       
       let idFromUrl = null;
+      let cardCompany: string | undefined;
       if (url && url.includes('app.transitflow.org') && url.includes('client/')) {
         const match = url.match(/\/client\/([^/?#]+)/);
         if (match) {
           idFromUrl = match[1].toUpperCase();
         }
+        // Older cards carry no company in their address; those are read as
+        // before, because there is nothing to compare.
+        const company = url.match(/\/t\/([^/?#]+)\/client\//);
+        if (company) cardCompany = company[1];
       }
       const pUid = id ? id.toUpperCase() : undefined;
-      triggerScan(idFromUrl || pUid || '', pUid, nfcCounter);
+      triggerScan(idFromUrl || pUid || '', pUid, nfcCounter, cardCompany);
     };
 
     window.addEventListener('dary-nfc-scan', handleInjectedScan as EventListener);
@@ -118,6 +133,7 @@ function DeepLinkHandler() {
             id={transitId}
             physicalUid={transitPhysicalUid}
             nfcCounter={transitNfcCounter}
+            foreignCompany={transitForeign}
             onClose={handleTransitClose}
             onUnregistered={handleTransitUnregistered}
         />
@@ -177,7 +193,7 @@ const DeviceHeartbeat = ({ version }: { version: string }) => {
 
 function App() {
   // 🛡️ NUCLEAR VERSIONING: The true bundle version
-  const INTERNAL_APP_VERSION = "2026.09.08.11.03";
+  const INTERNAL_APP_VERSION = "2026.09.08.11.23";
 
   useEffect(() => {
     // 🛡️ FORCE UPDATE LOGIC: Reusable check function

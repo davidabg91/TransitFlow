@@ -39,6 +39,8 @@ interface TransitViewProps {
     id: string;
     physicalUid?: string;
     nfcCounter?: number;
+    /** The card names a company that is not this one's. */
+    foreignCompany?: boolean;
     onClose: () => void;
     onUnregistered: (id: string) => void;
 }
@@ -55,7 +57,7 @@ const formatTimeAgo = (totalSecs: number) => {
         : `Сканирана преди ${mins} мин.`;
 };
 
-const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, onClose }) => {
+const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, foreignCompany, onClose }) => {
     // Renewal at the roadside offers the company's own lines.
     const ROUTES = useRouteNames();
     const navigate = useNavigate();
@@ -525,7 +527,9 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
     };
     const cardTypeColor = getCardTypeColor(client?.cardType);
 
-    if (loading && !client) {
+    // A card from another company is answered without waiting: there is
+    // nothing to look up, and nothing that could be found.
+    if (loading && !client && !foreignCompany) {
         return (
             <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(30px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ color: '#00e676', fontSize: '1.5rem', fontWeight: 900, animation: 'pulse 1.5s infinite' }}>ПРОВЕРКА...</div>
@@ -709,7 +713,17 @@ const TransitView: React.FC<TransitViewProps> = ({ id, physicalUid, nfcCounter, 
                         zIndex: 10
                     }} onClick={(e) => e.stopPropagation()}>
                         
-                        {offlineNoData ? (
+                        {foreignCompany ? (
+                            <div style={{ padding: '3rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', textAlign: 'center' }}>
+                               <div style={{ background: 'rgba(255,23,68,0.12)', padding: '20px', borderRadius: '50%' }}>
+                                   <XCircle size={80} color="#ff1744" />
+                               </div>
+                               <h2 style={{ fontSize: '2.3rem', fontWeight: 900 }}>НЕВАЛИДНА КАРТА</h2>
+                               <p style={{ opacity: 0.75, fontSize: '1.05rem', lineHeight: 1.5 }}>
+                                   Картата е издадена от <b>друга фирма</b> и не важи в този автобус.
+                               </p>
+                            </div>
+                        ) : offlineNoData ? (
                             <div style={{ padding: '3rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', textAlign: 'center' }}>
                                <div style={{ background: 'rgba(41,182,246,0.12)', padding: '20px', borderRadius: '50%' }}>
                                    <AlertTriangle size={80} color="#29b6f6" />
