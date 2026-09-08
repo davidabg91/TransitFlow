@@ -50,6 +50,7 @@ import { useRollups, monthOf, takingsOn, issuedOn } from '../tenant/rollups';
 // browser's connection, this one about a terminal's silence.
 import { useDevices, isOnline as deviceAwake, lastSeenText, renameDevice, type Device } from '../tenant/devices';
 import DeviceAlertsButton from '../components/DeviceAlertsButton';
+import CardWriter, { cardWritingSupported } from '../components/CardWriter';
 import { getCountFromServer } from 'firebase/firestore';
 import { localToday } from '../components/PeriodPicker';
 import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanProblem, spanStartDay } from '../components/PeriodPicker';
@@ -1556,6 +1557,7 @@ const AdminPanel: React.FC = () => {
     };
 
     const [nfcBusy, setNfcBusy] = useState(false);
+    const [writingCards, setWritingCards] = useState(false);
 
     /**
      * Mints the batch on the server rather than making up codes in the browser.
@@ -4607,6 +4609,15 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                                             >
                                                 Само линковете
                                             </button>
+                                            {cardWritingSupported() && (
+                                                <button
+                                                    onClick={() => setWritingCards(true)}
+                                                    title="Записва линковете в чиповете, един по един"
+                                                    style={{ background: 'rgba(0,200,83,0.14)', color: '#00c853', border: '1px solid rgba(0,200,83,0.4)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}
+                                                >
+                                                    Запиши картите
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => copyLinksToClipboard(true)}
                                                 title="Номер и адрес на всеки ред — за фирмата, която печата картите"
@@ -5864,6 +5875,14 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                 </div>
             )}
 
+
+            {writingCards && (
+                <CardWriter
+                    links={generatedLinks}
+                    numbers={generatedCards.map(c => c.cardNumber)}
+                    onClose={() => setWritingCards(false)}
+                />
+            )}
 
         </div>
     );
