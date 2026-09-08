@@ -16,6 +16,17 @@ const PLATFORM_URL = process.env.PLATFORM_URL || "https://app.transitflow.org";
 /** Only this account may create companies. Set in functions/.env. */
 const PLATFORM_OWNER_EMAIL = (process.env.PLATFORM_OWNER_EMAIL || "").toLowerCase();
 
+/**
+ * How many digits a card number is written with.
+ *
+ * The number is printed on the plastic, and the machine that prints it stops at
+ * eight characters — so eight is not a preference here, it is the width of the
+ * thing the number has to fit on. Kept in one place because it is used to make
+ * numbers and again to look them up, and those two must never disagree: a
+ * number padded to one width cannot be found by a search padded to another.
+ */
+const CARD_NUMBER_DIGITS = 8;
+
 const db = () => admin.firestore();
 const tenantRef = (tenantId: string) => db().collection("tenants").doc(tenantId);
 const nowIso = () => new Date().toISOString();
@@ -1432,7 +1443,7 @@ export const generateCardBatch = fn.https.onCall(async (data, context) => {
 
     for (let i = 0; i < quantity; i++) {
         const code = randomCode();
-        const cardNumber = String(firstNumber + i).padStart(10, "0");
+        const cardNumber = String(firstNumber + i).padStart(CARD_NUMBER_DIGITS, "0");
         codes.push({ code, cardNumber });
 
         writer.set(company.collection("card_stock").doc(code), {
@@ -1478,7 +1489,7 @@ export const lookupCard = fn.https.onCall(async (data, context) => {
     const digits = code.replace(/\D/g, "");
     if (digits) {
         const byNumber = await company.collection("card_stock")
-            .where("cardNumber", "==", digits.padStart(10, "0")).limit(1).get();
+            .where("cardNumber", "==", digits.padStart(CARD_NUMBER_DIGITS, "0")).limit(1).get();
         if (!byNumber.empty) {
             const d = byNumber.docs[0].data();
             return { found: true, code: byNumber.docs[0].id, cardNumber: d.cardNumber, status: d.status };
@@ -1537,7 +1548,7 @@ export const assignCardNumbers = fn.https.onCall(async (data, context) => {
         const code = String(raw?.code || "").trim().toUpperCase().replace(/[^0-9A-F]/g, "");
         const digits = String(raw?.cardNumber || "").replace(/\D/g, "");
         if (!code || !digits) { problems.push(`Непълен ред: ${JSON.stringify(raw).slice(0, 60)}`); continue; }
-        const cardNumber = digits.padStart(10, "0");
+        const cardNumber = digits.padStart(CARD_NUMBER_DIGITS, "0");
         if (wanted.has(code) && wanted.get(code) !== cardNumber) {
             problems.push(`Кодът ${code} се среща два пъти с различни номера.`);
             continue;

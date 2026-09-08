@@ -52,8 +52,19 @@ export const normalizeUid = (raw?: string | null): string => {
     return hex.length === 8 || hex.length === 14 ? hex : '';
 };
 
-/** The stored form of a card number: ten digits, zero padded. */
-export const padCardNumber = (digits: string) => digits.replace(/\D/g, '').padStart(10, '0');
+/**
+ * How many digits a card number is written with.
+ *
+ * Eight, because the number is printed on the plastic and the printer stops at
+ * eight characters. The same figure is set on the server, where numbers are
+ * issued; the two have to agree, or a number made by one is not found by the
+ * other.
+ */
+export const CARD_NUMBER_DIGITS = 8;
+
+/** The stored form of a card number: zero padded to that width. */
+export const padCardNumber = (digits: string) =>
+    digits.replace(/\D/g, '').padStart(CARD_NUMBER_DIGITS, '0');
 
 /** Look a card up by its code or by the number printed on it. */
 export const findCard = async (input: string): Promise<FoundCard | null> => {
