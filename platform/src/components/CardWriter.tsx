@@ -2,53 +2,62 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Nfc, Check, SkipForward, X, AlertTriangle, RotateCcw } from 'lucide-react';
 
 /**
- * Writing a batch of cards, one tap at a time.
+ * Writing a batch of cards, one card at a time.
  *
  * The apps that write NFC tags hold one record and put it on every card touched
  * to them. That is the wrong shape for a batch: two hundred cards each need a
- * different address, and a tool that writes the same one to all of them produces
- * two hundred cards that open the same passenger's profile — a fault nobody
- * notices until the second card is scanned.
+ * different address, and a tool that writes the same one to all of them makes
+ * two hundred cards that open the same passenger — a fault nobody sees until
+ * the second card is scanned. So the list stays here, where it was generated,
+ * and the phone walks through it.
  *
- * So the list stays here, where it was generated, and the phone walks through
- * it. One card is presented, the address for that position is written, and the
- * screen moves to the next on its own. What the person holding the cards has to
- * keep track of is nothing: the position is on screen, and a card that will not
- * take a write is skipped and comes back at the end rather than stopping the
- * run.
+ * The hard part is knowing when one card ends and the next begins. Writing
+ * finishes the instant the card has taken the record, and the card is still
+ * lying on the phone at that moment; arming the next write there puts the next
+ * address onto the same card, and the one after that, until the hand moves. The
+ * first version of this did exactly that and wrote five or six positions onto
+ * one card in a second.
  *
- * Web NFC is Chrome on Android only. There is no way to do this from a desktop
- * browser or from an iPhone, so the screen says so rather than failing quietly.
+ * There is no "card removed" event to wait for. What there is, is the serial
+ * every chip announces before anything else: it identifies the piece of plastic
+ * itself. So the phone listens rather than writes, and a serial it has already
+ * written to is ignored however long the card is held. One card is one write,
+ * whatever the hand does.
+ *
+ * Web NFC is Chrome on Android only. Nothing here works anywhere else, and the
+ * screen says so rather than failing quietly.
  */
 
-interface NDEFWriteRecord {
-    recordType: string;
-    data: string;
+interface NDEFReadingEvent extends Event {
+    serialNumber?: string;
 }
 
-interface NDEFWriterLike {
+interface NDEFReaderLike {
+    scan(options?: { signal?: AbortSignal }): Promise<void>;
     write(
-        message: { records: NDEFWriteRecord[] },
+        message: { records: { recordType: string; data: string }[] },
         options?: { overwrite?: boolean; signal?: AbortSignal },
     ): Promise<void>;
+    onreading: ((event: NDEFReadingEvent) => void) | null;
+    onreadingerror: ((event: Event) => void) | null;
 }
 
-type NDEFWriterCtor = new () => NDEFWriterLike;
+type NDEFReaderCtor = new () => NDEFReaderLike;
 
-const writerCtor = (): NDEFWriterCtor | null =>
-    (window as unknown as { NDEFReader?: NDEFWriterCtor }).NDEFReader || null;
+const readerCtor = (): NDEFReaderCtor | null =>
+    (window as unknown as { NDEFReader?: NDEFReaderCtor }).NDEFReader || null;
 
-export const cardWritingSupported = () => writerCtor() !== null;
+export const cardWritingSupported = () => readerCtor() !== null;
 
 /** A short mark that a card took the write, for a hand that is not watching. */
 const confirm = () => {
     try { navigator.vibrate?.(60); } catch { /* not every phone has one */ }
     try {
-        const Ctx = (window as unknown as {
+        const w = window as unknown as {
             AudioContext?: typeof AudioContext;
             webkitAudioContext?: typeof AudioContext;
-        });
-        const Audio = Ctx.AudioContext || Ctx.webkitAudioContext;
+        };
+        const Audio = w.AudioContext || w.webkitAudioContext;
         if (!Audio) return;
         const ctx = new Audio();
         const osc = ctx.createOscillator();
@@ -73,72 +82,122 @@ interface Props {
 const CardWriter: React.FC<Props> = ({ links, numbers, onClose }) => {
     const [index, setIndex] = useState(0);
     const [status, setStatus] = useState<Status[]>(() => links.map(() => 'pending'));
-    const [waiting, setWaiting] = useState(false);
+    const [listening, setListening] = useState(false);
+    const [busy, setBusy] = useState(false);
     const [problem, setProblem] = useState('');
+    const [lastNumber, setLastNumber] = useState('');
+
+    // The scan runs for the whole session and its handler is rebuilt as the
+    // position moves, so these follow the state rather than the closure.
+    const indexRef = useRef(0);
+    const busyRef = useRef(false);
+    const doneSerials = useRef<Set<string>>(new Set());
     const abortRef = useRef<AbortController | null>(null);
+
     const supported = cardWritingSupported();
-
-    useEffect(() => () => abortRef.current?.abort(), []);
-
     const written = status.filter(s => s === 'written').length;
     const skipped = status.filter(s => s === 'skipped').length;
     const finished = index >= links.length;
+
+    useEffect(() => { indexRef.current = index; }, [index]);
+    useEffect(() => () => abortRef.current?.abort(), []);
+
+    // Once the list is walked there is nothing left to listen for.
+    useEffect(() => {
+        if (finished && abortRef.current) {
+            abortRef.current.abort();
+            abortRef.current = null;
+            setListening(false);
+        }
+    }, [finished]);
 
     const mark = (at: number, value: Status) =>
         setStatus(prev => prev.map((s, i) => (i === at ? value : s)));
 
     /**
-     * Waits for one card and writes the address for the current position.
+     * Listens for cards and writes each one exactly once.
      *
-     * The browser resolves this the moment a card has taken the write, so the
-     * call itself is the wait — there is nothing to poll and nothing to time.
+     * Started by a button, because the browser will not open the reader without
+     * a deliberate action, and then left running: every card after the first is
+     * just a card held to the phone.
      */
-    const writeOne = useCallback(async (at: number) => {
-        const Ctor = writerCtor();
-        if (!Ctor || at >= links.length) return;
+    const start = useCallback(async () => {
+        const Ctor = readerCtor();
+        if (!Ctor) return;
 
         setProblem('');
-        setWaiting(true);
         abortRef.current?.abort();
         const controller = new AbortController();
         abortRef.current = controller;
 
+        const reader = new Ctor();
+
+        reader.onreading = (event) => {
+            const serial = String(event.serialNumber || '').trim().toUpperCase();
+
+            // Without a serial there is no way to tell one card from the next,
+            // and writing on every reading is what wrote six positions onto one
+            // card. Better to stop and say so.
+            if (!serial) {
+                setProblem('Телефонът не съобщава номер на чипа, затова не мога да позная кога сменяте картата. Спрете и ми кажете.');
+                return;
+            }
+
+            // The same card, still lying on the phone. It has had its address.
+            if (doneSerials.current.has(serial)) return;
+            if (busyRef.current) return;
+
+            const at = indexRef.current;
+            if (at >= links.length) return;
+
+            busyRef.current = true;
+            setBusy(true);
+            setProblem('');
+
+            new Ctor()
+                .write(
+                    { records: [{ recordType: 'url', data: links[at] }] },
+                    { overwrite: true, signal: controller.signal },
+                )
+                .then(() => {
+                    doneSerials.current.add(serial);
+                    confirm();
+                    setLastNumber(numbers[at] || '');
+                    mark(at, 'written');
+                    setIndex(at + 1);
+                })
+                .catch((e: { message?: string }) => {
+                    if (controller.signal.aborted) return;
+                    setProblem(e?.message || 'Картата не прие записа. Вдигнете я и опитайте пак, или я прескочете.');
+                })
+                .finally(() => {
+                    busyRef.current = false;
+                    setBusy(false);
+                });
+        };
+
+        reader.onreadingerror = () => {
+            setProblem('Картата не се прочете. Дръпнете я и я допрете отново.');
+        };
+
         try {
-            await new Ctor().write(
-                { records: [{ recordType: 'url', data: links[at] }] },
-                { overwrite: true, signal: controller.signal },
-            );
-            confirm();
-            mark(at, 'written');
-            setIndex(at + 1);
-            setWaiting(false);
+            setListening(true);
+            await reader.scan({ signal: controller.signal });
         } catch (e) {
-            setWaiting(false);
-            if (controller.signal.aborted) return;
+            setListening(false);
             const err = e as { name?: string; message?: string };
-            // Being refused for want of a gesture is not a fault in the card;
-            // the button comes back and the next tap re-arms it.
             setProblem(
                 err.name === 'NotAllowedError'
-                    ? 'Натиснете отново, за да продължите.'
-                    : err.message || 'Картата не прие записа. Опитайте пак или я прескочете.',
+                    ? 'Достъпът до NFC е отказан. Разрешете го и натиснете отново.'
+                    : err.message || 'NFC не тръгна.',
             );
         }
-    }, [links]);
-
-    // Each card that succeeds arms the next one, so a run of good cards needs no
-    // touching of the screen at all.
-    useEffect(() => {
-        if (!supported || finished || waiting || problem) return;
-        if (index === 0 && status.every(s => s === 'pending')) return;  // the first is armed by the button
-        void writeOne(index);
-    }, [index, supported, finished, waiting, problem, status, writeOne]);
+    }, [links, numbers]);
 
     const skip = () => {
-        abortRef.current?.abort();
-        setWaiting(false);
         mark(index, 'skipped');
         setIndex(index + 1);
+        setProblem('');
     };
 
     const retrySkipped = () => {
@@ -147,13 +206,16 @@ const CardWriter: React.FC<Props> = ({ links, numbers, onClose }) => {
         setStatus(prev => prev.map(s => (s === 'skipped' ? 'pending' : s)));
         setProblem('');
         setIndex(first);
+        void start();
     };
 
     const shell: React.CSSProperties = {
         position: 'fixed', inset: 0, zIndex: 11000,
         background: '#0B1120', color: '#fff',
         display: 'flex', flexDirection: 'column',
-        padding: '1.5rem 1.25rem', boxSizing: 'border-box', textAlign: 'center',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '1.5rem 1.25rem', boxSizing: 'border-box',
+        textAlign: 'center', gap: '1rem',
     };
 
     const closeButton = (
@@ -171,7 +233,7 @@ const CardWriter: React.FC<Props> = ({ links, numbers, onClose }) => {
 
     if (!supported) {
         return (
-            <div style={{ ...shell, alignItems: 'center', justifyContent: 'center', gap: '1.25rem' }}>
+            <div style={shell}>
                 {closeButton}
                 <AlertTriangle size={44} color="#ffab00" />
                 <h2 style={{ margin: 0, fontSize: '1.3rem' }}>Тук не може да се записва</h2>
@@ -185,7 +247,7 @@ const CardWriter: React.FC<Props> = ({ links, numbers, onClose }) => {
 
     if (finished) {
         return (
-            <div style={{ ...shell, alignItems: 'center', justifyContent: 'center', gap: '1.1rem' }}>
+            <div style={shell}>
                 {closeButton}
                 <Check size={52} color="#00c853" />
                 <h2 style={{ margin: 0, fontSize: '1.5rem' }}>Готово</h2>
@@ -217,7 +279,7 @@ const CardWriter: React.FC<Props> = ({ links, numbers, onClose }) => {
 
     const done = written + skipped;
     return (
-        <div style={{ ...shell, alignItems: 'center', justifyContent: 'center', gap: '1.1rem' }}>
+        <div style={shell}>
             {closeButton}
 
             <div style={{ fontSize: '.82rem', letterSpacing: '.12em', color: 'rgba(255,255,255,0.45)' }}>
@@ -230,17 +292,30 @@ const CardWriter: React.FC<Props> = ({ links, numbers, onClose }) => {
 
             <Nfc
                 size={72}
-                color={waiting ? '#20C0DA' : 'rgba(255,255,255,0.35)'}
-                style={waiting ? { animation: 'cw-pulse 1.4s ease-in-out infinite' } : undefined}
+                color={busy ? '#00c853' : listening ? '#20C0DA' : 'rgba(255,255,255,0.35)'}
+                style={listening && !busy ? { animation: 'cw-pulse 1.4s ease-in-out infinite' } : undefined}
             />
 
             <div style={{ fontSize: '1.15rem', fontWeight: 700, minHeight: '1.6em' }}>
-                {waiting ? 'Допрете картата' : problem ? '' : 'Готов за следващата'}
+                {busy ? 'Записва…' : listening ? 'Допрете картата' : 'Натиснете, за да започнете'}
             </div>
+
+            {listening && !busy && (
+                <div style={{ fontSize: '.82rem', color: 'rgba(255,255,255,0.4)', maxWidth: '22rem', lineHeight: 1.5 }}>
+                    След всяка карта я <b style={{ color: 'rgba(255,255,255,0.65)' }}>вдигнете</b> и
+                    сложете следващата. Една карта се записва само веднъж.
+                </div>
+            )}
+
+            {lastNumber && !busy && (
+                <div style={{ fontSize: '.8rem', color: '#00c853' }}>
+                    ✓ записана {lastNumber}
+                </div>
+            )}
 
             {problem && (
                 <div style={{
-                    color: '#ff8a8a', fontSize: '.9rem', lineHeight: 1.5, maxWidth: '24rem',
+                    color: '#ff8a8a', fontSize: '.88rem', lineHeight: 1.5, maxWidth: '24rem',
                     background: 'rgba(255,82,82,0.1)', border: '1px solid rgba(255,82,82,0.3)',
                     borderRadius: '12px', padding: '.7rem 1rem',
                 }}>
@@ -248,16 +323,16 @@ const CardWriter: React.FC<Props> = ({ links, numbers, onClose }) => {
                 </div>
             )}
 
-            {(!waiting || problem) && (
+            {!listening && (
                 <button
-                    onClick={() => void writeOne(index)}
+                    onClick={() => void start()}
                     style={{
                         background: 'rgba(32,192,218,0.16)', color: '#20C0DA',
                         border: '1px solid rgba(32,192,218,0.45)', borderRadius: '14px',
                         padding: '1rem 2rem', fontWeight: 800, fontSize: '1.05rem', cursor: 'pointer',
                     }}
                 >
-                    {problem ? 'Опитай пак' : 'Започни'}
+                    Започни
                 </button>
             )}
 
