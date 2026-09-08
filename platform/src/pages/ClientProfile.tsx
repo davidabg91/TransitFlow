@@ -953,6 +953,18 @@ const ClientProfile: React.FC = () => {
                 console.error("Error logging activity:", logErr);
             }
 
+            /**
+             * A card that has just been activated is finished business.
+             *
+             * The guard exists so a scanned profile is not left the way it was
+             * found, but activation is that change: the passenger was
+             * photographed, the period chosen, the money taken, all in the last
+             * minute. Asking whether anything was done would be asking about the
+             * work that was just done, and a warning that fires when it should
+             * not is one the operator learns to click away.
+             */
+            setHasMadeChange(true);
+
             setIsRegistering(false);
             hasPlayedSound.current = false;
         } catch (err) {
