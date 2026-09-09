@@ -12,3 +12,6 @@ installer/prereq/
 
 # The finished installer, ~170 MB.
 installer/*.exe
+
+# The Windows 7 build, zipped for a customer. Same reason as the installer.
+installer/*.zip
