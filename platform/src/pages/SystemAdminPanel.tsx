@@ -65,6 +65,19 @@ interface GlobalLog {
 }
 
 
+/**
+ * Callable errors whose message was written to be read by the person who caused
+ * it — a taken name, a password too short. Anything outside this set failed for
+ * a reason of its own and carries text like „INTERNAL“, which tells nobody
+ * anything and must not reach the screen.
+ */
+const SPOKEN_ERRORS = new Set([
+    'functions/already-exists',
+    'functions/invalid-argument',
+    'functions/failed-precondition',
+    'functions/permission-denied',
+]);
+
 const ROLE_LABELS: Record<UserRole, string> = {
     admin: 'Администратор',
     moderator: 'Модератор',
@@ -469,9 +482,15 @@ const SystemAdminPanel: React.FC = () => {
             setNewUsername(''); setNewName(''); setNewPassword('');
             setTimeout(() => setUserMsg(null), 3000);
         } catch (err: unknown) {
-            const error = err as { code?: string };
-            setUserMsg({ text: error.code === 'auth/email-already-in-use' ? 'Потребителското име съществува.' : 'Грешка!', type: 'error' });
-            setTimeout(() => setUserMsg(null), 3000);
+            const error = err as { code?: string; message?: string };
+            // The account is made by a Cloud Function, so what comes back is a
+            // callable error — `functions/already-exists`, never the client SDK's
+            // `auth/email-already-in-use` this used to look for. That test could
+            // not match, and every refusal, however ordinary, read „Грешка!“.
+            // Where the function wrote the sentence itself, show it.
+            const spoken = SPOKEN_ERRORS.has(error.code || '') && error.message;
+            setUserMsg({ text: spoken || 'Потребителят не беше създаден.', type: 'error' });
+            setTimeout(() => setUserMsg(null), 8000);
         } finally { setUserLoading(false); }
     };
 

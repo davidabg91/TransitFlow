@@ -187,7 +187,49 @@ export const createStaffUser = fn.https.onCall(async (data, context) => {
         );
     }
 
-    const userRecord = await admin.auth().createUser({ email, password });
+    /**
+     * A taken name is an everyday answer, not a fault.
+     *
+     * Left to itself the Admin SDK throws, nothing catches it, and the caller
+     * gets INTERNAL — which the panel can only report as „Грешка!“. So the
+     * person who typed a name somebody already has is told the system broke,
+     * and tries again, and is told the same thing.
+     */
+    let userRecord;
+    try {
+        userRecord = await admin.auth().createUser({ email, password });
+    } catch (e) {
+        const code = (e as { errorInfo?: { code?: string } })?.errorInfo?.code || "";
+
+        if (code === "auth/email-already-exists") {
+            // Whether it is one of this company's own people is worth saying: it
+            // turns „не ме пуска“ into „тя вече е в списъка“. Whose account it is
+            // otherwise is not this company's business, so that case says only
+            // that the name is gone.
+            const existing = await admin.auth().getUserByEmail(email).catch((): null => null);
+            const claims = (existing?.customClaims || {}) as { tenant?: string };
+            throw new functions.https.HttpsError(
+                "already-exists",
+                claims.tenant === caller.tenant
+                    ? "Този потребител вече съществува във вашата фирма — вижте го в списъка отдолу."
+                    : "Това потребителско име е заето. Изберете друго."
+            );
+        }
+        if (code === "auth/invalid-email") {
+            throw new functions.https.HttpsError(
+                "invalid-argument",
+                "Потребителското име не е валидно. Използвайте букви и цифри, без интервали."
+            );
+        }
+        if (code === "auth/invalid-password") {
+            throw new functions.https.HttpsError(
+                "invalid-argument",
+                "Паролата не е приета — трябва да е поне 6 знака."
+            );
+        }
+        throw e;
+    }
+
     await admin.auth().setCustomUserClaims(userRecord.uid, { tenant: caller.tenant, role });
 
     await tenantRef(caller.tenant).collection("users").doc(userRecord.uid).set({
