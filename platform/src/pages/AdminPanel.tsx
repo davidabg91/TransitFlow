@@ -51,6 +51,7 @@ import { useRollups, monthOf, takingsOn, issuedOn } from '../tenant/rollups';
 import { useDevices, isOnline as deviceAwake, lastSeenText, renameDevice, type Device } from '../tenant/devices';
 import DeviceAlertsButton from '../components/DeviceAlertsButton';
 import CardWriter, { cardWritingSupported } from '../components/CardWriter';
+import DeveloperLock, { developerUnlocked } from '../components/DeveloperLock';
 import { getCountFromServer } from 'firebase/firestore';
 import { localToday } from '../components/PeriodPicker';
 import PeriodPicker, { defaultChoice, spanExpiryMonth, spanFields, spanProblem, spanStartDay } from '../components/PeriodPicker';
@@ -420,6 +421,32 @@ const AdminPanel: React.FC = () => {
         }
     );
     const modules = useModules();
+
+    /**
+     * NFC КОДОВЕ is behind a phrase.
+     *
+     * It is the only screen here whose buttons cannot be undone — it issues the
+     * codes that go onto blank cards, and it can throw the issued ones away,
+     * leaving every card already in a pocket carrying a code the system no
+     * longer knows. Nobody at the company needs it; the cards arrive made.
+     *
+     * The check sits on the tab rather than on the button so that a stale
+     * shortcut — /#/admin?tab=nfc — asks as well, and so the screen itself does
+     * not render behind the question.
+     */
+    const [nfcUnlocked, setNfcUnlocked] = useState(developerUnlocked);
+    const [askingForNfc, setAskingForNfc] = useState(false);
+    // Where to go back to if the answer is no.
+    const tabBeforeNfc = useRef<'clients' | 'finances' | 'signals' | 'rentals' | 'notifications' | 'unpaid' | 'devices'>('clients');
+
+    useEffect(() => {
+        if (activeTab !== 'nfc') {
+            tabBeforeNfc.current = activeTab;
+            return;
+        }
+        if (isAdmin && !nfcUnlocked) setAskingForNfc(true);
+    }, [activeTab, isAdmin, nfcUnlocked]);
+
     const [generatedCards, setGeneratedCards] = useState<{ code: string; cardNumber: string }[]>([]);
     const [signals, setSignals] = useState<Signal[]>([]);
     const [rentals, setRentals] = useState<Rental[]>([]);
@@ -4536,7 +4563,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                     </div>
                 )}
 
-                {activeTab === 'nfc' && isAdmin && (
+                {activeTab === 'nfc' && isAdmin && nfcUnlocked && (
                     <div style={{ animation: 'fadeIn 0.4s ease' }}>
                         <Card style={{ padding: isMobile ? '1.25rem' : '2rem' }}>
                             <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--accent-color)' }}>
@@ -4655,7 +4682,7 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                 )}
 
 
-                {activeTab === 'nfc' && isAdmin && (
+                {activeTab === 'nfc' && isAdmin && nfcUnlocked && (
                     <div style={{ animation: 'fadeIn 0.4s ease', marginTop: '2rem' }}>
                         <Card style={{ padding: isMobile ? '1.25rem' : '2rem' }}>
                             <h2 style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--accent-color)' }}>
@@ -5881,6 +5908,13 @@ if(!imgs.length){ setTimeout(go,200); } else { var left=imgs.length; var tick=fu
                     links={generatedLinks}
                     numbers={generatedCards.map(c => c.cardNumber)}
                     onClose={() => setWritingCards(false)}
+                />
+            )}
+
+            {askingForNfc && (
+                <DeveloperLock
+                    onUnlock={() => { setNfcUnlocked(true); setAskingForNfc(false); }}
+                    onCancel={() => { setAskingForNfc(false); setActiveTab(tabBeforeNfc.current); }}
                 />
             )}
 

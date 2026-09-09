@@ -193,7 +193,7 @@ const DeviceHeartbeat = ({ version }: { version: string }) => {
 
 function App() {
   // 🛡️ NUCLEAR VERSIONING: The true bundle version
-  const INTERNAL_APP_VERSION = "2026.09.09.00.09";
+  const INTERNAL_APP_VERSION = "2026.09.09.00.10";
 
   useEffect(() => {
     // 🛡️ FORCE UPDATE LOGIC: Reusable check function
