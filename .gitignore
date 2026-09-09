@@ -4,3 +4,7 @@
 # PyInstaller output. Rebuilt from source; hundreds of megabytes of it.
 platform/nfc-reader/dist*/
 platform/nfc-reader/build*/
+
+# Credential sheets. They carry live staff passwords in the clear, which is the
+# point of them — they are printed, handed over and shredded, never committed.
+documents/Достъп-*
