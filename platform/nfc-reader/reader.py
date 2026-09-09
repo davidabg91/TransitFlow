@@ -56,11 +56,18 @@ os.environ.setdefault(
     " --disable-background-timer-throttling",
 )
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QUrl, QTimer, QRectF, QCoreApplication
-from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPen, QTextCursor
-from PyQt6.QtWidgets import (
+# Qt is reached through qtcompat, which picks Qt 6 where it exists and Qt 5 on
+# the Windows 7 build, and gives both the same names. See its own comment for
+# why there is a Windows 7 build at all.
+import qtcompat
+from qtcompat import (
+    Qt, QThread, pyqtSignal, QUrl, QTimer, QRectF, QCoreApplication,
+    QColor, QFont, QIcon, QPainter, QPen, QTextCursor,
     QApplication, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
     QSplitter, QTextEdit, QVBoxLayout, QWidget,
+    ALIGN_CENTER, HORIZONTAL, FRAMELESS, STAYS_ON_TOP,
+    WA_DELETE_ON_CLOSE, WA_TRANSLUCENT, AA_SHARE_OPENGL,
+    ANTIALIASING, WEIGHT_BOLD, WEIGHT_DEMIBOLD, CURSOR_END, ICON_CRITICAL,
 )
 
 APP_NAME = "TransitFlow NFC"
@@ -135,8 +142,7 @@ def load_dependencies():
     global QWebEngineView, QWebEnginePage, BrowserPage
     global readers, toHexString, smartcard_available, SCARD_RESET_CARD
 
-    from PyQt6.QtWebEngineWidgets import QWebEngineView as _View
-    from PyQt6.QtWebEngineCore import QWebEnginePage as _Page
+    _View, _Page = qtcompat.web_engine()
     QWebEngineView = _View
     QWebEnginePage = _Page
 
@@ -168,7 +174,7 @@ def load_dependencies():
                 # Kept on the instance, or PyQt collects them and the window shuts.
                 window.view = view
                 window.page = page
-                window.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+                window.setAttribute(WA_DELETE_ON_CLOSE)
                 self._windows.append(window)
                 window.destroyed.connect(
                     lambda: self._windows.remove(window) if window in self._windows else None
@@ -649,8 +655,8 @@ class Splash(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setWindowFlags(FRAMELESS | STAYS_ON_TOP)
+        self.setAttribute(WA_TRANSLUCENT)
         self.setFixedSize(340, 200)
         screen = QApplication.primaryScreen().geometry()
         self.move(screen.center().x() - 170, screen.center().y() - 100)
@@ -665,7 +671,7 @@ class Splash(QWidget):
 
     def paintEvent(self, _event):
         p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(ANTIALIASING)
 
         p.setBrush(QColor(INK))
         p.setPen(QPen(QColor(LINE), 1))
@@ -675,12 +681,12 @@ class Splash(QWidget):
         p.drawArc(QRectF(self.width() / 2 - 22, 52, 44, 44), self.angle * 16, 110 * 16)
 
         p.setPen(QColor(TEXT))
-        p.setFont(QFont("Segoe UI", 13, QFont.Weight.DemiBold))
-        p.drawText(QRectF(0, 112, self.width(), 26), Qt.AlignmentFlag.AlignCenter, APP_NAME)
+        p.setFont(QFont("Segoe UI", 13, WEIGHT_DEMIBOLD))
+        p.drawText(QRectF(0, 112, self.width(), 26), ALIGN_CENTER, APP_NAME)
 
         p.setPen(QColor(MUTED))
         p.setFont(QFont("Segoe UI", 9))
-        p.drawText(QRectF(0, 140, self.width(), 22), Qt.AlignmentFlag.AlignCenter, "Зареждане…")
+        p.drawText(QRectF(0, 140, self.width(), 22), ALIGN_CENTER, "Зареждане…")
         p.end()
 
 
@@ -726,7 +732,7 @@ class MainWindow(QMainWindow):
         column.setSpacing(12)
 
         title = QLabel(APP_NAME)
-        title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        title.setFont(QFont("Segoe UI", 16, WEIGHT_BOLD))
         title.setStyleSheet(f"color: {CYAN};")
         column.addWidget(title)
 
@@ -742,18 +748,18 @@ class MainWindow(QMainWindow):
         inner.setSpacing(8)
 
         self.scan_icon = QLabel("⏳")
-        self.scan_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.scan_icon.setAlignment(ALIGN_CENTER)
         self.scan_icon.setStyleSheet("font-size: 40px; border: none;")
         inner.addWidget(self.scan_icon)
 
         self.scan_text = QLabel("Изчакайте")
-        self.scan_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.scan_text.setFont(QFont("Segoe UI", 12, QFont.Weight.DemiBold))
+        self.scan_text.setAlignment(ALIGN_CENTER)
+        self.scan_text.setFont(QFont("Segoe UI", 12, WEIGHT_DEMIBOLD))
         self.scan_text.setStyleSheet("border: none;")
         inner.addWidget(self.scan_text)
 
         self.scan_detail = QLabel("")
-        self.scan_detail.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.scan_detail.setAlignment(ALIGN_CENTER)
         self.scan_detail.setWordWrap(True)
         self.scan_detail.setStyleSheet(f"color: {MUTED}; font-size: 11px; border: none;")
         inner.addWidget(self.scan_detail)
@@ -782,7 +788,7 @@ class MainWindow(QMainWindow):
         page.printRequested.connect(self.print_to_pdf)
         self.browser.setUrl(QUrl(self.settings["home"]))
 
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter = QSplitter(HORIZONTAL)
         splitter.addWidget(side)
         splitter.addWidget(self.browser)
         splitter.setStretchFactor(1, 1)
@@ -814,7 +820,7 @@ class MainWindow(QMainWindow):
             f'<span style="color:{MUTED}">{stamp}</span> '
             f'<span style="color:{colour}">{body}</span></div>'
         )
-        self.history_box.moveCursor(QTextCursor.MoveOperation.End)
+        self.history_box.moveCursor(CURSOR_END)
 
     def open_card(self, url, uid):
         """
@@ -865,15 +871,10 @@ class MainWindow(QMainWindow):
         Everything else is refused — the desk has no reason to hand out a
         microphone or a location.
         """
-        from PyQt6.QtWebEngineCore import QWebEnginePage as Page
-        allowed = feature in (Page.Feature.MediaVideoCapture,
-                              Page.Feature.MediaAudioVideoCapture)
+        Page = QWebEnginePage
+        allowed = feature in qtcompat.camera_features(Page)
         page = self.sender() if isinstance(self.sender(), Page) else self.browser.page()
-        page.setFeaturePermission(
-            origin, feature,
-            Page.PermissionPolicy.PermissionGrantedByUser if allowed
-            else Page.PermissionPolicy.PermissionDeniedByUser,
-        )
+        page.setFeaturePermission(origin, feature, qtcompat.permission(Page, allowed))
 
     def print_to_pdf(self):
         """Reports print through a PDF, which the system opens to preview."""
@@ -904,7 +905,8 @@ class MainWindow(QMainWindow):
 
 
 def main():
-    QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    QCoreApplication.setAttribute(AA_SHARE_OPENGL)
+    qtcompat.enable_high_dpi()
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
 
@@ -918,19 +920,19 @@ def main():
     if not smartcard_available:
         splash.close()
         box = QMessageBox()
-        box.setIcon(QMessageBox.Icon.Critical)
+        box.setIcon(ICON_CRITICAL)
         box.setWindowTitle(APP_NAME)
         box.setText(
             "Липсва библиотеката за четеца (pyscard).\n\n"
             "Инсталирайте я с:\n    pip install pyscard"
         )
-        box.exec()
+        qtcompat.show(box)
         sys.exit(1)
 
     window = MainWindow(load_settings())
     window.show()
     splash.close()
-    sys.exit(app.exec())
+    sys.exit(qtcompat.run(app))
 
 
 if __name__ == "__main__":
