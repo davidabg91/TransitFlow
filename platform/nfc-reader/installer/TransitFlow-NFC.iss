@@ -44,6 +44,14 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+; Windows 10 1809, which is the floor Qt 6 sets and therefore ours.
+;
+; Without this the installer runs happily on Windows 7, finishes, and the program
+; then dies with „api-ms-win-core-path-l1-1-0.dll is missing“ — a Windows 10 API
+; the older system never had. Nobody standing at that counter can read that as
+; „this Windows is too old“, and the installer that just said Готово is the one
+; that should have said so.
+MinVersion=10.0.17763
 #if FileExists(AddBackslash(SourcePath) + IconFile)
 SetupIconFile={#IconFile}
 #endif
@@ -51,6 +59,12 @@ SetupIconFile={#IconFile}
 [Languages]
 Name: "bulgarian"; MessagesFile: "compiler:Languages\Bulgarian.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[Messages]
+; Said instead of Inno's own line, which names a version number and leaves the
+; person to work out what to do about it.
+bulgarian.WindowsVersionNotSupported=TransitFlow NFC изисква Windows 10 или по-нов.%n%nТози компютър е с по-стар Windows, върху който програмата не може да тръгне — не заради нея, а защото частите, от които е направена (Python и Qt), вече не излизат за него.%n%nОбадете се на доставчика, преди да правите нещо друго.
+english.WindowsVersionNotSupported=TransitFlow NFC requires Windows 10 or newer.%n%nThis computer runs an older Windows, on which the program cannot start — not because of the program, but because the parts it is built from (Python and Qt) are no longer released for it.%n%nPlease contact your supplier before doing anything else.
 
 [CustomMessages]
 bulgarian.DriverTask=Драйвер за четеца (ACS)
